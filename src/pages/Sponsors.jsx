@@ -15,9 +15,9 @@ import ImagePlaceholder from '../components/ImagePlaceholder';
  *  4. Paste all three IDs below:
  * ══════════════════════════════════════════════════════════════
  */
-const EMAILJS_SERVICE_ID = 'YOUR_SERVICE_ID';   // TODO: paste your Service ID
-const EMAILJS_TEMPLATE_ID = 'YOUR_TEMPLATE_ID'; // TODO: paste your Template ID
-const EMAILJS_PUBLIC_KEY = 'YOUR_PUBLIC_KEY';   // TODO: paste your Public Key
+const EMAILJS_SERVICE_ID = 'service_2mxh4lk';
+const EMAILJS_TEMPLATE_ID = 'template_0w8iz8j';
+const EMAILJS_PUBLIC_KEY = 'crKODcgRV-tKTx-Ha';
 
 /*
  * ── Sponsor Tiers ─────────────────────────────────────────────
