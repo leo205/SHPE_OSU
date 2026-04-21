@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import emailjs from '@emailjs/browser';
 import ImagePlaceholder from '../components/ImagePlaceholder';
 
@@ -112,13 +112,23 @@ function SponsorCard({ sponsor, size = 'lg' }) {
 function ContactForm() {
   const formRef = useRef(null);
   const [status, setStatus] = useState('idle'); // idle | sending | success | error
-  const [formData, setFormData] = useState({
-    company_name: '',
-    contact_name: '',
-    reply_to: '',
-    tier: 'Buckeye ($899)',
-    message: '',
+  const [formData, setFormData] = useState(() => {
+    const saved = localStorage.getItem('sponsorFormData');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {}
+    }
+    return {
+      company_name: '',
+      contact_name: '',
+      reply_to: '',
+      tier: 'Buckeye ($899)',
+      message: '',
+    };
   });
+
+  useEffect(() => {
+    localStorage.setItem('sponsorFormData', JSON.stringify(formData));
+  }, [formData]);
 
   const handleChange = (e) => {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -137,6 +147,7 @@ function ContactForm() {
       );
       setStatus('success');
       formRef.current.reset();
+      localStorage.removeItem('sponsorFormData');
       setFormData({ company_name: '', contact_name: '', reply_to: '', tier: 'Buckeye ($899)', message: '' });
     } catch (err) {
       console.error('EmailJS error:', err);
