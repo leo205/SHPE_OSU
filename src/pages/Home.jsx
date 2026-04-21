@@ -201,11 +201,7 @@ export default function Home() {
                 </p>
               </div>
               <div className="w-full md:w-64 h-48 rounded-xl overflow-hidden sticker-rotate-pos">
-                {/*
-                 * 📸 SWAP PHOTO: Replace <ImagePlaceholder> with:
-                 * <img src="/photos/professional.jpg" alt="Professional workshop" className="w-full h-full object-cover" />
-                 */}
-                <ImagePlaceholder label="Professional Workshop Photo" className="w-full h-full" />
+                <img src="/photos/SHPE_convention.png" alt="SHPE Convention" className="w-full h-full object-cover" />
               </div>
             </div>
 
