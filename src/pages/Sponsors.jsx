@@ -314,6 +314,23 @@ function ContactForm() {
 
 /* ── Sponsors Page ─────────────────────────────────────────── */
 export default function Sponsors() {
+  useEffect(() => {
+    const savedScroll = sessionStorage.getItem('sponsorsScrollY');
+    if (savedScroll) {
+      // Small timeout to bypass the browser's default reset
+      setTimeout(() => {
+        window.scrollTo({ top: parseInt(savedScroll, 10), behavior: 'instant' });
+      }, 10);
+    }
+
+    const handleBeforeUnload = () => {
+      sessionStorage.setItem('sponsorsScrollY', window.scrollY);
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
+
   return (
     <>
       {/* ── HERO ───────────────────────────────────────────── */}
