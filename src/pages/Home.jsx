@@ -94,12 +94,12 @@ export default function Home() {
             <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-tertiary/10 rounded-full blur-3xl -z-10" />
 
             {/* Main image card */}
-            <div className="relative w-full max-w-lg sticker-rotate-pos">
+            <div className="relative w-full sticker-rotate-pos">
               <div className="rounded-2xl overflow-hidden shadow-2xl border-8 border-surface-container-lowest">
                 <img
                   src="/photos/SHPE_convention.png"
                   alt="SHPE Convention"
-                  className="w-full h-[420px] object-cover object-center"
+                  className="w-full h-[320px] object-cover object-center"
                 />
               </div>
               {/* Small accent badge */}
