@@ -91,19 +91,11 @@ export default function Home() {
           {/* Collage Visual */}
           <div className="relative h-[500px] lg:h-[600px] collage-container hidden lg:block">
             {/* Main sticker */}
-            <div className="absolute top-1/2 left-[40%] -translate-x-1/2 -translate-y-1/2 w-[110%] md:w-[130%] h-[80%] rounded-lg overflow-hidden shadow-2xl z-20 sticker-rotate-pos">
+            <div className="absolute top-1/2 left-[40%] -translate-x-1/2 -translate-y-1/2 w-[120%] md:w-[150%] h-[60%] rounded-lg overflow-hidden shadow-2xl z-20 sticker-rotate-pos">
               <img src="/photos/SHPE_convention.png" alt="SHPE Convention" className="w-full h-full object-cover object-center" />
             </div>
-            {/* Top right accent */}
-            <div className="absolute top-0 right-4 w-48 h-48 rounded-lg overflow-hidden shadow-xl z-30 sticker-rotate-neg border-8 border-surface-container-lowest">
-              {/*
-               * 📸 SWAP PHOTO: Replace <ImagePlaceholder> with:
-               * <img src="/photos/lab-activity.jpg" alt="Lab activity" className="w-full h-full object-cover" />
-               */}
-              <ImagePlaceholder label="Lab Activity Photo" className="w-full h-full" />
-            </div>
             {/* Rocket icon sticker */}
-            <div className="absolute bottom-4 left-4 bg-primary-container p-8 rounded-full z-30 shadow-lg sticker-rotate-pos">
+            <div className="absolute bottom-12 -left-12 md:-left-20 bg-primary-container p-8 rounded-full z-30 shadow-lg sticker-rotate-pos">
               <span
                 className="material-symbols-filled text-on-primary-container text-5xl"
                 style={{ fontVariationSettings: '"FILL" 1' }}
