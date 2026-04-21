@@ -46,7 +46,7 @@ export default function Home() {
 
   const handleInterest = (e) => {
     e.preventDefault();
-    // TODO: wire to EmailJS or a form service if you want these submissions emailed too
+    // EmailJS used to get emails from companies
     setFormStatus('success');
     e.target.reset();
     setTimeout(() => setFormStatus('idle'), 4000);
@@ -88,23 +88,25 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Collage Visual */}
-          <div className="relative h-[500px] lg:h-[600px] collage-container hidden lg:block">
-            {/* Main sticker */}
-            <div className="absolute top-1/2 left-[40%] -translate-x-1/2 -translate-y-1/2 w-[120%] md:w-[150%] h-[60%] rounded-lg overflow-hidden shadow-2xl z-20 sticker-rotate-pos">
-              <img src="/photos/SHPE_convention.png" alt="SHPE Convention" className="w-full h-full object-cover object-center" />
+          {/* Hero Image — clean single card */}
+          <div className="relative hidden lg:flex items-center justify-center">
+            {/* Gradient blob behind the card */}
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-tertiary/10 rounded-full blur-3xl -z-10" />
+
+            {/* Main image card */}
+            <div className="relative w-full max-w-lg sticker-rotate-pos">
+              <div className="rounded-2xl overflow-hidden shadow-2xl border-8 border-surface-container-lowest">
+                <img
+                  src="/photos/SHPE_convention.png"
+                  alt="SHPE Convention"
+                  className="w-full h-[420px] object-cover object-center"
+                />
+              </div>
+              {/* Small accent badge */}
+              <div className="absolute -bottom-4 -left-4 bg-tertiary-container text-on-tertiary-container px-5 py-3 rounded-xl shadow-lg sticker-rotate-neg font-headline font-black text-sm uppercase tracking-wider">
+                Est. 1982 · Sol de OSU
+              </div>
             </div>
-            {/* Rocket icon sticker */}
-            <div className="absolute bottom-12 -left-12 md:-left-20 bg-primary-container p-8 rounded-full z-30 shadow-lg sticker-rotate-pos">
-              <span
-                className="material-symbols-filled text-on-primary-container text-5xl"
-                style={{ fontVariationSettings: '"FILL" 1' }}
-              >
-                rocket_launch
-              </span>
-            </div>
-            {/* Gradient blob */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-gradient-to-br from-primary/10 to-tertiary/10 rounded-full blur-3xl -z-10" />
           </div>
         </div>
       </section>
