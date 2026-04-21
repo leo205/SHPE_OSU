@@ -16,7 +16,7 @@ import ImagePlaceholder from '../components/ImagePlaceholder';
  * ══════════════════════════════════════════════════════════════
  */
 const EMAILJS_SERVICE_ID = 'service_2mxh4lk';
-const EMAILJS_TEMPLATE_ID = 'template_0w8iz8j';
+const EMAILJS_TEMPLATE_ID = 'template_5ngu58z';
 const EMAILJS_PUBLIC_KEY = 'crKODcgRV-tKTx-Ha';
 
 /*
