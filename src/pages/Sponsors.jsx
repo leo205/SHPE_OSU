@@ -133,7 +133,7 @@ function ContactForm() {
         EMAILJS_SERVICE_ID,
         EMAILJS_TEMPLATE_ID,
         formRef.current,
-        EMAILJS_PUBLIC_KEY
+        { publicKey: EMAILJS_PUBLIC_KEY }
       );
       setStatus('success');
       formRef.current.reset();
