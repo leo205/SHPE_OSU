@@ -115,7 +115,7 @@ function ContactForm() {
   const [formData, setFormData] = useState(() => {
     const saved = localStorage.getItem('sponsorFormData');
     if (saved) {
-      try { return JSON.parse(saved); } catch (e) {}
+      try { return JSON.parse(saved); } catch (e) { }
     }
     return {
       company_name: '',
@@ -326,7 +326,7 @@ export default function Sponsors() {
     const handleBeforeUnload = () => {
       sessionStorage.setItem('sponsorsScrollY', window.scrollY);
     };
-    
+
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, []);
@@ -444,7 +444,7 @@ export default function Sponsors() {
         <div className="max-w-screen-xl mx-auto">
           <div className="mb-16">
             <h2 className="font-headline text-5xl font-black text-primary italic tracking-tight">
-              Sponsorship Tiers
+              SponsorSHPE Tiers
             </h2>
             <p className="text-on-surface-variant font-medium mt-2">
               Select the level that best aligns with your recruitment goals.
@@ -454,24 +454,21 @@ export default function Sponsors() {
             {tiers.map((tier) => (
               <div
                 key={tier.name}
-                className={`rounded-xl p-8 flex flex-col transition-all ${
-                  tier.premium
+                className={`rounded-xl p-8 flex flex-col transition-all ${tier.premium
                     ? 'bg-primary text-on-primary shadow-2xl scale-105 z-10'
                     : 'bg-surface-container hover:bg-surface-container-highest'
-                }`}
+                  }`}
               >
                 <div className="mb-6">
                   <h3
-                    className={`font-headline text-2xl font-bold ${
-                      tier.premium ? 'text-on-primary' : 'text-secondary'
-                    }`}
+                    className={`font-headline text-2xl font-bold ${tier.premium ? 'text-on-primary' : 'text-secondary'
+                      }`}
                   >
                     {tier.name}
                   </h3>
                   <div
-                    className={`text-4xl font-black mt-2 ${
-                      tier.premium ? 'text-white' : 'text-primary'
-                    }`}
+                    className={`text-4xl font-black mt-2 ${tier.premium ? 'text-white' : 'text-primary'
+                      }`}
                   >
                     {tier.price}
                   </div>
@@ -480,9 +477,8 @@ export default function Sponsors() {
                   {tier.benefits.map((b) => (
                     <li key={b} className="flex gap-3 text-sm font-medium">
                       <span
-                        className={`material-symbols-outlined text-[20px] flex-shrink-0 ${
-                          tier.premium ? 'text-tertiary-container' : 'text-primary'
-                        }`}
+                        className={`material-symbols-outlined text-[20px] flex-shrink-0 ${tier.premium ? 'text-tertiary-container' : 'text-primary'
+                          }`}
                         style={{ fontVariationSettings: '"FILL" 1' }}
                       >
                         {tier.premium ? 'stars' : 'check_circle'}
@@ -493,11 +489,10 @@ export default function Sponsors() {
                 </ul>
                 <a
                   href="#become-a-sponsor"
-                  className={`text-center py-3 rounded-full font-bold transition-all ${
-                    tier.premium
+                  className={`text-center py-3 rounded-full font-bold transition-all ${tier.premium
                       ? 'bg-on-primary text-primary hover:opacity-90'
                       : 'bg-primary text-on-primary hover:bg-primary-fixed-dim'
-                  }`}
+                    }`}
                 >
                   Get Started
                 </a>
