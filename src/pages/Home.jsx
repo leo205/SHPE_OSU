@@ -128,11 +128,7 @@ export default function Home() {
             {/* Image */}
             <div className="order-2 md:order-1 relative">
               <div className="rounded-lg overflow-hidden shadow-xl sticker-rotate-neg aspect-video">
-                {/*
-                 * 📸 SWAP PHOTO: Replace <ImagePlaceholder> with:
-                 * <img src="/photos/campus.jpg" alt="Ohio State campus" className="w-full h-full object-cover" />
-                 */}
-                <ImagePlaceholder label="Ohio State Campus Photo" className="w-full h-full min-h-[260px]" />
+                <img src="/photos/SHPE_volunteering.png" alt="SHPE Volunteering" className="w-full h-full object-cover min-h-[260px]" />
               </div>
               <div className="absolute -bottom-6 -right-6 bg-secondary text-on-secondary p-6 rounded-xl sticker-rotate-pos shadow-lg max-w-[240px]">
                 <p className="font-bold text-lg italic">
