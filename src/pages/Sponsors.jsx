@@ -85,8 +85,9 @@ const sponsors = {
 /* ── Sponsor Logo Card ─────────────────────────────────────── */
 function SponsorCard({ sponsor, size = 'lg' }) {
   const h = size === 'lg' ? 'h-28' : size === 'md' ? 'h-24' : 'h-20';
+  const w = size === 'lg' ? 'w-[320px]' : size === 'md' ? 'w-[280px]' : 'w-[240px]';
   return (
-    <div className="bg-surface-container-lowest p-8 md:p-10 rounded-lg flex items-center justify-center hover:scale-[1.02] transition-all duration-300 platinum-glow border border-outline-variant/20">
+    <div className={`bg-surface-container-lowest p-6 md:p-8 rounded-lg flex items-center justify-center hover:scale-[1.02] transition-all duration-300 platinum-glow border border-outline-variant/20 max-w-full ${w}`}>
       {sponsor.logo ? (
         <img
           src={sponsor.logo}
@@ -407,7 +408,7 @@ export default function Sponsors() {
               <h3 className="font-headline text-xs font-black text-on-surface-variant uppercase tracking-[0.3em] mb-8">
                 Platinum Sponsors
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-3xl">
+              <div className="flex flex-wrap justify-center gap-6 w-full max-w-5xl">
                 {sponsors.platinum.map((s, i) => (
                   <SponsorCard key={i} sponsor={s} size="lg" />
                 ))}
@@ -418,7 +419,7 @@ export default function Sponsors() {
               <h3 className="font-headline text-xs font-black text-on-surface-variant uppercase tracking-[0.3em] mb-8">
                 Gold Sponsors
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-3xl">
+              <div className="flex flex-wrap justify-center gap-6 w-full max-w-5xl">
                 {sponsors.gold.map((s, i) => (
                   <SponsorCard key={i} sponsor={s} size="md" />
                 ))}
@@ -429,7 +430,7 @@ export default function Sponsors() {
               <h3 className="font-headline text-xs font-black text-on-surface-variant uppercase tracking-[0.3em] mb-8">
                 Bronze Sponsors
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-3xl">
+              <div className="flex flex-wrap justify-center gap-6 w-full max-w-5xl">
                 {sponsors.bronze.map((s, i) => (
                   <SponsorCard key={i} sponsor={s} size="sm" />
                 ))}
