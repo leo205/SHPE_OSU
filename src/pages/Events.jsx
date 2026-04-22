@@ -147,7 +147,7 @@ function EventModal({ event, onClose }) {
             className="flex items-center gap-2 bg-surface-container px-4 py-2 rounded-full text-sm font-bold hover:bg-surface-container-high transition-colors"
           >
             <span className="material-symbols-outlined text-[18px] text-secondary">
-              apple
+              calendar_month
             </span>
             Add to Apple / Outlook
           </button>
