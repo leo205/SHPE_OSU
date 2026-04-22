@@ -230,7 +230,7 @@ export default function Events() {
             <div className="absolute -top-10 -right-10 w-80 h-96 rounded-lg overflow-hidden sticker-rotate-alt shadow-2xl z-20 border-8 border-surface-container-lowest">
               <img src="/photos/events/cakeSHPE.jpg" alt="Event Photo" className="w-full h-full object-cover object-center" />
             </div>
-            <div className="absolute -bottom-10 -left-10 w-96 h-64 rounded-lg overflow-hidden sticker-rotate-neg shadow-xl z-30 border-8 border-surface-container-lowest">
+            <div className="absolute -bottom-10 left-4 w-96 h-64 rounded-lg overflow-hidden sticker-rotate-neg shadow-xl z-30 border-8 border-surface-container-lowest">
               <img src="/photos/events/pickleBall.png" alt="Event Photo" className="w-full h-full object-cover object-center" />
             </div>
             <div className="absolute bottom-0 right-10 w-64 h-64 bg-tertiary-container rounded-[3rem] z-0 opacity-50 blur-3xl" />
