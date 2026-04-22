@@ -311,19 +311,17 @@ export default function Events() {
               return (
                 <div
                   key={day}
-                  className={`rounded-lg p-2 text-sm relative overflow-hidden transition-all ${
-                    dayEvents.length > 0
+                  className={`rounded-lg p-2 text-sm relative overflow-hidden transition-all ${dayEvents.length > 0
                       ? 'cursor-pointer hover:shadow-md hover:scale-[1.02] bg-surface-container-lowest border border-outline-variant/20'
                       : 'bg-surface-container-lowest'
-                  } ${isToday ? 'ring-2 ring-primary' : ''}`}
+                    } ${isToday ? 'ring-2 ring-primary' : ''}`}
                   onClick={() => dayEvents.length > 0 && setSelectedEvent(dayEvents[0])}
                 >
                   <span
-                    className={`text-xs font-bold ${
-                      isToday
+                    className={`text-xs font-bold ${isToday
                         ? 'bg-primary text-on-primary rounded-full w-6 h-6 flex items-center justify-center'
                         : ''
-                    }`}
+                      }`}
                   >
                     {day}
                   </span>
@@ -469,12 +467,14 @@ export default function Events() {
                     {ev.category === 'GBM'
                       ? 'groups'
                       : ev.category === 'Social'
-                      ? 'celebration'
-                      : ev.category === 'Professional'
-                      ? 'work'
-                      : ev.category === 'Academic'
-                      ? 'school'
-                      : 'volunteer_activism'}
+                        ? 'celebration'
+                        : ev.category === 'Professional'
+                          ? 'work'
+                          : ev.category === 'Fundraiser'
+                            ? 'food'
+                            : ev.category === 'Academic'
+                              ? 'school'
+                              : 'volunteer_activism'}
                   </span>
                 </div>
                 <span className={`text-xs font-bold uppercase tracking-widest px-2 py-1 rounded-full ${colors.badge}`}>
