@@ -21,11 +21,7 @@ export default function Resources() {
           </div>
           <div className="flex-1 w-full relative">
             <div className="w-full h-[400px] rounded-lg overflow-hidden asymmetric-card shadow-xl transform rotate-1">
-              {/*
-               * 📸 SWAP PHOTO: Replace with real library/studying photo
-               * <img src="/photos/study.jpg" alt="Students studying" className="w-full h-full object-cover" />
-               */}
-              <ImagePlaceholder label="Students Studying Photo" className="w-full h-full" />
+              <img src="/photos/thompsonPic.jpg" alt="Students studying at Thompson" className="w-full h-full object-cover" />
             </div>
           </div>
         </header>
