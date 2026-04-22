@@ -212,7 +212,7 @@ export default function Home() {
                 </p>
               </div>
               <div className="w-full md:w-64 h-48 rounded-xl overflow-hidden sticker-rotate-neg">
-                <img src="/photos/shpeBrunch.jpg" alt="Leadership Workshop" className="w-full h-full object-cover object-center" />
+                <img src="/photos/brunchPic2.jpg" alt="SHPE Brunch" className="w-full h-full object-cover object-center" />
               </div>
             </div>
 
