@@ -70,11 +70,11 @@ const tiers = [
 const sponsors = {
   platinum: [
     { name: 'Lincoln Electric', logo: '/photos/sponsers/lincolnElectric.png' },
-    { name: 'Your Platinum Sponsor', logo: null },
+    { name: 'Accenture', logo: '/photos/sponsers/Accenture.png' },
   ],
   gold: [
-    { name: 'Your Gold Sponsor', logo: null },
-    { name: 'Your Gold Sponsor', logo: null },
+    { name: 'GM', logo: '/photos/sponsers/GM.png' },
+    { name: 'JPMC', logo: '/photos/sponsers/JPMC.png' },
   ],
   bronze: [
     { name: 'Your Bronze Sponsor', logo: null },
