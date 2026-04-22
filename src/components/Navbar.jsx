@@ -22,9 +22,9 @@ export default function Navbar() {
         {/* Logo */}
         <Link
           to="/"
-          className="text-2xl font-black text-primary italic tracking-tighter select-none"
+          className="flex items-center transition-transform hover:scale-105"
         >
-          SHPE OSU
+          <img src="/photos/shpeLogo.png" alt="SHPE OSU Logo" className="h-10 md:h-12 w-auto object-contain" />
         </Link>
 
         {/* Desktop Nav */}
