@@ -169,10 +169,14 @@ export default function Attendance() {
       <div className="max-w-lg mx-auto">
         {/* Header */}
         <div className="text-center mb-10">
-          <span className="text-3xl font-headline font-black text-primary italic tracking-tighter">
-            SHPE OSU
-          </span>
-          <h1 className="font-headline text-2xl font-bold text-on-surface mt-2">
+          <a href="/" className="inline-flex flex-col items-center gap-2 group">
+            <img
+              src="/photos/shpeLogo.png"
+              alt="SHPE OSU Logo"
+              className="h-16 w-auto object-contain group-hover:scale-105 transition-transform"
+            />
+          </a>
+          <h1 className="font-headline text-2xl font-bold text-on-surface mt-3">
             Attendance Check-In
           </h1>
           <p className="text-on-surface-variant text-sm mt-1">

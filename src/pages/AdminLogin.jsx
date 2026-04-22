@@ -29,12 +29,16 @@ export default function AdminLogin() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-10">
-          <span className="text-4xl font-headline font-black text-primary italic tracking-tighter">
-            SHPE OSU
-          </span>
-          <p className="text-on-surface-variant font-medium mt-2">
-            E-Board Admin Portal
-          </p>
+          <a href="/" className="inline-flex flex-col items-center gap-2 group">
+            <img
+              src="/photos/shpeLogo.png"
+              alt="SHPE OSU Logo"
+              className="h-16 w-auto object-contain group-hover:scale-105 transition-transform"
+            />
+            <span className="text-sm font-bold uppercase tracking-widest text-on-surface-variant group-hover:text-primary transition-colors">
+              Admin Portal
+            </span>
+          </a>
         </div>
 
         {/* Card */}

@@ -136,9 +136,16 @@ export default function AdminDashboard() {
     <div className="min-h-screen bg-surface">
       {/* ── Top Bar ──────────────────────────────────────────── */}
       <header className="bg-surface-container-lowest border-b border-outline-variant/20 px-6 py-4 flex items-center justify-between sticky top-0 z-40 shadow-sm">
-        <span className="font-headline font-black text-xl text-primary italic tracking-tighter">
-          SHPE OSU · Admin
-        </span>
+        <a href="/" className="flex items-center gap-3 group">
+          <img
+            src="/photos/shpeLogo.png"
+            alt="SHPE OSU Logo"
+            className="h-10 w-auto object-contain group-hover:scale-105 transition-transform"
+          />
+          <span className="font-headline font-black text-lg text-primary italic tracking-tighter group-hover:opacity-80 transition-opacity">
+            Admin
+          </span>
+        </a>
         <div className="flex items-center gap-4">
           <button
             onClick={fetchData}
