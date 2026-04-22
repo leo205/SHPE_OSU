@@ -368,7 +368,7 @@ export default function Sponsors() {
               </a>
             </div>
           </div>
-          <div className="relative">
+          <div className="relative scale-105 md:scale-110">
             <div className="relative z-10 rounded-lg overflow-hidden border-8 border-surface-container-lowest shadow-2xl rotate-2">
               <img src="/photos/events/eventGM.jpeg" alt="Partnership Hero" className="w-full aspect-[4/3] object-cover object-center" />
             </div>

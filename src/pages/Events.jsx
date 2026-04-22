@@ -225,15 +225,15 @@ export default function Events() {
               engineering leaders at Ohio State.
             </p>
           </div>
-          <div className="w-full md:w-1/2 relative h-[400px]">
+          <div className="w-full md:w-1/2 relative h-[500px]">
             {/* 📸 SWAP: replace placeholders with real event photos */}
-            <div className="absolute top-0 right-0 w-64 h-72 rounded-lg overflow-hidden sticker-rotate-alt shadow-2xl z-20 border-8 border-surface-container-lowest">
+            <div className="absolute top-0 right-0 w-80 h-96 rounded-lg overflow-hidden sticker-rotate-alt shadow-2xl z-20 border-8 border-surface-container-lowest">
               <img src="/photos/events/cakeSHPE.jpg" alt="Event Photo" className="w-full h-full object-cover object-center" />
             </div>
-            <div className="absolute bottom-10 left-0 w-72 h-52 rounded-lg overflow-hidden sticker-rotate-neg shadow-xl z-30 border-8 border-surface-container-lowest">
+            <div className="absolute bottom-10 left-0 w-96 h-64 rounded-lg overflow-hidden sticker-rotate-neg shadow-xl z-30 border-8 border-surface-container-lowest">
               <img src="/photos/events/pickleBall.png" alt="Event Photo" className="w-full h-full object-cover object-center" />
             </div>
-            <div className="absolute bottom-0 right-10 w-56 h-56 bg-tertiary-container rounded-[3rem] z-0 opacity-50 blur-3xl" />
+            <div className="absolute bottom-0 right-10 w-64 h-64 bg-tertiary-container rounded-[3rem] z-0 opacity-50 blur-3xl" />
           </div>
         </div>
       </section>
