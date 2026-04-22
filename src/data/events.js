@@ -56,7 +56,7 @@ export const events = [
     description:
       'Join us for an insightful panel discussion where upperclassmen share their internship experiences and offer tips and tricks to help you land your own internship. Come with questions, leave with confidence!',
     category: 'Professional',
-    featured: true,
+    featured: false,
     rsvpUrl: '',
     photo: '/photos/events/finalEventSHPE.png',
   },
