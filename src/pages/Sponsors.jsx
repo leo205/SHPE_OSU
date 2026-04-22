@@ -77,8 +77,8 @@ const sponsors = {
     { name: 'JPMC', logo: '/photos/sponsers/JPMC.png' },
   ],
   bronze: [
-    { name: 'Your Bronze Sponsor', logo: null },
-    { name: 'Your Bronze Sponsor', logo: null },
+    { name: 'Honda', logo: '/photos/sponsers/honda.png' },
+    { name: 'AEP', logo: '/photos/sponsers/AEP.png' },
   ],
 };
 
