@@ -425,7 +425,7 @@ export default function Events() {
               Don't miss a beat!
             </h4>
             <p className="text-sm opacity-90 mb-4">
-              Get event updates delivered straight to your inbox.
+              Join our newsletter to receive updates about upcoming events.
             </p>
             <form
               onSubmit={(e) => e.preventDefault()}
