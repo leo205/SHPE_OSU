@@ -118,7 +118,7 @@ export default function Resources() {
                 title: 'Tutoring Services',
                 desc: 'Free peer tutoring for math, physics, and engineering fundamentals.',
                 cta: 'Learn More',
-                href: 'https://ese.osu.edu/student-services/undergraduate/tutoring',
+                href: 'https://advising.osu.edu/tutoring',
               },
               {
                 icon: 'calendar_month',
