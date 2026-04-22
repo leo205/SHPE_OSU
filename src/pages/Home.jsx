@@ -98,7 +98,6 @@ export default function Home() {
               <div className="rounded-2xl overflow-hidden shadow-2xl border-8 border-surface-container-lowest">
                 <img
                   src="/photos/picsMain/SHPE_convention.png"
-                  // src="/photos/picsMain/SHPE_convention.png"
                   alt="SHPE Convention"
                   className="w-full h-[320px] object-cover object-center"
                 />

@@ -69,7 +69,8 @@ const tiers = [
  */
 const sponsors = {
   platinum: [
-    { name: 'Lincoln Electric', logo: '/photos/Lincoln_Electric_logo.png' },
+    // TODO: Add Lincoln Electric logo to public/photos/ and update this path
+    { name: 'Lincoln Electric', logo: null },
     { name: 'Your Platinum Sponsor', logo: null },
   ],
   gold: [

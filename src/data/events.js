@@ -133,4 +133,10 @@ export const categoryColors = {
     dot: 'bg-secondary-dim',
     badge: 'bg-secondary-dim text-on-secondary',
   },
+  Fundraiser: {
+    bg: 'bg-tertiary-container',
+    text: 'text-on-tertiary-container',
+    dot: 'bg-tertiary-fixed-dim',
+    badge: 'bg-tertiary text-on-tertiary',
+  },
 };
