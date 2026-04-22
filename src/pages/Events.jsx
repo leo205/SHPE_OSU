@@ -387,13 +387,13 @@ export default function Events() {
                     className="group cursor-pointer"
                     onClick={() => setSelectedEvent(ev)}
                   >
-                    <div className="relative h-36 rounded-xl overflow-hidden mb-3 bg-surface-container-high">
+                    <div className="relative h-48 sm:h-56 rounded-xl overflow-hidden mb-3 bg-surface-container-lowest">
                       {/*
                        * 📸 SWAP: replace with real event photo per event
                        * <img src="/photos/event-name.jpg" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                        */}
                       {ev.photo ? (
-                        <img src={ev.photo} alt={`${ev.title} Photo`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                        <img src={ev.photo} alt={`${ev.title} Photo`} className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500" />
                       ) : (
                         <ImagePlaceholder label={`${ev.title} Photo`} className="w-full h-full group-hover:scale-105 transition-transform duration-500" />
                       )}
