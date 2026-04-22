@@ -97,8 +97,8 @@ export default function Home() {
             <div className="relative w-full sticker-rotate-pos">
               <div className="rounded-2xl overflow-hidden shadow-2xl border-8 border-surface-container-lowest">
                 <img
-                  src="/photos/SHPE_convention.png"
-                  // src="/photos/SHPE_convention.png"
+                  src="/photos/picsMain/SHPE_convention.png"
+                  // src="/photos/picsMain/SHPE_convention.png"
                   alt="SHPE Convention"
                   className="w-full h-[320px] object-cover object-center"
                 />
@@ -119,7 +119,7 @@ export default function Home() {
             {/* Image */}
             <div className="order-2 md:order-1 relative">
               <div className="rounded-lg overflow-hidden shadow-xl sticker-rotate-neg aspect-video">
-                <img src="/photos/SHPE_volunteering.png" alt="SHPE Volunteering" className="w-full h-full object-cover min-h-[260px]" />
+                <img src="/photos/picsMain/SHPE_volunteering.png" alt="SHPE Volunteering" className="w-full h-full object-cover min-h-[260px]" />
               </div>
               <div className="absolute -bottom-6 -right-6 bg-secondary text-on-secondary p-6 rounded-xl sticker-rotate-pos shadow-lg max-w-[240px]">
                 <p className="font-bold text-lg italic">
@@ -192,7 +192,7 @@ export default function Home() {
                 </p>
               </div>
               <div className="w-full md:w-64 h-48 rounded-xl overflow-hidden sticker-rotate-pos">
-                <img src="/photos/shpeBrunch.jpg" alt="SHPE Brunch" className="w-full h-full object-cover" />
+                <img src="/photos/picsMain/shpeBrunch.jpg" alt="SHPE Brunch" className="w-full h-full object-cover" />
               </div>
             </div>
 
@@ -212,7 +212,7 @@ export default function Home() {
                 </p>
               </div>
               <div className="w-full md:w-64 h-48 rounded-xl overflow-hidden sticker-rotate-neg">
-                <img src="/photos/brunchPic2.jpg" alt="SHPE Brunch" className="w-full h-full object-cover object-center" />
+                <img src="/photos/picsMain/brunchPic2.jpg" alt="SHPE Brunch" className="w-full h-full object-cover object-center" />
               </div>
             </div>
 

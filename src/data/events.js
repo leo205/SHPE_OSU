@@ -30,7 +30,7 @@ export const events = [
     category: 'GBM',
     featured: true,
     rsvpUrl: '',
-    photo: '/photos/finalGBM.png',
+    photo: '/photos/events/finalGBM.png',
   },
   {
     id: 2,
@@ -44,7 +44,7 @@ export const events = [
     category: 'Fundraiser',
     featured: true,
     rsvpUrl: '',
-    photo: '/photos/shpeFruitSale.png',
+    photo: '/photos/events/fundraiserSHPE.png',
   },
   {
     id: 3,
@@ -58,7 +58,7 @@ export const events = [
     category: 'Professional',
     featured: true,
     rsvpUrl: '',
-    photo: '/photos/finalEventSHPE.png',
+    photo: '/photos/events/finalEventSHPE.png',
   },
   {
     id: 4,
