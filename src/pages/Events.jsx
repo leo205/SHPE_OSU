@@ -231,7 +231,7 @@ export default function Events() {
               <img src="/photos/events/cakeSHPE.jpg" alt="Event Photo" className="w-full h-full object-cover object-center" />
             </div>
             <div className="absolute bottom-10 left-0 w-72 h-52 rounded-lg overflow-hidden sticker-rotate-neg shadow-xl z-30 border-8 border-surface-container-lowest">
-              <img src="/photos/events/eventGM.jpeg" alt="Event Photo" className="w-full h-full object-cover object-center" />
+              <img src="/photos/events/pickleBall.png" alt="Event Photo" className="w-full h-full object-cover object-center" />
             </div>
             <div className="absolute bottom-0 right-10 w-56 h-56 bg-tertiary-container rounded-[3rem] z-0 opacity-50 blur-3xl" />
           </div>
