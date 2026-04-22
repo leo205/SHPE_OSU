@@ -392,7 +392,11 @@ export default function Events() {
                        * 📸 SWAP: replace with real event photo per event
                        * <img src="/photos/event-name.jpg" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                        */}
-                      <ImagePlaceholder label={`${ev.title} Photo`} className="w-full h-full group-hover:scale-105 transition-transform duration-500" />
+                      {ev.photo ? (
+                        <img src={ev.photo} alt={`${ev.title} Photo`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                      ) : (
+                        <ImagePlaceholder label={`${ev.title} Photo`} className="w-full h-full group-hover:scale-105 transition-transform duration-500" />
+                      )}
                       <div
                         className={`absolute top-3 left-3 px-3 py-1 rounded-full text-xs font-bold ${colors.badge}`}
                       >

@@ -30,6 +30,7 @@ export const events = [
     category: 'GBM',
     featured: true,
     rsvpUrl: '',
+    photo: '/photos/scott.png',
   },
   {
     id: 2,
