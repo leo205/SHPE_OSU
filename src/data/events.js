@@ -20,17 +20,17 @@
 export const events = [
   {
     id: 1,
-    title: 'General Body Meeting #1 — Kickoff',
-    date: '2025-09-08',
+    title: 'General Body Meeting #4 — Final',
+    date: '2026-04-24',
     time: '6:00 PM',
-    endTime: '7:30 PM',
-    location: 'Scott Lab 100',
+    endTime: '8:00 PM',
+    location: 'RPAC Courts',
     description:
-      'Welcome back, Familia! Learn about the semester calendar, meet the E-Board, and find out how to get involved in committees.',
+      'Join us for our last GBM of the semester: Carne Asada & Volleyball!🌮🏐🔥',
     category: 'GBM',
     featured: true,
     rsvpUrl: '',
-    photo: '/photos/scott.png',
+    photo: '/photos/finalGBM.png',
   },
   {
     id: 2,
