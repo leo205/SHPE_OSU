@@ -44,6 +44,7 @@ export const events = [
     category: 'Fundraiser',
     featured: true,
     rsvpUrl: '',
+    photo: '/photos/shpeFruitSale.png',
   },
   {
     id: 3,
