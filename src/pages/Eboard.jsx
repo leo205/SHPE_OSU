@@ -18,10 +18,10 @@ const eboardMembers = [
     icon: 'star',
     iconBg: 'bg-tertiary-container',
     iconText: 'text-on-tertiary-container',
-    name: '', // TODO: Add name
-    major: '', // TODO: Add major
-    year: '',  // TODO: Add year
-    photo: null, // TODO: '/photos/eboard/president.jpg'
+    name: 'Isabella Staschiak',
+    major: 'Environmental Engineering',
+    year: '3rd Year',
+    photo: '/photos/eboard/isa.jpg',
     rotate: '',
   },
   {
@@ -284,8 +284,8 @@ function LoteriaCard({ member, index }) {
     member.accent === 'primary'
       ? 'text-primary border-primary/10'
       : member.accent === 'secondary'
-      ? 'text-secondary border-secondary/10'
-      : 'text-tertiary border-tertiary/20';
+        ? 'text-secondary border-secondary/10'
+        : 'text-tertiary border-tertiary/20';
 
   return (
     <div
