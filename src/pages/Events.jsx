@@ -201,7 +201,9 @@ export default function Events() {
   };
 
   const featuredEvents = events.filter((e) => e.featured).slice(0, 3);
-  const upcomingEvents = events.filter((e) => new Date(e.date) >= today).slice(0, 3);
+  // Compare date strings (YYYY-MM-DD) so today's events are always included
+  const todayStr = today.toISOString().slice(0, 10);
+  const upcomingEvents = events.filter((e) => e.date >= todayStr).slice(0, 3);
 
   const DAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 
