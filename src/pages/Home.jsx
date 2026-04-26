@@ -90,11 +90,8 @@ export default function Home() {
 
           {/* Hero Image — shown on all screens, stacked below text on mobile */}
           <div className="relative flex items-center justify-center mt-6 lg:mt-0">
-            {/* Gradient blob behind the card */}
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-tertiary/10 rounded-full blur-3xl -z-10" />
-
             {/* Main image card */}
-            <div className="relative w-full sticker-rotate-pos">
+            <div className="relative w-full">
               <div className="rounded-2xl overflow-hidden shadow-2xl border-8 border-surface-container-lowest">
                 <img
                   src="/photos/picsMain/SHPE_convention.png"
@@ -103,7 +100,7 @@ export default function Home() {
                 />
               </div>
               {/* Small accent badge */}
-              <div className="absolute -bottom-4 -left-4 bg-tertiary-container text-on-tertiary-container px-5 py-3 rounded-xl shadow-lg sticker-rotate-neg font-headline font-black text-sm uppercase tracking-wider">
+              <div className="absolute -bottom-4 -left-4 bg-tertiary-container text-on-tertiary-container px-5 py-3 rounded-xl shadow-lg font-headline font-black text-sm uppercase tracking-wider">
                 Est. 1982 · Sol de OSU
               </div>
             </div>
@@ -117,10 +114,10 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
             {/* Image */}
             <div className="order-2 md:order-1 relative">
-              <div className="rounded-lg overflow-hidden shadow-xl sticker-rotate-neg aspect-video">
+              <div className="rounded-lg overflow-hidden shadow-xl aspect-video">
                 <img src="/photos/picsMain/SHPE_volunteering.png" alt="SHPE Volunteering" className="w-full h-full object-cover min-h-[260px]" />
               </div>
-              <div className="absolute -bottom-6 -right-6 bg-secondary text-on-secondary p-4 rounded-xl sticker-rotate-pos shadow-lg max-w-[200px] hidden sm:block">
+              <div className="absolute -bottom-6 -right-6 bg-secondary text-on-secondary p-4 rounded-xl shadow-lg max-w-[200px] hidden sm:block">
                 <p className="font-bold text-lg italic">
                   "Empowering the Hispanic community to realize its fullest
                   potential."
