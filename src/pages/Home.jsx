@@ -59,7 +59,7 @@ export default function Home() {
         <div className="max-w-screen-2xl mx-auto w-full grid grid-cols-1 lg:grid-cols-2 gap-12 items-center z-10">
           {/* Text */}
           <div className="flex flex-col gap-6">
-            <div className="inline-flex bg-tertiary-container text-on-tertiary-container font-bold px-4 py-1 rounded-full w-fit sticker-rotate-neg text-sm tracking-wide">
+            <div className="inline-flex bg-tertiary-container text-on-tertiary-container font-bold px-4 py-1 rounded-full w-fit text-sm tracking-wide">
               ESTABLISHED 1982
             </div>
             <h1 className="font-headline text-4xl sm:text-5xl md:text-6xl lg:text-8xl font-extrabold text-on-surface leading-[1.05] tracking-tighter">
@@ -187,7 +187,7 @@ export default function Home() {
                   fairs, resume workshops, and mock interview sessions.
                 </p>
               </div>
-              <div className="w-full md:w-64 h-48 rounded-xl overflow-hidden sticker-rotate-pos">
+              <div className="w-full md:w-64 h-48 rounded-xl overflow-hidden">
                 <img src="/photos/picsMain/shpeBrunch.jpg" alt="SHPE Brunch" className="w-full h-full object-cover" />
               </div>
             </div>
@@ -207,7 +207,7 @@ export default function Home() {
                   experience.
                 </p>
               </div>
-              <div className="w-full md:w-64 h-48 rounded-xl overflow-hidden sticker-rotate-neg">
+              <div className="w-full md:w-64 h-48 rounded-xl overflow-hidden">
                 <img src="/photos/picsMain/brunchPic2.jpg" alt="SHPE Brunch" className="w-full h-full object-cover object-center" />
               </div>
             </div>
