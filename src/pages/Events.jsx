@@ -232,7 +232,7 @@ export default function Events() {
             <div className="absolute -top-10 right-4 w-80 h-96 rounded-lg overflow-hidden shadow-2xl z-20 border-8 border-surface-container-lowest">
               <img src="/photos/events/cakeSHPE.jpg" alt="Event Photo" className="w-full h-full object-cover object-center" />
             </div>
-            <div className="absolute -bottom-10 left-4 w-96 h-64 rounded-lg overflow-hidden shadow-xl z-30 border-8 border-surface-container-lowest">
+            <div className="absolute bottom-4 left-4 w-96 h-64 rounded-lg overflow-hidden shadow-xl z-30 border-8 border-surface-container-lowest">
               <img src="/photos/events/pickleBall.png" alt="Event Photo" className="w-full h-full object-cover object-center" />
             </div>
           </div>

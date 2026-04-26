@@ -96,12 +96,8 @@ export default function Home() {
                 <img
                   src="/photos/picsMain/SHPE_convention.png"
                   alt="SHPE Convention"
-                  className="w-full h-[320px] object-cover object-center"
+                  className="w-full h-auto max-h-[400px] object-cover object-center"
                 />
-              </div>
-              {/* Small accent badge */}
-              <div className="absolute -bottom-4 left-2 md:-left-4 bg-tertiary-container text-on-tertiary-container px-5 py-3 rounded-xl shadow-lg font-headline font-black text-sm uppercase tracking-wider">
-                Est. 1982 · Sol de OSU
               </div>
             </div>
           </div>
