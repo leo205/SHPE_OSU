@@ -210,13 +210,13 @@ export default function Events() {
   return (
     <>
       {/* ── HERO ───────────────────────────────────────────── */}
-      <section className="max-w-7xl mx-auto px-6 pt-36 mb-20 relative">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 pt-28 md:pt-36 mb-12 md:mb-20 relative overflow-hidden">
         <div className="flex flex-col md:flex-row items-center gap-12">
           <div className="w-full md:w-1/2 z-10">
             <div className="inline-block bg-tertiary-container text-on-tertiary-container px-4 py-1 rounded-full text-xs font-bold uppercase tracking-widest mb-6 sticker-rotate-neg">
               Join the Familia
             </div>
-            <h1 className="font-headline text-6xl md:text-8xl font-extrabold text-on-background leading-none mb-6 tracking-tighter">
+            <h1 className="font-headline text-4xl sm:text-5xl md:text-6xl lg:text-8xl font-extrabold text-on-background leading-none mb-6 tracking-tighter">
               Upcoming{' '}
               <span className="text-primary italic">Events</span> &amp;
               Opportunities
@@ -227,8 +227,8 @@ export default function Events() {
               engineering leaders at Ohio State.
             </p>
           </div>
-          <div className="w-full md:w-1/2 relative h-[500px]">
-            {/* 📸 SWAP: replace placeholders with real event photos */}
+          {/* Photo collage — desktop only (absolute positions overflow on mobile) */}
+          <div className="w-full md:w-1/2 relative h-[300px] md:h-[500px] hidden md:block">
             <div className="absolute -top-10 -right-10 w-80 h-96 rounded-lg overflow-hidden sticker-rotate-alt shadow-2xl z-20 border-8 border-surface-container-lowest">
               <img src="/photos/events/cakeSHPE.jpg" alt="Event Photo" className="w-full h-full object-cover object-center" />
             </div>
@@ -236,6 +236,10 @@ export default function Events() {
               <img src="/photos/events/pickleBall.png" alt="Event Photo" className="w-full h-full object-cover object-center" />
             </div>
             <div className="absolute bottom-0 right-10 w-64 h-64 bg-tertiary-container rounded-[3rem] z-0 opacity-50 blur-3xl" />
+          </div>
+          {/* Mobile: single clean image instead of collage */}
+          <div className="w-full rounded-2xl overflow-hidden shadow-xl border-4 border-surface-container-lowest md:hidden mt-6">
+            <img src="/photos/events/cakeSHPE.jpg" alt="SHPE Event" className="w-full h-56 object-cover object-center" />
           </div>
         </div>
       </section>

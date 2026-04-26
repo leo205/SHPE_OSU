@@ -55,14 +55,14 @@ export default function Home() {
   return (
     <>
       {/* ── HERO ───────────────────────────────────────────── */}
-      <section className="relative min-h-[870px] flex items-center px-6 md:px-12 py-12 overflow-hidden pt-32">
+      <section className="relative flex items-center px-4 sm:px-6 md:px-12 py-12 overflow-hidden pt-28 md:pt-32">
         <div className="max-w-screen-2xl mx-auto w-full grid grid-cols-1 lg:grid-cols-2 gap-12 items-center z-10">
           {/* Text */}
           <div className="flex flex-col gap-6">
             <div className="inline-flex bg-tertiary-container text-on-tertiary-container font-bold px-4 py-1 rounded-full w-fit sticker-rotate-neg text-sm tracking-wide">
               ESTABLISHED 1982
             </div>
-            <h1 className="font-headline text-6xl md:text-8xl font-extrabold text-on-surface leading-[1.05] tracking-tighter">
+            <h1 className="font-headline text-4xl sm:text-5xl md:text-6xl lg:text-8xl font-extrabold text-on-surface leading-[1.05] tracking-tighter">
               Welcome to SHPE at{' '}
               <span className="text-primary">Ohio State</span>
             </h1>
@@ -71,25 +71,25 @@ export default function Home() {
               Hispanic community to realize its fullest potential through STEM
               awareness, access, support, and development.
             </p>
-            <div className="flex flex-wrap gap-4 mt-4">
+            <div className="flex flex-col sm:flex-row flex-wrap gap-3 mt-4">
               <Link
                 to="/events"
-                className="bg-primary text-on-primary px-10 py-5 rounded-full text-lg font-bold shadow-xl shadow-primary/20 hover:bg-primary-fixed-dim transition-all flex items-center gap-2"
+                className="bg-primary text-on-primary px-6 py-4 md:px-10 md:py-5 rounded-full text-base md:text-lg font-bold shadow-xl shadow-primary/20 hover:bg-primary-fixed-dim transition-all flex items-center justify-center gap-2"
               >
                 Explore our Familia{' '}
                 <span className="material-symbols-outlined">arrow_forward</span>
               </Link>
               <Link
                 to="/events"
-                className="bg-secondary-container text-on-secondary-container px-10 py-5 rounded-xl text-lg font-bold hover:-translate-y-1 transition-all"
+                className="bg-secondary-container text-on-secondary-container px-6 py-4 md:px-10 md:py-5 rounded-xl text-base md:text-lg font-bold hover:-translate-y-1 transition-all text-center"
               >
                 Upcoming Events
               </Link>
             </div>
           </div>
 
-          {/* Hero Image — clean single card */}
-          <div className="relative hidden lg:flex items-center justify-center">
+          {/* Hero Image — shown on all screens, stacked below text on mobile */}
+          <div className="relative flex items-center justify-center mt-6 lg:mt-0">
             {/* Gradient blob behind the card */}
             <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-tertiary/10 rounded-full blur-3xl -z-10" />
 
@@ -120,7 +120,7 @@ export default function Home() {
               <div className="rounded-lg overflow-hidden shadow-xl sticker-rotate-neg aspect-video">
                 <img src="/photos/picsMain/SHPE_volunteering.png" alt="SHPE Volunteering" className="w-full h-full object-cover min-h-[260px]" />
               </div>
-              <div className="absolute -bottom-6 -right-6 bg-secondary text-on-secondary p-6 rounded-xl sticker-rotate-pos shadow-lg max-w-[240px]">
+              <div className="absolute -bottom-6 -right-6 bg-secondary text-on-secondary p-4 rounded-xl sticker-rotate-pos shadow-lg max-w-[200px] hidden sm:block">
                 <p className="font-bold text-lg italic">
                   "Empowering the Hispanic community to realize its fullest
                   potential."
@@ -232,7 +232,7 @@ export default function Home() {
 
       {/* ── STATS BANNER ───────────────────────────────────── */}
       <section className="py-24 px-6 md:px-12 bg-surface">
-        <div className="max-w-screen-2xl mx-auto bg-primary rounded-xl p-12 text-on-primary relative overflow-hidden">
+        <div className="max-w-screen-2xl mx-auto bg-primary rounded-xl p-6 sm:p-8 md:p-12 text-on-primary relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-on-primary/10 rounded-full blur-3xl -mr-32 -mt-32" />
           <div className="grid grid-cols-2 md:grid-cols-4 gap-12 text-center relative z-10">
             <div className="space-y-2">
@@ -285,7 +285,7 @@ export default function Home() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-stretch">
             {/* Interest Form */}
-            <div className="bg-surface-container-highest p-10 rounded-lg shadow-xl relative overflow-hidden">
+            <div className="bg-surface-container-highest p-6 md:p-10 rounded-lg shadow-xl relative overflow-hidden">
               <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16" />
               <h3 className="font-headline text-2xl font-bold mb-8 flex items-center gap-3">
                 <span className="material-symbols-outlined text-primary">
@@ -344,7 +344,7 @@ export default function Home() {
             </div>
 
             {/* Connect */}
-            <div className="bg-surface-container-highest p-10 rounded-lg shadow-xl flex flex-col justify-between">
+            <div className="bg-surface-container-highest p-6 md:p-10 rounded-lg shadow-xl flex flex-col justify-between">
               <div>
                 <h3 className="font-headline text-2xl font-bold mb-4 flex items-center gap-3">
                   <span className="material-symbols-outlined text-secondary">
