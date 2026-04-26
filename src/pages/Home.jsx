@@ -100,7 +100,7 @@ export default function Home() {
                 />
               </div>
               {/* Small accent badge */}
-              <div className="absolute -bottom-4 -left-4 bg-tertiary-container text-on-tertiary-container px-5 py-3 rounded-xl shadow-lg font-headline font-black text-sm uppercase tracking-wider">
+              <div className="absolute -bottom-4 left-2 md:-left-4 bg-tertiary-container text-on-tertiary-container px-5 py-3 rounded-xl shadow-lg font-headline font-black text-sm uppercase tracking-wider">
                 Est. 1982 · Sol de OSU
               </div>
             </div>
