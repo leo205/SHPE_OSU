@@ -369,10 +369,10 @@ export default function Sponsors() {
             </div>
           </div>
           <div className="relative scale-105 md:scale-110">
-            <div className="relative z-10 rounded-lg overflow-hidden border-8 border-surface-container-lowest shadow-2xl rotate-2">
+            <div className="relative z-10 rounded-lg overflow-hidden border-8 border-surface-container-lowest shadow-2xl">
               <img src="/photos/sponsers/eventGM.jpg" alt="Partnership Hero" className="w-full aspect-[4/3] object-cover object-center" />
             </div>
-            <div className="absolute -bottom-6 -left-6 z-20 bg-primary-container p-6 rounded-lg text-on-primary-container sticker-rotate-neg shadow-xl">
+            <div className="absolute -bottom-6 -left-6 z-20 bg-primary-container p-6 rounded-lg text-on-primary-container shadow-xl">
               <p className="font-headline font-black text-4xl">200+</p>
               <p className="font-bold text-sm uppercase">Active Members</p>
             </div>

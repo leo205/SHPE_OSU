@@ -20,7 +20,7 @@ export default function Resources() {
             </p>
           </div>
           <div className="flex-1 w-full relative">
-            <div className="w-full h-[400px] rounded-lg overflow-hidden asymmetric-card shadow-xl transform rotate-1">
+            <div className="w-full h-[400px] rounded-lg overflow-hidden shadow-xl">
               <img src="/photos/thompsonPic.jpg" alt="Students studying at Thompson" className="w-full h-full object-cover" />
             </div>
           </div>
