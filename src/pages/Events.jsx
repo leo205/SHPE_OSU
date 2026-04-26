@@ -236,9 +236,14 @@ export default function Events() {
               <img src="/photos/events/pickleBall.png" alt="Event Photo" className="w-full h-full object-cover object-center" />
             </div>
           </div>
-          {/* Mobile: single clean image instead of collage */}
-          <div className="w-full rounded-2xl overflow-hidden shadow-xl border-4 border-surface-container-lowest md:hidden mt-6">
-            <img src="/photos/events/cakeSHPE.jpg" alt="SHPE Event" className="w-full h-56 object-cover object-center" />
+          {/* Mobile: display both images cleanly */}
+          <div className="w-full flex flex-col sm:flex-row gap-4 md:hidden mt-6">
+            <div className="rounded-2xl overflow-hidden shadow-xl border-4 border-surface-container-lowest w-full">
+              <img src="/photos/events/cakeSHPE.jpg" alt="SHPE Event" className="w-full h-48 sm:h-56 object-cover object-center" />
+            </div>
+            <div className="rounded-2xl overflow-hidden shadow-xl border-4 border-surface-container-lowest w-full">
+              <img src="/photos/events/pickleBall.png" alt="SHPE Event" className="w-full h-48 sm:h-56 object-cover object-center" />
+            </div>
           </div>
         </div>
       </section>
