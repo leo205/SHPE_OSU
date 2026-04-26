@@ -13,7 +13,7 @@ const eboardMembers = [
   {
     id: 1,
     role: 'President',
-    label: 'EL LÍDER',
+    label: 'Fill in l8r',
     accent: 'primary',
     icon: 'star',
     iconBg: 'bg-tertiary-container',
