@@ -289,20 +289,20 @@ function LoteriaCard({ member, index }) {
 
   return (
     <div
-      className={`loteria-card bg-surface-container-lowest p-4 rounded-lg shadow-lg border-4 relative group ${accentColor} ${member.rotate}`}
+      className={`loteria-card flex flex-col aspect-[2.5/3.5] bg-surface-container-lowest p-4 rounded-xl shadow-lg border-4 relative group ${accentColor} ${member.rotate}`}
     >
       {/* Card number */}
-      <div className={`absolute top-4 right-4 font-black font-headline text-xl ${accentColor.split(' ')[0]}`}>
+      <div className={`absolute top-4 right-4 font-black font-headline text-xl z-10 ${accentColor.split(' ')[0]}`}>
         {index + 1}
       </div>
 
       {/* Photo slot */}
-      <div className="w-full rounded-sm overflow-hidden mb-4 bg-surface-container-high border-2 border-outline-variant/20" style={{ height: '65%' }}>
+      <div className="w-full flex-1 relative rounded-md overflow-hidden mb-4 bg-surface-container-high border-2 border-outline-variant/20">
         {member.photo ? (
           <img
             src={member.photo}
             alt={`${member.role} - ${member.name}`}
-            className="w-full h-full object-cover"
+            className="absolute inset-0 w-full h-full object-cover object-center"
           />
         ) : (
           /*
