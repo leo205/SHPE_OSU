@@ -65,19 +65,14 @@ export default function Resources() {
 
           {/* First-Year Guide */}
           <div className="md:col-span-5 bg-secondary-container p-8 rounded-lg asymmetric-card shadow-sm flex flex-col items-center text-center">
-            <div className="w-full bg-surface-container-lowest/50 rounded-xl p-6 mb-6 backdrop-blur-sm relative overflow-hidden">
-              <span className="material-symbols-outlined text-8xl text-secondary/40 select-none">
-                description
-              </span>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="bg-surface-container-lowest p-3 rounded-lg shadow-lg sticker-rotate-alt">
-                  <span
-                    className="material-symbols-outlined text-secondary text-4xl"
-                    style={{ fontVariationSettings: '"FILL" 1' }}
-                  >
-                    picture_as_pdf
-                  </span>
-                </div>
+            <div className="w-full bg-surface-container-lowest/50 rounded-xl p-8 mb-6 backdrop-blur-sm flex items-center justify-center">
+              <div className="bg-surface-container-lowest p-5 rounded-2xl shadow-sm">
+                <span
+                  className="material-symbols-outlined text-secondary text-6xl"
+                  style={{ fontVariationSettings: '"FILL" 1' }}
+                >
+                  menu_book
+                </span>
               </div>
             </div>
             <h2 className="text-2xl font-headline font-extrabold text-on-secondary-container mb-4">
