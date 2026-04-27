@@ -189,7 +189,7 @@ const eboardMembers = [
     name: '',
     major: '',
     year: '',
-    photo: null,
+    photo: '/photos/eboard/fern.png',
     rotate: '',
   },
   {
