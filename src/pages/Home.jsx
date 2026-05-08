@@ -42,16 +42,6 @@ function Counter({ target, suffix = '', duration = 1800 }) {
 
 /* ── Home Page ─────────────────────────────────────────────── */
 export default function Home() {
-  const [formStatus, setFormStatus] = useState('idle'); // idle | success
-
-  const handleInterest = (e) => {
-    e.preventDefault();
-    // EmailJS used to get emails from companies
-    setFormStatus('success');
-    e.target.reset();
-    setTimeout(() => setFormStatus('idle'), 4000);
-  };
-
   return (
     <>
       {/* ── HERO ───────────────────────────────────────────── */}
@@ -277,63 +267,28 @@ export default function Home() {
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-stretch">
-            {/* Interest Form */}
-            <div className="bg-surface-container-highest p-6 md:p-10 rounded-lg shadow-xl relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16" />
-              <h3 className="font-headline text-2xl font-bold mb-8 flex items-center gap-3">
-                <span className="material-symbols-outlined text-primary">
-                  assignment
-                </span>
-                Interest Form
-              </h3>
-
-              {formStatus === 'success' && (
-                <div className="mb-6 p-4 bg-tertiary-container text-on-tertiary-container rounded-xl font-bold text-center">
-                  Thanks! We'll be in touch soon 🎉
-                </div>
-              )}
-
-              <form className="space-y-6" onSubmit={handleInterest}>
-                <div>
-                  <label className="block text-sm font-bold uppercase tracking-wider mb-2 text-on-surface-variant">
-                    Name
-                  </label>
-                  <input
-                    required
-                    type="text"
-                    placeholder="Enter your full name"
-                    className="w-full bg-surface-container-low border border-outline-variant rounded-xl px-4 py-4 focus:ring-2 focus:ring-primary outline-none transition-shadow"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold uppercase tracking-wider mb-2 text-on-surface-variant">
-                    OSU Email
-                  </label>
-                  <input
-                    required
-                    type="email"
-                    placeholder="name.1@osu.edu"
-                    className="w-full bg-surface-container-low border border-outline-variant rounded-xl px-4 py-4 focus:ring-2 focus:ring-primary outline-none transition-shadow"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold uppercase tracking-wider mb-2 text-on-surface-variant">
-                    Interests
-                  </label>
-                  <select className="w-full bg-surface-container-low border border-outline-variant rounded-xl px-4 py-4 focus:ring-2 focus:ring-primary outline-none transition-shadow">
-                    <option>Professional Development</option>
-                    <option>Academic Support</option>
-                    <option>Social Events</option>
-                    <option>Community Outreach</option>
-                  </select>
-                </div>
-                <button
-                  type="submit"
-                  className="w-full bg-primary text-on-primary py-5 rounded-full font-bold text-lg shadow-lg shadow-primary/30 hover:bg-primary-fixed-dim active:scale-[0.98] transition-all"
-                >
-                  Submit Interest
-                </button>
-              </form>
+            {/* SHPEtinas Section */}
+            <div className="bg-surface-container-highest p-6 md:p-10 rounded-lg shadow-xl relative overflow-hidden flex flex-col justify-between">
+              <div>
+                <h3 className="font-headline text-2xl font-bold mb-4 flex items-center gap-3">
+                  <span className="material-symbols-outlined text-primary">
+                    volunteer_activism
+                  </span>
+                  SHPEtinas
+                </h3>
+                <p className="text-on-surface-variant font-medium mb-6">
+                  Empowering and supporting Latinas in STEM. Join our SHPEtinas 
+                  committee for exclusive networking events, professional development 
+                  workshops, and a supportive community dedicated to your success.
+                </p>
+              </div>
+              <div className="w-full rounded-xl overflow-hidden shadow-md mt-auto border-4 border-surface-container-lowest">
+                <img 
+                  src="/photos/picsMain/shpeTinas.png" 
+                  alt="SHPEtinas Community" 
+                  className="w-full h-48 sm:h-56 md:h-64 object-cover object-center" 
+                />
+              </div>
             </div>
 
             {/* Connect */}
