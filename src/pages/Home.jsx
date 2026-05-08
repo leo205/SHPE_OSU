@@ -282,11 +282,11 @@ export default function Home() {
                   workshops, and a supportive community dedicated to your success.
                 </p>
               </div>
-              <div className="w-full rounded-xl overflow-hidden shadow-md mt-auto border-4 border-surface-container-lowest">
+              <div className="w-full flex-1 min-h-[200px] rounded-xl overflow-hidden shadow-md mt-4 border-4 border-surface-container-lowest">
                 <img 
                   src="/photos/picsMain/shpeTinas.png" 
                   alt="SHPEtinas Community" 
-                  className="w-full h-48 sm:h-56 md:h-64 object-cover object-center" 
+                  className="w-full h-full object-cover object-center" 
                 />
               </div>
             </div>
