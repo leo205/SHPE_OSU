@@ -65,12 +65,50 @@ export default function AdminDashboard() {
   const firstTimers = rows.filter((r) => r.is_first_meeting).length;
   const uniqueMembers = [...new Set(rows.map((r) => r.last_name_dotnum.toLowerCase()))].length;
 
-  // Attendance per event (bar chart)
-  const perEvent = uniqueEvents.map((ev) => ({
-    name: ev.length > 22 ? ev.slice(0, 22) + '…' : ev,
-    fullName: ev,
-    count: rows.filter((r) => r.event_name === ev).length,
-  }));
+  // Most active member tracking
+  const memberAttendance = {};
+  let mostActiveMember = { firstName: '', count: 0 };
+  rows.forEach(r => {
+    const dotnum = r.last_name_dotnum?.toLowerCase();
+    if (!dotnum) return;
+    if (!memberAttendance[dotnum]) {
+      memberAttendance[dotnum] = { count: 0, firstName: r.first_name };
+    }
+    memberAttendance[dotnum].count++;
+    if (memberAttendance[dotnum].count > mostActiveMember.count) {
+      mostActiveMember = memberAttendance[dotnum];
+    }
+  });
+
+  // Event Types heuristic
+  const getEventType = (name) => {
+    const n = name.toLowerCase();
+    if (n.includes('gbm') || n.includes('general')) return 'GBM';
+    if (n.includes('workshop') || n.includes('resume') || n.includes('professional')) return 'Workshop';
+    if (n.includes('social') || n.includes('party') || n.includes('brunch')) return 'Social';
+    if (n.includes('study')) return 'Study Session';
+    return 'Other';
+  };
+
+  const typeCounts = {};
+  rows.forEach(r => {
+    const t = getEventType(r.event_name);
+    typeCounts[t] = (typeCounts[t] || 0) + 1;
+  });
+  const eventTypeData = Object.entries(typeCounts).map(([name, value]) => ({ name, value }));
+
+  // Attendance per event (stacked bar chart for retention/new)
+  const perEvent = uniqueEvents.map((ev) => {
+    const eventRows = rows.filter((r) => r.event_name === ev);
+    const newMembers = eventRows.filter((r) => r.is_first_meeting).length;
+    return {
+      name: ev.length > 22 ? ev.slice(0, 22) + '…' : ev,
+      fullName: ev,
+      newMembers,
+      returning: eventRows.length - newMembers,
+      total: eventRows.length,
+    };
+  });
 
   // First-timer vs returning (pie chart)
   const pieData = [
@@ -178,15 +216,21 @@ export default function AdminDashboard() {
               <h2 className="font-headline text-2xl font-bold text-on-surface mb-6">
                 Overview
               </h2>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <StatCard icon="groups" label="Total Check-ins" value={totalSubmissions} />
-                <StatCard icon="event" label="Events Held" value={uniqueEvents.length} />
-                <StatCard icon="person" label="Unique Members" value={uniqueMembers} sub="by dot number" />
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                <StatCard icon="groups" label="Check-ins" value={totalSubmissions} />
+                <StatCard icon="event" label="Events" value={uniqueEvents.length} />
+                <StatCard icon="person" label="Unique" value={uniqueMembers} />
                 <StatCard
                   icon="star"
-                  label="New Members"
+                  label="New"
                   value={firstTimers}
-                  sub={`${totalSubmissions > 0 ? Math.round((firstTimers / totalSubmissions) * 100) : 0}% of check-ins`}
+                  sub={`${totalSubmissions > 0 ? Math.round((firstTimers / totalSubmissions) * 100) : 0}%`}
+                />
+                <StatCard
+                  icon="local_fire_department"
+                  label="Top Member"
+                  value={mostActiveMember.firstName || '—'}
+                  sub={mostActiveMember.count > 0 ? `${mostActiveMember.count} events` : ''}
                 />
               </div>
             </section>
@@ -205,10 +249,13 @@ export default function AdminDashboard() {
                       <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                       <YAxis tick={{ fontSize: 12 }} />
                       <Tooltip
-                        formatter={(val, _, props) => [val, props.payload.fullName]}
+                        formatter={(val, name, props) => [val, name === 'newMembers' ? 'First-Timers' : 'Returning']}
+                        labelFormatter={(label, payload) => payload?.[0]?.payload?.fullName || label}
                         contentStyle={{ borderRadius: 12, fontSize: 13 }}
                       />
-                      <Bar dataKey="count" fill="#BB4D00" radius={[6, 6, 0, 0]} name="Attendees" />
+                      <Legend wrapperStyle={{ fontSize: 12 }} />
+                      <Bar dataKey="returning" stackId="a" fill="#BB4D00" name="Returning" />
+                      <Bar dataKey="newMembers" stackId="a" fill="#4A7C59" radius={[6, 6, 0, 0]} name="First-Timers" />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -216,12 +263,12 @@ export default function AdminDashboard() {
                 {/* Pie — first vs returning */}
                 <div className="bg-surface-container-lowest border border-outline-variant/20 rounded-2xl p-6 shadow-sm">
                   <h3 className="font-headline font-bold text-lg mb-6 text-on-surface">
-                    New vs Returning
+                    Attendance by Event Type
                   </h3>
                   <ResponsiveContainer width="100%" height={220}>
                     <PieChart>
                       <Pie
-                        data={pieData}
+                        data={eventTypeData}
                         cx="50%"
                         cy="50%"
                         innerRadius={55}
@@ -229,7 +276,7 @@ export default function AdminDashboard() {
                         dataKey="value"
                         paddingAngle={3}
                       >
-                        {pieData.map((_, i) => (
+                        {eventTypeData.map((_, i) => (
                           <Cell key={i} fill={COLORS[i % COLORS.length]} />
                         ))}
                       </Pie>

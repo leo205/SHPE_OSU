@@ -66,14 +66,8 @@ export default function Home() {
                 to="/events"
                 className="bg-primary text-on-primary px-6 py-4 md:px-10 md:py-5 rounded-full text-base md:text-lg font-bold shadow-xl shadow-primary/20 hover:bg-primary-fixed-dim transition-all flex items-center justify-center gap-2"
               >
-                Explore our Familia{' '}
-                <span className="material-symbols-outlined">arrow_forward</span>
-              </Link>
-              <Link
-                to="/events"
-                className="bg-secondary-container text-on-secondary-container px-6 py-4 md:px-10 md:py-5 rounded-xl text-base md:text-lg font-bold hover:-translate-y-1 transition-all text-center"
-              >
                 Upcoming Events
+                <span className="material-symbols-outlined">event</span>
               </Link>
             </div>
           </div>
