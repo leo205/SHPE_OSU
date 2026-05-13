@@ -26,38 +26,62 @@ const EMAILJS_PUBLIC_KEY = 'crKODcgRV-tKTx-Ha';
 const tiers = [
   {
     name: 'Buckeye',
-    price: '$899',
+    price: '$500',
     accent: 'secondary',
-    benefits: ['Website Feature', 'Social Media Shoutout'],
+    benefits: [
+      'Networking Brunch Invitation',
+      'Resume Book Access',
+      'Feature on SHPE OSU Website',
+    ],
   },
   {
     name: 'Carmen',
-    price: '$1,499',
+    price: '$1,000',
     accent: 'secondary',
-    benefits: ['Website Feature', 'Newsletter Feature', 'Social Media Shoutout'],
+    benefits: [
+      'Networking Brunch Invitation',
+      'Resume Book Access',
+      'Feature on SHPE OSU Website',
+      'Industry Competition Invitation',
+      'Company Logo on Merch',
+      'Social Media Feature',
+      'Workshop Session',
+    ],
   },
   {
     name: 'Scarlet & Gray',
-    price: '$2,244',
+    price: '$1,500',
     accent: 'secondary',
     benefits: [
-      'Website Feature',
-      'Newsletter Feature',
+      'Networking Brunch Invitation',
       'Resume Book Access',
-      'Social Media Campaign',
+      'Feature on SHPE OSU Website',
+      'Industry Competition Invitation',
+      'Company Logo on Merch',
+      'Social Media Feature',
+      'Workshop Session',
+      'Sponsor National Convention Attendance',
+      'Tabling at a General Meeting',
     ],
   },
   {
     name: 'Platinum',
-    price: '$3,499+',
+    price: '$2,000',
     accent: 'primary',
     premium: true,
     benefits: [
-      'Networking Brunch',
-      'Website Feature',
+      'Networking Brunch Invitation',
       'Resume Book Access',
-      'Direct Marketing',
-      'Priority Recruiting Access',
+      'Feature on SHPE OSU Website',
+      'Industry Competition Invitation',
+      'Company Logo on Merch',
+      'Social Media Feature',
+      'Workshop Session',
+      'Sponsor National Convention Attendance',
+      'Tabling at a General Meeting',
+      'Community Outreach Invitation (K-12)',
+      'SHPEasada Invitation',
+      'Primary Sponsor Status',
     ],
   },
 ];
@@ -122,7 +146,7 @@ function ContactForm() {
       company_name: '',
       contact_name: '',
       reply_to: '',
-      tier: 'Buckeye ($899)',
+      tier: 'Buckeye ($500)',
       message: '',
     };
   });
@@ -149,7 +173,7 @@ function ContactForm() {
       setStatus('success');
       formRef.current.reset();
       localStorage.removeItem('sponsorFormData');
-      setFormData({ company_name: '', contact_name: '', reply_to: '', tier: 'Buckeye ($899)', message: '' });
+      setFormData({ company_name: '', contact_name: '', reply_to: '', tier: 'Buckeye ($500)', message: '' });
     } catch (err) {
       console.error('EmailJS error:', err);
       setStatus('error');
@@ -263,10 +287,10 @@ function ContactForm() {
               onChange={handleChange}
               className="w-full px-4 py-3 rounded-xl border border-outline-variant bg-surface-bright focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
             >
-              <option>Buckeye ($899)</option>
-              <option>Carmen ($1,499)</option>
-              <option>Scarlet &amp; Gray ($2,244)</option>
-              <option>Platinum ($3,499+)</option>
+              <option>Buckeye ($500)</option>
+              <option>Carmen ($1,000)</option>
+              <option>Scarlet &amp; Gray ($1,500)</option>
+              <option>Platinum ($2,000)</option>
               <option>Custom / Not sure yet</option>
             </select>
           </div>
@@ -357,11 +381,13 @@ export default function Sponsors() {
                 Become a Sponsor
               </a>
               {/*
-               * TODO: Link "View Packet" to your actual sponsorship packet PDF
-               * e.g. href="/sponsorship-packet.pdf" or a Google Drive link
+               * To use the packet: Drop your PDF into the public/ folder
+               * and name it "Sponsorship_Packet.pdf"
                */}
               <a
-                href="#"
+                href="/Sponsorship_Packet.pdf"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="bg-secondary-container text-on-secondary-container px-8 py-4 rounded-xl font-bold text-lg hover:opacity-90 transition-all inline-block"
               >
                 View Packet
@@ -370,13 +396,12 @@ export default function Sponsors() {
           </div>
           <div className="relative scale-105 md:scale-110">
             <div className="relative z-10 rounded-lg overflow-hidden border-8 border-surface-container-lowest shadow-2xl">
-              <img src="/photos/events/eventGM.jpeg" alt="Partnership Hero" className="w-full aspect-[4/3] object-cover object-center" />
+              <img src="/photos/events/eventGM.jpg" alt="Partnership Hero" className="w-full aspect-[4/3] object-cover object-center" />
             </div>
             <div className="absolute -bottom-6 -left-6 z-20 bg-primary-container p-6 rounded-lg text-on-primary-container shadow-xl">
               <p className="font-headline font-black text-4xl">200+</p>
               <p className="font-bold text-sm uppercase">Active Members</p>
             </div>
-            <div className="absolute -top-10 -right-4 w-32 h-32 bg-tertiary-container rounded-full mix-blend-multiply filter blur-3xl opacity-30" />
           </div>
         </div>
       </section>
