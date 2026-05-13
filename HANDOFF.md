@@ -44,7 +44,6 @@ Build and maintain the public-facing website for the SHPE Ohio State University 
 - **Sponsor logos:** `public/photos/sponsors/` folder should contain: `lincolnElectric.png`, `Accenture.png`, `GM.png`, `JPMC.png`, `honda.png`, `AEP.png`. Folder name corrected this session — code updated to match.
 
 ### ❌ Broken / Missing
-- `pickleBall.png` referenced at `/photos/events/pickleBall.png` in Events.jsx line 236 — file likely missing from `public/photos/events/`. Will silently fail (broken image).
 - Lincoln Electric logo: path is set in Sponsors.jsx pointing to `public/photos/sponsors/lincolnElectric.png` — verify file exists in that folder.
 - SHPE logo: `public/photos/shpeLogo.png` referenced in Attendance.jsx, AdminLogin.jsx, AdminDashboard.jsx — verify file exists.
 
@@ -158,7 +157,6 @@ npm run build
 
 | Issue | Severity | Notes |
 |---|---|---|
-| `pickleBall.png` missing | Medium | Events.jsx line 236 references this file. Silent broken image. Either add the file to `public/photos/events/` or update to an existing image. |
 | `shpeLogo.png` unverified | Medium | Referenced in Attendance, AdminLogin, AdminDashboard. If missing, logos silently fail. Check `public/photos/shpeLogo.png` exists. |
 | Semester rollover | Medium | All events in `events.js` are Spring 2026. At semester start, clear old events and add new ones. The attendance dropdown auto-pulls from this file. |
 | Admin password management | Low | Admin accounts are created manually in Supabase Dashboard. No self-service password reset flow in the UI — users must contact whoever has Supabase access. |
