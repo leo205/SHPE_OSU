@@ -291,7 +291,7 @@ function ContactForm() {
               <option>Carmen ($1,000)</option>
               <option>Scarlet &amp; Gray ($1,500)</option>
               <option>Platinum ($2,000)</option>
-              <option>Custom / Not sure yet</option>
+              <option>Custom</option>
             </select>
           </div>
 
@@ -474,8 +474,8 @@ export default function Sponsors() {
               <div
                 key={tier.name}
                 className={`rounded-xl p-8 flex flex-col transition-all ${tier.premium
-                    ? 'bg-primary text-on-primary shadow-2xl scale-105 z-10'
-                    : 'bg-surface-container hover:bg-surface-container-highest'
+                  ? 'bg-primary text-on-primary shadow-2xl scale-105 z-10'
+                  : 'bg-surface-container hover:bg-surface-container-highest'
                   }`}
               >
                 <div className="mb-6">
@@ -509,8 +509,8 @@ export default function Sponsors() {
                 <a
                   href="#become-a-sponsor"
                   className={`text-center py-3 rounded-full font-bold transition-all ${tier.premium
-                      ? 'bg-on-primary text-primary hover:opacity-90'
-                      : 'bg-primary text-on-primary hover:bg-primary-fixed-dim'
+                    ? 'bg-on-primary text-primary hover:opacity-90'
+                    : 'bg-primary text-on-primary hover:bg-primary-fixed-dim'
                     }`}
                 >
                   Get Started
