@@ -44,8 +44,7 @@ Build and maintain the public-facing website for the SHPE Ohio State University 
 - **Sponsor logos:** `public/photos/sponsors/` folder should contain: `lincolnElectric.png`, `Accenture.png`, `GM.png`, `JPMC.png`, `honda.png`, `AEP.png`. Folder name corrected this session — code updated to match.
 
 ### ❌ Broken / Missing
-- Lincoln Electric logo: path is set in Sponsors.jsx pointing to `public/photos/sponsors/lincolnElectric.png` — verify file exists in that folder.
-- SHPE logo: `public/photos/shpeLogo.png` referenced in Attendance.jsx, AdminLogin.jsx, AdminDashboard.jsx — verify file exists.
+- No known missing files at this time!
 
 ### Architectural Decisions (do not reverse without reason)
 - **No backend server.** Supabase REST API is called directly from the browser using the publishable key + RLS.
@@ -157,7 +156,6 @@ npm run build
 
 | Issue | Severity | Notes |
 |---|---|---|
-| `shpeLogo.png` unverified | Medium | Referenced in Attendance, AdminLogin, AdminDashboard. If missing, logos silently fail. Check `public/photos/shpeLogo.png` exists. |
 | Semester rollover | Medium | All events in `events.js` are Spring 2026. At semester start, clear old events and add new ones. The attendance dropdown auto-pulls from this file. |
 | Admin password management | Low | Admin accounts are created manually in Supabase Dashboard. No self-service password reset flow in the UI — users must contact whoever has Supabase access. |
 | Supabase free tier limits | Low | 50k rows, 500MB storage. A chapter with 200 members × 20 events = 4,000 rows/semester. No risk for several years. |
