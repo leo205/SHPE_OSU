@@ -185,6 +185,13 @@ export default function AdminDashboard() {
           </span>
         </a>
         <div className="flex items-center gap-4">
+          <a
+            href="/admin/resumes"
+            className="flex items-center gap-2 px-4 py-2 bg-tertiary-container text-on-tertiary-container rounded-full text-sm font-bold hover:brightness-95 transition-all shadow-sm"
+          >
+            <span className="material-symbols-outlined text-lg">description</span>
+            Resumes
+          </a>
           <button
             onClick={fetchData}
             className="p-2 rounded-full hover:bg-surface-container transition-colors"
