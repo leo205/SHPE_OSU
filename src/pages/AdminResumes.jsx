@@ -1,0 +1,139 @@
+import { useEffect, useState } from 'react';
+import { supabase } from '../lib/supabase';
+
+export default function AdminResumes() {
+  const [resumes, setResumes] = useState([]);
+  const [codes, setCodes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [newCompany, setNewCompany] = useState('');
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    setLoading(true);
+    const [resData, codesData] = await Promise.all([
+      supabase.from('resumes').select('*').order('uploaded_at', { ascending: false }),
+      supabase.from('company_access').select('*').order('created_at', { ascending: false })
+    ]);
+    if (resData.data) setResumes(resData.data);
+    if (codesData.data) setCodes(codesData.data);
+    setLoading(false);
+  };
+
+  const handleToggleApproval = async (id, currentStatus) => {
+    const { error } = await supabase.from('resumes').update({ approved: !currentStatus }).eq('id', id);
+    if (!error) fetchData();
+  };
+
+  const handleDeleteResume = async (id, path) => {
+    if (!window.confirm('Delete this resume?')) return;
+    await supabase.storage.from('resumes').remove([path]);
+    await supabase.from('resumes').delete().eq('id', id);
+    fetchData();
+  };
+
+  const handleGenerateCode = async (e) => {
+    e.preventDefault();
+    if (!newCompany) return;
+    const randomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const { error } = await supabase.from('company_access').insert([{
+      company_name: newCompany,
+      access_code: randomCode
+    }]);
+    if (!error) {
+      setNewCompany('');
+      fetchData();
+    }
+  };
+
+  const handleDeleteCode = async (id) => {
+    if (!window.confirm('Revoke access code?')) return;
+    await supabase.from('company_access').delete().eq('id', id);
+    fetchData();
+  };
+
+  const handleViewResume = async (path) => {
+    const { data } = await supabase.storage.from('resumes').createSignedUrl(path, 60);
+    if (data) window.open(data.signedUrl, '_blank');
+  };
+
+  if (loading) return <div className="p-10 text-center">Loading...</div>;
+
+  return (
+    <div className="max-w-7xl mx-auto px-6 py-10 space-y-12">
+      <div className="flex items-center justify-between">
+        <h1 className="font-headline text-3xl font-extrabold text-on-surface">Resume Book Admin</h1>
+        <a href="/admin" className="text-primary font-bold hover:underline">← Back to Dashboard</a>
+      </div>
+
+      <section>
+        <h2 className="text-xl font-bold mb-4">Pending & Approved Resumes</h2>
+        <div className="overflow-x-auto rounded-xl border border-outline-variant/20 shadow-sm bg-surface-container-lowest">
+          <table className="w-full text-sm text-left">
+            <thead className="bg-surface-container-high text-xs uppercase text-on-surface-variant">
+              <tr>
+                <th className="px-4 py-3">Student</th>
+                <th className="px-4 py-3">Major</th>
+                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-outline-variant/10">
+              {resumes.map(r => (
+                <tr key={r.id}>
+                  <td className="px-4 py-3 font-medium">
+                    {r.full_name} <br/><span className="text-xs text-on-surface-variant">{r.email}</span>
+                  </td>
+                  <td className="px-4 py-3">{r.major} ({r.graduation_year})</td>
+                  <td className="px-4 py-3">
+                    {r.approved ? (
+                      <span className="px-2 py-1 bg-primary/10 text-primary rounded-md font-bold text-xs">Approved</span>
+                    ) : (
+                      <span className="px-2 py-1 bg-error/10 text-error rounded-md font-bold text-xs">Pending</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-right space-x-2">
+                    <button onClick={() => handleViewResume(r.resume_path)} className="text-on-surface-variant hover:text-primary">View</button>
+                    <button onClick={() => handleToggleApproval(r.id, r.approved)} className="text-primary hover:underline">
+                      {r.approved ? 'Revoke' : 'Approve'}
+                    </button>
+                    <button onClick={() => handleDeleteResume(r.id, r.resume_path)} className="text-error hover:underline">Delete</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2 className="text-xl font-bold mb-4">Company Access Codes</h2>
+        <form onSubmit={handleGenerateCode} className="flex gap-4 mb-6">
+          <input
+            type="text"
+            required
+            value={newCompany}
+            onChange={e => setNewCompany(e.target.value)}
+            placeholder="Company Name"
+            className="px-4 py-2 rounded-xl border border-outline-variant focus:ring-2 focus:ring-primary/50 flex-1 max-w-sm"
+          />
+          <button type="submit" className="bg-primary text-on-primary px-6 py-2 rounded-xl font-bold">Generate Code</button>
+        </form>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {codes.map(c => (
+            <div key={c.id} className="p-4 rounded-xl border border-outline-variant/20 bg-surface-container-lowest flex justify-between items-center">
+              <div>
+                <p className="font-bold">{c.company_name}</p>
+                <p className="font-mono text-primary text-lg tracking-widest">{c.access_code}</p>
+              </div>
+              <button onClick={() => handleDeleteCode(c.id)} className="text-error"><span className="material-symbols-outlined">delete</span></button>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}

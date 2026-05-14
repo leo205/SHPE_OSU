@@ -12,6 +12,11 @@ import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
 
+import ResumeUpload from './pages/ResumeUpload';
+import CompanyLogin from './pages/CompanyLogin';
+import CompanyDashboard from './pages/CompanyDashboard';
+import AdminResumes from './pages/AdminResumes';
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -38,12 +43,23 @@ export default function App() {
 
         {/* ── Hidden routes (no Navbar / no Footer) ── */}
         <Route path="/attendance" element={<Attendance />} />
+        <Route path="/resume-upload" element={<ResumeUpload />} />
+        <Route path="/company" element={<CompanyLogin />} />
+        <Route path="/company/dashboard" element={<CompanyDashboard />} />
         <Route path="/admin/login" element={<AdminLogin />} />
         <Route
           path="/admin"
           element={
             <ProtectedRoute>
               <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/resumes"
+          element={
+            <ProtectedRoute>
+              <AdminResumes />
             </ProtectedRoute>
           }
         />
