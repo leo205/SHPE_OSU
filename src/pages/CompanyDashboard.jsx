@@ -40,11 +40,11 @@ export default function CompanyDashboard() {
     navigate('/company');
   };
 
-  const handleViewResume = async (path) => {
-    // Generate signed URL
+  const handleAction = async (path, fullName, isDownload) => {
+    const options = isDownload ? { download: `${fullName.replace(/\s+/g, '_')}_Resume.pdf` } : {};
     const { data, error } = await supabase.storage
       .from('resumes')
-      .createSignedUrl(path, 60); // valid for 60 seconds
+      .createSignedUrl(path, 60, options);
 
     if (error) {
       alert('Error accessing resume. It may have been removed.');
@@ -130,13 +130,22 @@ export default function CompanyDashboard() {
                   <p className="text-sm font-medium text-primary mb-1">{r.major}</p>
                   <p className="text-xs text-on-surface-variant mb-6">{r.email}</p>
                 </div>
-                <button
-                  onClick={() => handleViewResume(r.resume_path)}
-                  className="w-full py-2 bg-primary-container text-on-primary-container font-bold rounded-lg hover:bg-primary hover:text-on-primary transition-colors flex justify-center items-center gap-2"
-                >
-                  <span className="material-symbols-outlined text-sm">visibility</span>
-                  View PDF
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleAction(r.resume_path, r.full_name, false)}
+                    className="flex-1 py-2 bg-secondary-container text-on-secondary-container font-bold rounded-lg hover:bg-secondary hover:text-on-secondary transition-colors flex justify-center items-center gap-2"
+                  >
+                    <span className="material-symbols-outlined text-sm">visibility</span>
+                    View
+                  </button>
+                  <button
+                    onClick={() => handleAction(r.resume_path, r.full_name, true)}
+                    className="flex-1 py-2 bg-primary text-on-primary font-bold rounded-lg hover:bg-primary-fixed-dim transition-colors flex justify-center items-center gap-2"
+                  >
+                    <span className="material-symbols-outlined text-sm">download</span>
+                    Download
+                  </button>
+                </div>
               </div>
             ))}
           </div>

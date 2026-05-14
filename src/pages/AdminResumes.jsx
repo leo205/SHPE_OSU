@@ -70,36 +70,38 @@ export default function AdminResumes() {
 
       <section>
         <h2 className="text-xl font-bold mb-4">Pending & Approved Resumes</h2>
-        <div className="overflow-x-auto rounded-xl border border-outline-variant/20 shadow-sm bg-surface-container-lowest">
+        <div className="overflow-x-auto rounded-2xl border border-outline-variant/20 shadow-sm bg-surface-container-lowest">
           <table className="w-full text-sm text-left">
-            <thead className="bg-surface-container-high text-xs uppercase text-on-surface-variant">
+            <thead className="bg-surface-container-high text-on-surface-variant font-bold uppercase tracking-wider text-xs">
               <tr>
-                <th className="px-4 py-3">Student</th>
-                <th className="px-4 py-3">Major</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3 text-right">Actions</th>
+                <th className="px-6 py-4">Student</th>
+                <th className="px-6 py-4">Major</th>
+                <th className="px-6 py-4">Status</th>
+                <th className="px-6 py-4 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-outline-variant/10">
               {resumes.map(r => (
                 <tr key={r.id}>
-                  <td className="px-4 py-3 font-medium">
-                    {r.full_name} <br/><span className="text-xs text-on-surface-variant">{r.email}</span>
+                  <td className="px-6 py-4 font-medium">
+                    {r.full_name} <br/><span className="text-xs text-on-surface-variant font-normal">{r.email}</span>
                   </td>
-                  <td className="px-4 py-3">{r.major} ({r.graduation_year})</td>
-                  <td className="px-4 py-3">
+                  <td className="px-6 py-4">{r.major} ({r.graduation_year})</td>
+                  <td className="px-6 py-4">
                     {r.approved ? (
                       <span className="px-2 py-1 bg-primary/10 text-primary rounded-md font-bold text-xs">Approved</span>
                     ) : (
                       <span className="px-2 py-1 bg-error/10 text-error rounded-md font-bold text-xs">Pending</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-right space-x-2">
-                    <button onClick={() => handleViewResume(r.resume_path)} className="text-on-surface-variant hover:text-primary">View</button>
-                    <button onClick={() => handleToggleApproval(r.id, r.approved)} className="text-primary hover:underline">
-                      {r.approved ? 'Revoke' : 'Approve'}
-                    </button>
-                    <button onClick={() => handleDeleteResume(r.id, r.resume_path)} className="text-error hover:underline">Delete</button>
+                  <td className="px-6 py-4">
+                    <div className="flex justify-end items-center gap-4">
+                      <button onClick={() => handleViewResume(r.resume_path)} className="text-on-surface-variant hover:text-primary font-bold">View</button>
+                      <button onClick={() => handleToggleApproval(r.id, r.approved)} className="text-primary hover:underline font-bold">
+                        {r.approved ? 'Revoke' : 'Approve'}
+                      </button>
+                      <button onClick={() => handleDeleteResume(r.id, r.resume_path)} className="text-error hover:underline font-bold">Delete</button>
+                    </div>
                   </td>
                 </tr>
               ))}

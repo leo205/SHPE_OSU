@@ -134,14 +134,25 @@ export default function ResumeUpload() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-bold text-on-surface mb-2">Major</label>
-              <input
+              <select
                 required
-                type="text"
                 value={formData.major}
                 onChange={(e) => setFormData({ ...formData, major: e.target.value })}
                 className="w-full px-4 py-3 rounded-xl border border-outline-variant bg-surface-bright focus:outline-none focus:ring-2 focus:ring-primary/50"
-                placeholder="Computer Science & Engineering"
-              />
+              >
+                <option value="" disabled>Select Major</option>
+                <option value="Computer Science & Engineering">Computer Science & Engineering</option>
+                <option value="Mechanical Engineering">Mechanical Engineering</option>
+                <option value="Electrical Engineering">Electrical Engineering</option>
+                <option value="Civil Engineering">Civil Engineering</option>
+                <option value="Biomedical Engineering">Biomedical Engineering</option>
+                <option value="Aerospace Engineering">Aerospace Engineering</option>
+                <option value="Chemical Engineering">Chemical Engineering</option>
+                <option value="Industrial & Systems Eng.">Industrial & Systems Eng.</option>
+                <option value="Materials Science">Materials Science</option>
+                <option value="Data Analytics">Data Analytics</option>
+                <option value="Other">Other</option>
+              </select>
             </div>
             <div>
               <label className="block text-sm font-bold text-on-surface mb-2">Graduation Year</label>
@@ -156,7 +167,9 @@ export default function ResumeUpload() {
                 <option value="2025">2025</option>
                 <option value="2026">2026</option>
                 <option value="2027">2027</option>
-                <option value="2028+">2028+</option>
+                <option value="2028">2028</option>
+                <option value="2029">2029</option>
+                <option value="2029+">2029+</option>
                 <option value="Alumni">Alumni</option>
               </select>
             </div>
