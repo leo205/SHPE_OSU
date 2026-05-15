@@ -13,7 +13,7 @@ const eboardMembers = [
   {
     id: 1,
     role: 'President',
-    label: 'Fill in l8r',
+    label: 'LA PRESIDENTA',
     accent: 'primary',
     icon: 'star',
     iconBg: 'bg-tertiary-container',
@@ -32,24 +32,24 @@ const eboardMembers = [
     icon: 'handshake',
     iconBg: 'bg-secondary-container',
     iconText: 'text-on-secondary-container',
-    name: '',
+    name: 'Joshua Cruz Santos',
     major: '',
     year: '',
-    photo: null,
+    photo: '/photos/eboard/josh.jpeg',
     rotate: 'rotate-[-1deg]',
   },
   {
     id: 3,
     role: 'Treasurer',
-    label: 'EL TESORO',
+    label: 'LA TESORERA',
     accent: 'primary',
     icon: 'payments',
     iconBg: 'bg-tertiary-container',
     iconText: 'text-on-tertiary-container',
-    name: '',
+    name: 'Brooke McPike',
     major: '',
     year: '',
-    photo: null,
+    photo: '/photos/eboard/brooke.jpeg',
     rotate: 'rotate-[2deg]',
   },
   {
@@ -60,24 +60,24 @@ const eboardMembers = [
     icon: 'campaign',
     iconBg: 'bg-primary-container',
     iconText: 'text-on-primary-container',
-    name: '',
+    name: 'Natalia Favila Inacua',
     major: '',
     year: '',
-    photo: null,
+    photo: '/photos/eboard/natalia.jpeg',
     rotate: '',
   },
   {
     id: 5,
     role: 'Secretary',
-    label: 'LA PLUMA',
+    label: 'LA SECRETARIA',
     accent: 'primary',
     icon: 'edit_note',
     iconBg: 'bg-secondary-container',
     iconText: 'text-on-secondary-container',
-    name: '',
+    name: 'Victoria Cuellar Garcia',
     major: '',
     year: '',
-    photo: null,
+    photo: '/photos/eboard/victoria.jpeg',
     rotate: 'rotate-[-2deg]',
   },
   {
@@ -91,7 +91,7 @@ const eboardMembers = [
     name: 'Ricardo Tinoco Lopez',
     major: 'Honors Industrial & Systems Engineering',
     year: '3rd Year',
-    photo: '/photos/eboard/ricardo.jpg',
+    photo: '/photos/eboard/ricardo.jpeg',
     rotate: '',
   },
   {
@@ -102,10 +102,10 @@ const eboardMembers = [
     icon: 'gavel',
     iconBg: 'bg-primary-container',
     iconText: 'text-on-primary-container',
-    name: '',
+    name: 'Juan Andres Valle Nieto',
     major: '',
     year: '',
-    photo: null,
+    photo: '/photos/eboard/juan.jpeg',
     rotate: 'rotate-[1deg]',
   },
   {
@@ -116,38 +116,38 @@ const eboardMembers = [
     icon: 'diversity_1',
     iconBg: 'bg-tertiary-container',
     iconText: 'text-on-tertiary-container',
-    name: '',
+    name: 'Yareni Velazquez Garcia',
     major: '',
     year: '',
-    photo: null,
+    photo: '/photos/eboard/yareni.jpeg',
     rotate: 'rotate-[-1deg]',
   },
   {
     id: 9,
-    role: 'Outreach Chair',
+    role: 'Community Outreach',
     label: 'LA COMUNIDAD',
     accent: 'primary',
     icon: 'volunteer_activism',
     iconBg: 'bg-secondary-container',
     iconText: 'text-on-secondary-container',
-    name: '',
+    name: 'Maria Paola Manrique Barrios',
     major: '',
     year: '',
-    photo: null,
+    photo: '/photos/eboard/maria.jpeg',
     rotate: '',
   },
   {
     id: 10,
-    role: 'Outreach Chair',
+    role: 'Community Outreach',
     label: 'EL CORAZÓN',
     accent: 'primary',
     icon: 'favorite',
     iconBg: 'bg-tertiary-container',
     iconText: 'text-on-tertiary-container',
-    name: '',
+    name: 'Eric Luther',
     major: '',
     year: '',
-    photo: null,
+    photo: '/photos/eboard/ericL.jpeg',
     rotate: 'rotate-[2deg]',
   },
   {
@@ -158,10 +158,10 @@ const eboardMembers = [
     icon: 'work',
     iconBg: 'bg-primary-container',
     iconText: 'text-on-primary-container',
-    name: '',
+    name: 'Eric Santos Martinez',
     major: '',
     year: '',
-    photo: null,
+    photo: '/photos/eboard/ericM.jpeg',
     rotate: '',
   },
   {
@@ -172,10 +172,10 @@ const eboardMembers = [
     icon: 'trending_up',
     iconBg: 'bg-secondary-container',
     iconText: 'text-on-secondary-container',
-    name: '',
+    name: 'Chuy Trejo',
     major: '',
     year: '',
-    photo: null,
+    photo: '/photos/eboard/chuy.jpeg',
     rotate: 'rotate-[-2deg]',
   },
   {
@@ -186,7 +186,7 @@ const eboardMembers = [
     icon: 'groups',
     iconBg: 'bg-tertiary-container',
     iconText: 'text-on-tertiary-container',
-    name: '',
+    name: 'Fernando Sandoval Perez',
     major: '',
     year: '',
     photo: '/photos/eboard/fern.png',
@@ -200,10 +200,10 @@ const eboardMembers = [
     icon: 'terminal',
     iconBg: 'bg-secondary-container',
     iconText: 'text-on-secondary-container',
-    name: '',
+    name: 'Leonardo Medina',
     major: '',
     year: '',
-    photo: null,
+    photo: '/photos/eboard/leo.png',
     rotate: 'rotate-[1deg]',
   },
   {
@@ -214,10 +214,10 @@ const eboardMembers = [
     icon: 'code',
     iconBg: 'bg-primary-container',
     iconText: 'text-on-primary-container',
-    name: '',
+    name: 'Kamila Nieto',
     major: '',
     year: '',
-    photo: null,
+    photo: '/photos/eboard/kamila.jpeg',
     rotate: '',
   },
   {
@@ -228,10 +228,10 @@ const eboardMembers = [
     icon: 'forest',
     iconBg: 'bg-primary-container',
     iconText: 'text-on-primary-container',
-    name: '',
+    name: 'Berenice Araiza Sierra',
     major: '',
     year: '',
-    photo: null,
+    photo: '/photos/eboard/berenice.jpeg',
     rotate: 'rotate-[-2deg]',
   },
   {
@@ -242,10 +242,10 @@ const eboardMembers = [
     icon: 'eco',
     iconBg: 'bg-tertiary-container',
     iconText: 'text-on-tertiary-container',
-    name: '',
+    name: 'Gloria Morales',
     major: '',
     year: '',
-    photo: null,
+    photo: '/photos/eboard/gloria.png',
     rotate: '',
   },
   {
@@ -256,24 +256,24 @@ const eboardMembers = [
     icon: 'spa',
     iconBg: 'bg-secondary-container',
     iconText: 'text-on-secondary-container',
-    name: '',
+    name: 'Aaron Perez',
     major: '',
     year: '',
-    photo: null,
+    photo: '/photos/eboard/aaron.jpeg',
     rotate: 'rotate-[1deg]',
   },
   {
     id: 19,
-    role: 'Board Member',
-    label: 'LA FAMILIA',
+    role: 'Academic Chair',
+    label: 'LA ACADÉMICA',
     accent: 'tertiary',
-    icon: 'favorite',
+    icon: 'school',
     iconBg: 'bg-tertiary-container',
     iconText: 'text-on-tertiary-container',
-    name: '',
+    name: 'Rosa Waimin Duron',
     major: '',
     year: '',
-    photo: null,
+    photo: '/photos/eboard/rosa.jpeg',
     rotate: '',
   },
 ];
@@ -289,20 +289,17 @@ function LoteriaCard({ member, index }) {
 
   return (
     <div
-      className={`loteria-card flex flex-col aspect-[2.5/3.5] bg-surface-container-lowest p-4 rounded-xl shadow-lg border-4 relative group ${accentColor} ${member.rotate}`}
+      className={`loteria-card flex flex-col aspect-[2.5/3.5] bg-surface-container-lowest p-4 rounded-xl shadow-lg border-4 relative group w-[calc(50%-12px)] sm:w-[calc(33.333%-16px)] md:w-[calc(25%-18px)] xl:w-[calc(20%-19.2px)] ${accentColor} ${member.rotate}`}
     >
-      {/* Card number */}
-      <div className={`absolute top-4 right-4 font-black font-headline text-xl z-10 ${accentColor.split(' ')[0]}`}>
-        {index + 1}
-      </div>
 
       {/* Photo slot */}
-      <div className="w-full flex-1 relative rounded-md overflow-hidden mb-4 bg-surface-container-high border-2 border-outline-variant/20">
+      <div className="w-full flex-1 relative rounded-md overflow-hidden mb-4 bg-surface-container-high border-2 border-black">
         {member.photo ? (
           <img
             src={member.photo}
             alt={`${member.role} - ${member.name}`}
-            className="absolute inset-0 w-full h-full object-cover object-center"
+            className={`absolute inset-0 w-full h-full object-cover ${member.id === 13 ? 'object-top' : 'object-center'
+              }`}
           />
         ) : (
           /*
@@ -377,7 +374,7 @@ export default function Eboard() {
         </header>
 
         {/* ── LOTERIA GRID ───────────────────────────────────── */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-6 md:gap-8">
+        <div className="flex flex-wrap justify-center gap-6 md:gap-8">
           {eboardMembers.map((member, idx) => (
             <LoteriaCard key={member.id} member={member} index={idx} />
           ))}
