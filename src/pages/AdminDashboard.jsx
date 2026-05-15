@@ -12,17 +12,17 @@ const COLORS = ['#BB4D00', '#6B5E45', '#8C4A2F', '#D4956A', '#4A7C59'];
 /* ── Stat Card ─────────────────────────────────────────────── */
 function StatCard({ icon, label, value, sub }) {
   return (
-    <div className="bg-surface-container-lowest border border-outline-variant/20 rounded-2xl p-6 shadow-sm flex flex-col gap-2">
-      <div className="flex items-center gap-3 mb-1">
-        <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-          <span className="material-symbols-outlined text-primary text-xl">{icon}</span>
+    <div className="bg-surface-container-lowest border border-outline-variant/20 rounded-2xl p-4 shadow-sm flex flex-col gap-1">
+      <div className="flex items-center gap-2 mb-1">
+        <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center shrink-0">
+          <span className="material-symbols-outlined text-primary text-lg">{icon}</span>
         </div>
-        <span className="text-sm font-bold uppercase tracking-widest text-on-surface-variant">
+        <span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant truncate">
           {label}
         </span>
       </div>
-      <span className="font-headline text-4xl font-black text-on-surface">{value}</span>
-      {sub && <span className="text-xs text-on-surface-variant">{sub}</span>}
+      <span className="font-headline text-3xl font-black text-on-surface">{value}</span>
+      {sub && <span className="text-xs text-on-surface-variant leading-tight">{sub}</span>}
     </div>
   );
 }
@@ -30,23 +30,23 @@ function StatCard({ icon, label, value, sub }) {
 /* ── Top Members Card ──────────────────────────────────────── */
 function TopMembersCard({ members }) {
   return (
-    <div className="bg-surface-container-lowest border border-outline-variant/20 rounded-2xl p-6 shadow-sm">
-      <div className="flex items-center gap-3 mb-4">
-        <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-          <span className="material-symbols-outlined text-primary text-xl">local_fire_department</span>
+    <div className="bg-surface-container-lowest border border-outline-variant/20 rounded-2xl p-4 shadow-sm col-span-3">
+      <div className="flex items-center gap-2 mb-3">
+        <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center shrink-0">
+          <span className="material-symbols-outlined text-primary text-lg">local_fire_department</span>
         </div>
-        <span className="text-sm font-bold uppercase tracking-widest text-on-surface-variant">Most Active Members</span>
+        <span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Most Active Members</span>
       </div>
-      <div className="flex flex-col gap-3 overflow-y-auto max-h-[160px] pr-1">
+      <div className="overflow-y-auto max-h-[120px] pr-1 space-y-2">
         {members.map((m, i) => (
           <div key={m.dotnum} className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <span className={`font-headline font-black text-lg w-6 text-center ${
+            <div className="flex items-center gap-2">
+              <span className={`font-headline font-black text-base w-5 text-center shrink-0 ${
                 i === 0 ? 'text-primary' : 'text-on-surface-variant'
               }`}>{i + 1}</span>
-              <span className="font-bold text-on-surface text-sm">{m.firstName} {m.lastName}</span>
+              <span className="font-bold text-on-surface text-sm truncate">{m.firstName} {m.lastName}</span>
             </div>
-            <span className="text-xs font-bold bg-primary-container text-on-primary-container px-3 py-1 rounded-full">
+            <span className="text-xs font-bold bg-primary-container text-on-primary-container px-2 py-0.5 rounded-full shrink-0 ml-2">
               {m.count} {m.count === 1 ? 'event' : 'events'}
             </span>
           </div>
@@ -253,7 +253,7 @@ export default function AdminDashboard() {
               <h2 className="font-headline text-2xl font-bold text-on-surface mb-6">
                 Overview
               </h2>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-6 gap-4">
                 <StatCard
                   icon="person"
                   label="Members"
