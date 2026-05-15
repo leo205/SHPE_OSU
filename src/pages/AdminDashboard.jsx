@@ -30,14 +30,14 @@ function StatCard({ icon, label, value, sub }) {
 /* ── Top Members Card ──────────────────────────────────────── */
 function TopMembersCard({ members }) {
   return (
-    <div className="bg-surface-container-lowest border border-outline-variant/20 rounded-2xl p-6 shadow-sm col-span-2">
+    <div className="bg-surface-container-lowest border border-outline-variant/20 rounded-2xl p-6 shadow-sm">
       <div className="flex items-center gap-3 mb-4">
         <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
           <span className="material-symbols-outlined text-primary text-xl">local_fire_department</span>
         </div>
         <span className="text-sm font-bold uppercase tracking-widest text-on-surface-variant">Most Active Members</span>
       </div>
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3 overflow-y-auto max-h-[160px] pr-1">
         {members.map((m, i) => (
           <div key={m.dotnum} className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -108,8 +108,7 @@ export default function AdminDashboard() {
     memberAttendance[dotnum].count++;
   });
   const topMembers = Object.values(memberAttendance)
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 3);
+    .sort((a, b) => b.count - a.count);
 
   // Event Types heuristic
   const getEventType = (name) => {
