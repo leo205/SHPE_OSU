@@ -27,6 +27,38 @@ function StatCard({ icon, label, value, sub }) {
   );
 }
 
+/* ── Top Members Card ──────────────────────────────────────── */
+function TopMembersCard({ members }) {
+  return (
+    <div className="bg-surface-container-lowest border border-outline-variant/20 rounded-2xl p-6 shadow-sm col-span-2">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
+          <span className="material-symbols-outlined text-primary text-xl">local_fire_department</span>
+        </div>
+        <span className="text-sm font-bold uppercase tracking-widest text-on-surface-variant">Most Active Members</span>
+      </div>
+      <div className="flex flex-col gap-3">
+        {members.map((m, i) => (
+          <div key={m.dotnum} className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className={`font-headline font-black text-lg w-6 text-center ${
+                i === 0 ? 'text-primary' : 'text-on-surface-variant'
+              }`}>{i + 1}</span>
+              <span className="font-bold text-on-surface text-sm">{m.firstName} {m.lastName}</span>
+            </div>
+            <span className="text-xs font-bold bg-primary-container text-on-primary-container px-3 py-1 rounded-full">
+              {m.count} {m.count === 1 ? 'event' : 'events'}
+            </span>
+          </div>
+        ))}
+        {members.length === 0 && (
+          <p className="text-on-surface-variant text-sm">No data yet.</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ── Admin Dashboard ────────────────────────────────────────── */
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -65,20 +97,19 @@ export default function AdminDashboard() {
   const firstTimers = rows.filter((r) => r.is_first_meeting).length;
   const uniqueMembers = [...new Set(rows.map((r) => r.last_name_dotnum.toLowerCase()))].length;
 
-  // Most active member tracking
+  // Most active members tracking (top 3)
   const memberAttendance = {};
-  let mostActiveMember = { firstName: '', count: 0 };
   rows.forEach(r => {
     const dotnum = r.last_name_dotnum?.toLowerCase();
     if (!dotnum) return;
     if (!memberAttendance[dotnum]) {
-      memberAttendance[dotnum] = { count: 0, firstName: r.first_name };
+      memberAttendance[dotnum] = { count: 0, firstName: r.first_name, lastName: r.last_name_dotnum, dotnum };
     }
     memberAttendance[dotnum].count++;
-    if (memberAttendance[dotnum].count > mostActiveMember.count) {
-      mostActiveMember = memberAttendance[dotnum];
-    }
   });
+  const topMembers = Object.values(memberAttendance)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 3);
 
   // Event Types heuristic
   const getEventType = (name) => {
@@ -223,22 +254,21 @@ export default function AdminDashboard() {
               <h2 className="font-headline text-2xl font-bold text-on-surface mb-6">
                 Overview
               </h2>
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                <StatCard icon="groups" label="Check-ins" value={totalSubmissions} />
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <StatCard
+                  icon="person"
+                  label="Members"
+                  value={uniqueMembers}
+                  sub="Unique people who checked in"
+                />
+                <StatCard
+                  icon="groups"
+                  label="Check-ins"
+                  value={totalSubmissions}
+                  sub="Total including repeat visits"
+                />
                 <StatCard icon="event" label="Events" value={uniqueEvents.length} />
-                <StatCard icon="person" label="Unique" value={uniqueMembers} />
-                <StatCard
-                  icon="star"
-                  label="New"
-                  value={firstTimers}
-                  sub={`${totalSubmissions > 0 ? Math.round((firstTimers / totalSubmissions) * 100) : 0}%`}
-                />
-                <StatCard
-                  icon="local_fire_department"
-                  label="Top Member"
-                  value={mostActiveMember.firstName || '—'}
-                  sub={mostActiveMember.count > 0 ? `${mostActiveMember.count} events` : ''}
-                />
+                <TopMembersCard members={topMembers} />
               </div>
             </section>
 
