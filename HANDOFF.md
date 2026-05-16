@@ -1,6 +1,6 @@
 # SHPE OSU Website — Engineering Handoff
 
-_Last updated: 2025-05-13 | Session: 099c3d54-c7be-4324-aea6-6f776d4cf1d1_
+_Last updated: 2026-05-15 | Session: 1760d6eb-c024-4aaf-a7a4-30b58694034f_
 
 ---
 
@@ -17,10 +17,9 @@ Build and maintain the public-facing website for the SHPE Ohio State University 
 - Must pass to next Digital Operations Chair without institutional knowledge loss
 
 **Current priorities (as of last session):**
-1. Verify attendance form submission works on production (Supabase RLS fix was applied)
-2. Mobile responsiveness — fixes applied but need real-device testing
-3. `pickleBall.png` referenced in Events.jsx but file may not exist in `public/photos/events/`
-4. Lincoln Electric logo file needs to be added to `public/photos/sponsors/` if not already present.
+1. Securing the new **Corporate Resume Portal** (currently under development) with proper Supabase Row Level Security (RLS) policies.
+2. Ensure the "Most Active Members" scrollable card in the Admin Dashboard is scaling correctly as more members check in.
+3. Verify mobile responsiveness on real devices for the newly centered E-Board grid and the new SHPEtinas spotlight section on the Home page.
 
 ---
 
@@ -32,25 +31,24 @@ Build and maintain the public-facing website for the SHPE Ohio State University 
 - Sponsor contact form via EmailJS (credentials live in `Sponsors.jsx`)
 - Attendance form at `/attendance` — submits to Supabase `attendance` table
 - Admin login at `/admin/login` — Supabase email/password auth
-- Admin dashboard at `/admin` — stat cards, bar/pie/line charts (Recharts), searchable table, CSV export
-- Protected route guard redirects unauthenticated users to `/admin/login`
-- ScrollToTop on every route change
+- Admin dashboard at `/admin` — check-ins, unique members, events, and a ranked "Most Active Members" scrollable list.
+- **E-Board Page** — Fully populated with 19 members. Implemented a responsive Loteria-style layout with a custom CSS Grid configuration to automatically center the last row.
+- **Home Page** — Cleaned up, removed the broken "Interest Form", and added a new "SHPEtinas" spotlight section.
 - Auto-deploy: push to `main` → Vercel deploys in ~60s
-- Upcoming events date filter fixed (compares YYYY-MM-DD strings, not timestamps)
 
 ### ⚠️ Partially Working / Needs Verification
-- **Attendance form on production:** Supabase RLS policy was updated (`to anon` → `to public`) to fix 403 errors. Tested locally but production verification not confirmed in session.
-- **Mobile layout:** Fixes applied to Home.jsx and Events.jsx. Not confirmed on real devices post-deploy.
-- **Sponsor logos:** `public/photos/sponsors/` folder should contain: `lincolnElectric.png`, `Accenture.png`, `GM.png`, `JPMC.png`, `honda.png`, `AEP.png`. Folder name corrected this session — code updated to match.
+- **Resume Portal (In Development):** New files were recently added for a Corporate Resume Book (`AdminResumes.jsx`, `CompanyDashboard.jsx`, `CompanyLogin.jsx`, `ResumeUpload.jsx`). Need to establish the Supabase tables, storage buckets, and RLS policies to handle secure resume uploads and time-limited corporate access.
+- **Mobile layout:** Fixes applied to Eboard.jsx (flex-wrap grid centering) and Home.jsx. Not fully verified on physical mobile screens post-deploy.
 
 ### ❌ Broken / Missing
-- No known missing files at this time!
+- No known missing files, but the resume portal is not fully wired up to a backend storage bucket yet.
 
 ### Architectural Decisions (do not reverse without reason)
 - **No backend server.** Supabase REST API is called directly from the browser using the publishable key + RLS.
 - **Events are data-driven.** All content lives in `src/data/events.js`. Never hardcode events in JSX.
-- **Hidden routes pattern.** `/attendance` and `/admin` are not in the Navbar. They exist but are only reachable via direct URL or QR code.
+- **Hidden routes pattern.** `/attendance`, `/admin`, and the new Resume/Company routes are not in the Navbar.
 - **Supabase publishable key** (not anon JWT) — the project uses Supabase's newer key format `sb_publishable_...`. This required the RLS policy to use `to public` instead of `to anon`.
+- **Feature Branch Workflow.** Development for major features (like the Admin Dashboard refactor) should be done on a branch (e.g. `feature/admin-stat-cards`) and merged via Pull Request to protect `main`.
 
 ---
 
@@ -58,7 +56,6 @@ Build and maintain the public-facing website for the SHPE Ohio State University 
 
 ### Assumptions
 - User pushes from `shpe-osu/` subdirectory only — there is an unrelated git repo in the parent `Documents/` directory that caused confusion. Always `cd shpe-osu` before any git command.
-- Supabase is on the free tier — 50k row limit, more than enough for a semester.
 - Vercel is connected to GitHub repo `leo205/SHPE_OSU` on `main` branch.
 
 ### Environment
@@ -91,10 +88,13 @@ cd /Users/leonardomedina/Documents/SHPE_web/shpe-osu
 # Dev server
 npm run dev
 
-# Deploy
+# Safe Branch Workflow (Use this for new features!)
+git checkout -b feature/my-new-feature
+# (make changes)
 git add .
-git commit -m "message"
-git push   # Vercel auto-deploys
+git commit -m "added feature"
+git push -u origin feature/my-new-feature
+# Go to GitHub and merge to main
 
 # Build check before pushing
 npm run build
@@ -106,49 +106,28 @@ npm run build
 
 | File | Purpose | What Changed | Keep? |
 |---|---|---|---|
-| `src/App.jsx` | Routing | Added `/attendance`, `/admin`, `/admin/login` routes outside Navbar/Footer layout | ✅ Keep |
-| `src/pages/Home.jsx` | Home page | Mobile fixes: removed `hidden lg:flex` from hero image, scaled fonts, reduced button padding, hid mission badge on mobile | ✅ Keep |
-| `src/pages/Events.jsx` | Events + calendar | Fixed upcoming events date filter (string compare), mobile hero fixes, font scaling, photo collage hidden on mobile | ✅ Keep |
-| `src/pages/Sponsors.jsx` | Sponsor portal | Added real sponsor logos + paths, updated hero image, changed grid to flex-wrap | ✅ Keep |
-| `src/pages/Resources.jsx` | Resources page | Updated tutoring link, added thompsonPic.jpg | ✅ Keep |
-| `src/data/events.js` | Event data | Fixed date filter bug, added `Fundraiser` category colors | ✅ Keep |
-| `src/lib/supabase.js` | Supabase client | NEW — initializes Supabase with project URL + publishable key | ✅ Keep |
-| `src/pages/Attendance.jsx` | QR code check-in form | NEW — 2-section form, auto-pulls events from events.js, submits to Supabase | ✅ Keep |
-| `src/pages/AdminLogin.jsx` | E-Board login | NEW — Supabase email/password auth | ✅ Keep |
-| `src/pages/AdminDashboard.jsx` | Admin analytics | NEW — stat cards, Recharts charts, searchable table, CSV export | ✅ Keep |
-| `src/components/ProtectedRoute.jsx` | Auth guard | NEW — redirects to login if no Supabase session | ✅ Keep |
-| `src/components/ScrollToTop.jsx` | Scroll behavior | NEW — scrolls to top on route change | ✅ Keep |
-| `public/photos/picsMain/` | Hero + mission images | User added: SHPE_convention.png, SHPE_volunteering.png, shpeBrunch.jpg, brunchPic2.jpg | ✅ Keep |
-| `public/photos/events/` | Event photos | User added: cakeSHPE.jpg, eventGM.jpeg, finalEventSHPE.png, finalGBM.png, fundraiserSHPE.png | ✅ Keep |
-| `public/photos/sponsors/` | Sponsor logos | Folder name corrected from `sponsers` → `sponsors` this session. All 7 code references in Sponsors.jsx updated. | ✅ Keep |
+| `src/App.jsx` | Routing | Added new routes for Resume Portal and Company Dashboard | ✅ Keep |
+| `src/pages/Home.jsx` | Home page | Replaced Interest Form with SHPEtinas spotlight, fixed image aspect ratios | ✅ Keep |
+| `src/pages/Eboard.jsx` | E-Board Page | Added 19 photos, changed border to black, applied `object-top` for Fern, centered last row using `flex-wrap justify-center` with explicit CSS width calculations | ✅ Keep |
+| `src/pages/AdminDashboard.jsx` | Admin analytics | Removed "New" stat, renamed unique to "Members", added "Check-ins", refactored "Top Members" to rank all members in a scrollable list spanning 3 columns | ✅ Keep |
+| `src/pages/ResumeUpload.jsx` | Resume Portal | NEW — UI for members to upload resumes | ✅ Keep |
+| `src/pages/CompanyDashboard.jsx`| Resume Portal | NEW — UI for corporate sponsors to view resumes | ✅ Keep |
+| `src/pages/CompanyLogin.jsx` | Resume Portal | NEW — Login for sponsors | ✅ Keep |
+| `src/pages/AdminResumes.jsx` | Resume Portal | NEW — Dashboard for admins to approve/manage resumes | ✅ Keep |
 
 ---
 
 ## 5. Failed Attempts / Dead Ends
 
+### CSS Grid Centering on E-Board
+- **What happened:** Tried to use advanced `col-start` rules to center the last row of the E-Board grid (`grid-cols-5`). This broke the layout entirely because responsive grids shift items unexpectedly depending on screen size.
+- **Fix:** Used a flexbox fallback. The grid container is now `flex flex-wrap justify-center`, and each card is explicitly sized using `w-[calc(25%-18px)]` to mimic the grid gap behavior. This correctly forces a center alignment on the orphaned last row.
+
 ### Supabase 403 on attendance insert
 - **What happened:** Form submitted but got 403 Forbidden from Supabase
 - **Root cause:** RLS policy used `to anon` but the new Supabase publishable key format (`sb_publishable_...`) does not map to the `anon` role the same way as the old JWT key
 - **Fix:** Changed policy from `to anon` to `to public`
-- **SQL that works:**
-  ```sql
-  drop policy if exists "Allow public inserts" on attendance;
-  create policy "Allow public inserts"
-    on attendance for insert
-    to public
-    with check (true);
-  ```
 - **Do NOT retry `to anon`** without first verifying that the Supabase client version handles new key format correctly
-
-### Git from wrong directory
-- User ran `git add .` from `/Users/leonardomedina/Documents/SHPE_web/` instead of `.../shpe-osu/`
-- This caused the outer git repo (at `Documents/`) to try to stage `shpe-osu` as a submodule
-- **Fix:** `cd /Users/leonardomedina/Documents && git rm --cached SHPE_web/shpe-osu`
-- **Always run git from `shpe-osu/`**
-
-### Upcoming events showing empty
-- **Root cause:** `new Date('2026-04-24') >= new Date()` fails at any time after midnight because the date string parses as midnight
-- **Fix:** Compare ISO date strings directly: `e.date >= todayStr` where `todayStr = today.toISOString().slice(0, 10)`
 
 ---
 
@@ -156,12 +135,10 @@ npm run build
 
 | Issue | Severity | Notes |
 |---|---|---|
+| Resume Portal Security | High | The new resume portal needs strong RLS policies. Do not upload actual user resumes until Supabase Storage is configured to block unauthorized reads. Companies need expiring access tokens. |
 | Semester rollover | Medium | All events in `events.js` are Spring 2026. At semester start, clear old events and add new ones. The attendance dropdown auto-pulls from this file. |
-| Admin password management | Low | Admin accounts are created manually in Supabase Dashboard. No self-service password reset flow in the UI — users must contact whoever has Supabase access. |
-| Supabase free tier limits | Low | 50k rows, 500MB storage. A chapter with 200 members × 20 events = 4,000 rows/semester. No risk for several years. |
+| Admin Dashboard Performance | Low | Currently fetching the entire `attendance` table into memory to calculate "Most Active Members". This is fine for 1,000 rows, but will lag if the table grows to 10,000+. Consider a SQL View or RPC function in the future. |
 | Outer git repo in Documents/ | Low | `/Users/leonardomedina/Documents/` has a `.git` folder. If user ever runs git from Documents or SHPE_web, it causes submodule confusion. Not harmful if avoided. |
-| EmailJS credentials in source | Low | Service ID, Template ID, and Public Key are hardcoded in Sponsors.jsx. This is standard for EmailJS (public key is safe to expose). No action needed. |
-| Mobile testing gap | Low | Responsive fixes were applied but only verified in browser DevTools, not on physical devices. May need tweaks for specific phones. |
 
 ---
 
@@ -169,25 +146,21 @@ npm run build
 
 Paste this into a new chat session to get up to speed instantly:
 
----
-
 > **Project:** SHPE Ohio State University chapter website. Vite + React + Tailwind CSS. Live at `shpe-osu.vercel.app`. Repo: `github.com/leo205/SHPE_OSU`, branch `main`, auto-deploys to Vercel on push. Always run commands from `/Users/leonardomedina/Documents/SHPE_web/shpe-osu/`.
 >
 > **Stack:** React Router DOM, Tailwind CSS (custom SHPE palette), EmailJS (sponsor form), Supabase (attendance DB + admin auth), Recharts (admin charts).
 >
 > **Key features built:**
-> - `/attendance` — QR code check-in form (no navbar), submits to Supabase `attendance` table
-> - `/admin/login` + `/admin` — protected E-Board dashboard with attendance analytics
-> - Events calendar with Google/Apple Calendar export
-> - Sponsor contact form via EmailJS
+> - `/attendance` — QR code check-in form
+> - `/admin` — protected E-Board dashboard with advanced attendance analytics and scrollable leaderboard
+> - `/eboard` — Loteria-themed eboard page with responsive flex-wrap centering
+> - **In Progress:** Corporate Resume Book Portal (`/resumes`, `/company/login`)
 >
-> **Supabase:** Project `https://ekuaqbelulybowihmact.supabase.co`, publishable key in `src/lib/supabase.js`. RLS: `public` can INSERT, `authenticated` can SELECT. Admin users created manually in Supabase Dashboard → Auth → Users.
+> **Supabase:** Project `https://ekuaqbelulybowihmact.supabase.co`, publishable key in `src/lib/supabase.js`. RLS: `public` can INSERT, `authenticated` can SELECT. Admin users created manually in Supabase Dashboard.
 >
-> **Important gotcha:** RLS policy must use `to public` not `to anon` — the new Supabase publishable key (`sb_publishable_...`) doesn't map to `anon` role.
+> **Important gotcha:** RLS policy for public inserts must use `to public` not `to anon` due to the new Supabase publishable key format.
 >
 > **Current issue to continue:** [DESCRIBE WHAT YOU NEED HELP WITH]
->
-> **Do not:** Run git from `SHPE_web/` — always `cd shpe-osu` first. Do not revert the `to public` RLS policy back to `to anon`.
 
 ---
 
@@ -197,26 +170,11 @@ Paste this into a new chat session to get up to speed instantly:
 ```
 public/
 ├── photos/
-│   ├── picsMain/          # Home page hero + mission images
-│   │   ├── SHPE_convention.png
-│   │   ├── SHPE_volunteering.png
-│   │   ├── shpeBrunch.jpg
-│   │   └── brunchPic2.jpg
-│   ├── events/            # Event photos (referenced in events.js + Events.jsx)
-│   │   ├── cakeSHPE.jpg
-│   │   ├── eventGM.jpeg
-│   │   ├── finalEventSHPE.png
-│   │   ├── finalGBM.png
-│   │   └── fundraiserSHPE.png
-│   ├── sponsors/          # Sponsor logos (corrected from sponsers)
-│   │   ├── lincolnElectric.png
-│   │   ├── Accenture.png
-│   │   ├── GM.png
-│   │   ├── JPMC.png
-│   │   ├── honda.png
-│   │   └── AEP.png
-│   ├── eboard/            # E-Board member photos
-│   ├── shpeLogo.png       # Used in /attendance, /admin/login, /admin
+│   ├── picsMain/          # Home page hero + mission images + shpeTinas.png
+│   ├── events/            # Event photos (referenced in events.js)
+│   ├── sponsors/          # Sponsor logos
+│   ├── eboard/            # All 19 E-Board member headshots
+│   ├── shpeLogo.png       # Used in forms
 │   └── thompsonPic.jpg    # Resources page
 └── vite.svg
 ```
@@ -226,31 +184,3 @@ public/
 2. Drop new photos in `public/photos/events/`
 3. Reference photo in event object: `photo: '/photos/events/filename.jpg'`
 4. `git add . && git commit -m "update events" && git push`
-
-### Attendance QR code
-- URL: `https://shpe-osu.vercel.app/attendance`
-- Generate QR at qr-code-generator.com
-- Event list auto-pulls from `src/data/events.js` — no code change needed when events update
-
-### Supabase attendance table schema
-```sql
-create table attendance (
-  id uuid default gen_random_uuid() primary key,
-  created_at timestamptz default now(),
-  event_name text not null,
-  first_name text not null,
-  last_name_dotnum text not null,   -- format: "LastName.##" e.g. "Buckeye.01"
-  year text not null,
-  is_first_meeting boolean default false,
-  feedback text,
-  major text,        -- only filled for first-timers
-  pronouns text,     -- only filled for first-timers
-  how_heard text     -- only filled for first-timers
-);
-```
-
-### Navbar routes (these appear in nav)
-`/` `/events` `/eboard` `/sponsors` `/resources`
-
-### Hidden routes (no nav link — direct URL only)
-`/attendance` `/admin` `/admin/login`
