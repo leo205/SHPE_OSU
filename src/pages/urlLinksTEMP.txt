@@ -8,3 +8,4 @@ sent to this page after: https://shpe-osu.vercel.app/company/dashboard
 For the E-Board (Admins)
 Resume Approval Management: https://shpe-osu.vercel.app/admin/resumes
 or be already be in admin page
+Will add to github readme until broke ass shpe buys domain 
