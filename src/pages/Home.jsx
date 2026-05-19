@@ -78,9 +78,11 @@ export default function Home() {
             <div className="relative w-full">
               <div className="rounded-2xl overflow-hidden shadow-2xl border-8 border-surface-container-lowest">
                 <img
-                  src="/photos/picsMain/SHPE_convention.png"
+                  src="/photos/picsMain/SHPE_convention.webp"
                   alt="SHPE Convention"
                   className="w-full h-auto max-h-[400px] object-cover object-center"
+                  width="1200"
+                  height="675"
                 />
               </div>
             </div>
@@ -95,7 +97,7 @@ export default function Home() {
             {/* Image */}
             <div className="order-2 md:order-1 relative">
               <div className="rounded-lg overflow-hidden shadow-xl aspect-video">
-                <img src="/photos/picsMain/SHPE_volunteering.png" alt="SHPE Volunteering" className="w-full h-full object-cover min-h-[260px]" />
+                <img src="/photos/picsMain/SHPE_volunteering.webp" alt="SHPE Volunteering" className="w-full h-full object-cover min-h-[260px]" loading="lazy" width="1200" height="800" />
               </div>
               <div className="absolute -bottom-6 -right-6 bg-secondary text-on-secondary p-4 rounded-xl shadow-lg max-w-[200px] hidden sm:block">
                 <p className="font-bold text-lg italic">
@@ -168,7 +170,7 @@ export default function Home() {
                 </p>
               </div>
               <div className="w-full md:w-64 h-48 rounded-xl overflow-hidden">
-                <img src="/photos/picsMain/shpeBrunch.jpg" alt="SHPE Brunch" className="w-full h-full object-cover" />
+                <img src="/photos/picsMain/shpeBrunch.webp" alt="SHPE Brunch" className="w-full h-full object-cover" loading="lazy" width="1200" height="800" />
               </div>
             </div>
 
@@ -188,7 +190,7 @@ export default function Home() {
                 </p>
               </div>
               <div className="w-full md:w-64 h-48 rounded-xl overflow-hidden">
-                <img src="/photos/picsMain/brunchPic2.jpg" alt="SHPE Brunch" className="w-full h-full object-cover object-center" />
+                <img src="/photos/picsMain/brunchPic2.webp" alt="SHPE Brunch" className="w-full h-full object-cover object-center" loading="lazy" width="1200" height="800" />
               </div>
             </div>
 
@@ -277,10 +279,13 @@ export default function Home() {
                 </p>
               </div>
               <div className="w-full flex-1 min-h-[200px] rounded-xl overflow-hidden shadow-md mt-4 border-4 border-surface-container-lowest">
-                <img 
-                  src="/photos/picsMain/shpeTinas.png" 
-                  alt="SHPEtinas Community" 
-                  className="w-full h-full object-cover object-center" 
+                <img
+                  src="/photos/picsMain/shpeTinas.webp"
+                  alt="SHPEtinas Community"
+                  className="w-full h-full object-cover object-center"
+                  loading="lazy"
+                  width="1200"
+                  height="745"
                 />
               </div>
             </div>

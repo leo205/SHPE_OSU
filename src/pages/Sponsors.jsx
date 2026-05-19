@@ -93,16 +93,16 @@ const tiers = [
  */
 const sponsors = {
   platinum: [
-    { name: 'Lincoln Electric', logo: '/photos/sponsors/lincolnElectric.png' },
-    { name: 'Accenture', logo: '/photos/sponsors/Accenture.png' },
+    { name: 'Lincoln Electric', logo: '/photos/sponsors/lincolnElectric.webp' },
+    { name: 'Accenture', logo: '/photos/sponsors/Accenture.webp' },
   ],
   gold: [
-    { name: 'GM', logo: '/photos/sponsors/GM.png' },
+    { name: 'GM', logo: '/photos/sponsors/GM.webp' },
     { name: 'JPMC', logo: '/photos/sponsors/JPMC.png' },
   ],
   bronze: [
-    { name: 'Honda', logo: '/photos/sponsors/honda.png' },
-    { name: 'AEP', logo: '/photos/sponsors/AEP.png' },
+    { name: 'Honda', logo: '/photos/sponsors/honda.webp' },
+    { name: 'AEP', logo: '/photos/sponsors/AEP.webp' },
   ],
 };
 
@@ -117,6 +117,8 @@ function SponsorCard({ sponsor, size = 'lg' }) {
           src={sponsor.logo}
           alt={`${sponsor.name} logo`}
           className={`${h} max-w-full object-contain`}
+          loading="lazy"
+          width="600"
         />
       ) : (
         /*
@@ -396,7 +398,7 @@ export default function Sponsors() {
           </div>
           <div className="relative scale-105 md:scale-110">
             <div className="relative z-10 rounded-lg overflow-hidden border-8 border-surface-container-lowest shadow-2xl">
-              <img src="/photos/sponsors/eventGM.jpg" alt="Partnership Hero" className="w-full aspect-[4/3] object-cover object-center" />
+              <img src="/photos/sponsors/eventGM.webp" alt="Partnership Hero" className="w-full aspect-[4/3] object-cover object-center" width="900" height="675" />
             </div>
             <div className="absolute -bottom-6 -left-6 z-20 bg-primary-container p-6 rounded-lg text-on-primary-container shadow-xl">
               <p className="font-headline font-black text-4xl">200+</p>

@@ -21,7 +21,7 @@ const eboardMembers = [
     name: 'Isabella Staschiak',
     major: 'Environmental Engineering',
     year: '3rd Year',
-    photo: '/photos/eboard/isa.jpg',
+    photo: '/photos/eboard/isa.webp',
     rotate: '',
   },
   {
@@ -35,7 +35,7 @@ const eboardMembers = [
     name: 'Joshua Cruz Santos',
     major: '',
     year: '',
-    photo: '/photos/eboard/josh.jpeg',
+    photo: '/photos/eboard/josh.webp',
     rotate: 'rotate-[-1deg]',
   },
   {
@@ -49,7 +49,7 @@ const eboardMembers = [
     name: 'Brooke McPike',
     major: '',
     year: '',
-    photo: '/photos/eboard/brooke.jpeg',
+    photo: '/photos/eboard/brooke.webp',
     rotate: 'rotate-[2deg]',
   },
   {
@@ -63,7 +63,7 @@ const eboardMembers = [
     name: 'Natalia Favila Inacua',
     major: '',
     year: '',
-    photo: '/photos/eboard/natalia.jpeg',
+    photo: '/photos/eboard/natalia.webp',
     rotate: '',
   },
   {
@@ -77,7 +77,7 @@ const eboardMembers = [
     name: 'Victoria Cuellar Garcia',
     major: '',
     year: '',
-    photo: '/photos/eboard/victoria.jpeg',
+    photo: '/photos/eboard/victoria.webp',
     rotate: 'rotate-[-2deg]',
   },
   {
@@ -91,7 +91,7 @@ const eboardMembers = [
     name: 'Ricardo Tinoco Lopez',
     major: 'Honors Industrial & Systems Engineering',
     year: '3rd Year',
-    photo: '/photos/eboard/ricardo.jpeg',
+    photo: '/photos/eboard/ricardo.webp',
     rotate: '',
   },
   {
@@ -105,7 +105,7 @@ const eboardMembers = [
     name: 'Juan Andres Valle Nieto',
     major: '',
     year: '',
-    photo: '/photos/eboard/juan.jpeg',
+    photo: '/photos/eboard/juan.webp',
     rotate: 'rotate-[1deg]',
   },
   {
@@ -119,7 +119,7 @@ const eboardMembers = [
     name: 'Yareni Velazquez Garcia',
     major: '',
     year: '',
-    photo: '/photos/eboard/yareni.jpeg',
+    photo: '/photos/eboard/yareni.webp',
     rotate: 'rotate-[-1deg]',
   },
   {
@@ -133,7 +133,7 @@ const eboardMembers = [
     name: 'Maria Paola Manrique Barrios',
     major: '',
     year: '',
-    photo: '/photos/eboard/maria.jpeg',
+    photo: '/photos/eboard/maria.webp',
     rotate: '',
   },
   {
@@ -147,7 +147,7 @@ const eboardMembers = [
     name: 'Eric Luther',
     major: '',
     year: '',
-    photo: '/photos/eboard/ericL.jpeg',
+    photo: '/photos/eboard/ericL.webp',
     rotate: 'rotate-[2deg]',
   },
   {
@@ -161,7 +161,7 @@ const eboardMembers = [
     name: 'Eric Santos Martinez',
     major: '',
     year: '',
-    photo: '/photos/eboard/ericM.jpeg',
+    photo: '/photos/eboard/ericM.webp',
     rotate: '',
   },
   {
@@ -175,7 +175,7 @@ const eboardMembers = [
     name: 'Chuy Trejo',
     major: '',
     year: '',
-    photo: '/photos/eboard/chuy.jpeg',
+    photo: '/photos/eboard/chuy.webp',
     rotate: 'rotate-[-2deg]',
   },
   {
@@ -189,7 +189,7 @@ const eboardMembers = [
     name: 'Fernando Sandoval Perez',
     major: '',
     year: '',
-    photo: '/photos/eboard/fern.png',
+    photo: '/photos/eboard/fern.webp',
     rotate: '',
   },
   {
@@ -203,7 +203,7 @@ const eboardMembers = [
     name: 'Leonardo Medina',
     major: '',
     year: '',
-    photo: '/photos/eboard/leo.png',
+    photo: '/photos/eboard/leo.webp',
     rotate: 'rotate-[1deg]',
   },
   {
@@ -217,7 +217,7 @@ const eboardMembers = [
     name: 'Kamila Nieto',
     major: '',
     year: '',
-    photo: '/photos/eboard/kamila.jpeg',
+    photo: '/photos/eboard/kamila.webp',
     rotate: '',
   },
   {
@@ -231,7 +231,7 @@ const eboardMembers = [
     name: 'Berenice Araiza Sierra',
     major: '',
     year: '',
-    photo: '/photos/eboard/berenice.jpeg',
+    photo: '/photos/eboard/berenice.webp',
     rotate: 'rotate-[-2deg]',
   },
   {
@@ -245,7 +245,7 @@ const eboardMembers = [
     name: 'Gloria Morales',
     major: '',
     year: '',
-    photo: '/photos/eboard/gloria.png',
+    photo: '/photos/eboard/gloria.webp',
     rotate: '',
   },
   {
@@ -259,7 +259,7 @@ const eboardMembers = [
     name: 'Aaron Perez',
     major: '',
     year: '',
-    photo: '/photos/eboard/aaron.jpeg',
+    photo: '/photos/eboard/aaron.webp',
     rotate: 'rotate-[1deg]',
   },
   {
@@ -273,7 +273,7 @@ const eboardMembers = [
     name: 'Rosa Waimin Duron',
     major: '',
     year: '',
-    photo: '/photos/eboard/rosa.jpeg',
+    photo: '/photos/eboard/rosa.webp',
     rotate: '',
   },
 ];
@@ -296,10 +296,13 @@ function LoteriaCard({ member, index }) {
       <div className="w-full flex-1 relative rounded-md overflow-hidden mb-4 bg-surface-container-high border-2 border-black">
         {member.photo ? (
           <img
-            src={member.photo}
+           src={member.photo}
             alt={`${member.role} - ${member.name}`}
             className={`absolute inset-0 w-full h-full object-cover ${member.id === 13 ? 'object-top' : 'object-center'
               }`}
+            loading="lazy"
+            width="400"
+            height="400"
           />
         ) : (
           /*

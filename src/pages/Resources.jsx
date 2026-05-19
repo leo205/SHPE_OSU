@@ -21,7 +21,7 @@ export default function Resources() {
           </div>
           <div className="flex-1 w-full relative">
             <div className="w-full h-[400px] rounded-lg overflow-hidden shadow-xl">
-              <img src="/photos/thompsonPic.jpg" alt="Students studying at Thompson" className="w-full h-full object-cover" />
+              <img src="/photos/thompsonPic.webp" alt="Students studying at Thompson" className="w-full h-full object-cover" loading="lazy" width="1200" height="960" />
             </div>
           </div>
         </header>
