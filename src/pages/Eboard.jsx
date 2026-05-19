@@ -293,16 +293,14 @@ function LoteriaCard({ member, index }) {
     >
 
       {/* Photo slot */}
-      <div className="w-full flex-1 relative rounded-md overflow-hidden mb-4 bg-surface-container-high border-2 border-black">
+      <div className="w-full rounded-md overflow-hidden mb-4 bg-surface-container-high border-2 border-black" style={{ aspectRatio: '1 / 1.2' }}>
         {member.photo ? (
           <img
-           src={member.photo}
+            src={member.photo}
             alt={`${member.role} - ${member.name}`}
-            className={`absolute inset-0 w-full h-full object-cover ${member.id === 13 ? 'object-top' : 'object-center'
-              }`}
+            className={`w-full h-full object-cover ${member.id === 13 ? 'object-top' : 'object-center'}`}
             loading="lazy"
-            width="400"
-            height="400"
+            decoding="async"
           />
         ) : (
           /*
