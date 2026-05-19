@@ -24,7 +24,7 @@ export default function Navbar() {
           to="/"
           className="flex items-center transition-transform hover:scale-105"
         >
-          <img src="/photos/shpeLogo.png" alt="SHPE OSU Logo" className="h-10 md:h-12 w-auto object-contain" />
+          <img src="/photos/topSHPE.webp" alt="SHPE OSU Logo" className="h-10 md:h-12 w-auto object-contain" />
         </Link>
 
         {/* Desktop Nav */}
