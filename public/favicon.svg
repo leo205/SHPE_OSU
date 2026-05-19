@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- White rounded square background -->
+  <rect width="64" height="64" rx="12" fill="white"/>
+
+  <!-- Navy blue vertical oval (the central element of the SHPE mark) -->
+  <ellipse cx="32" cy="33" rx="9" ry="22" fill="none" stroke="#1B2A5E" stroke-width="8"/>
+
+  <!-- Orange/red left swoosh arc -->
+  <path d="M14 38 Q10 28, 24 22 Q30 20, 34 24" fill="none" stroke="#E84525" stroke-width="7" stroke-linecap="round"/>
+
+  <!-- Light blue right swoosh arc -->
+  <path d="M50 26 Q54 36, 40 42 Q34 44, 30 40" fill="none" stroke="#7BAFD4" stroke-width="7" stroke-linecap="round"/>
+</svg>
