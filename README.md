@@ -84,4 +84,38 @@ To run this project locally on your machine:
 
 ## 📝 Maintenance & Handoff
 
-For detailed instructions on how to maintain the site, add new events, update the Supabase schema, or handle the semester rollover, please refer to the `HANDOFF.md` file included in this repository. 
+For detailed instructions on how to maintain the site, add new events, update the Supabase schema, or handle the semester rollover, please refer to the `HANDOFF.md` file included in this repository.
+
+---
+
+## 🔗 Hidden Routes (Not in Navbar)
+
+These pages are intentionally **not linked in the navigation bar**. They are accessed via QR code, direct URL, or shared link only. Bookmark these or distribute them as needed.
+
+> **Live domain:** `https://www.shpeosu.com`
+
+### 👩‍🎓 For Students (Members)
+| Page | URL |
+|---|---|
+| **Attendance Check-In** | [`https://www.shpeosu.com/attendance`](https://www.shpeosu.com/attendance) |
+| **Resume Upload** | [`https://www.shpeosu.com/resume-upload`](https://www.shpeosu.com/resume-upload) |
+
+> The attendance page is typically shared via a QR code displayed at each event.
+
+### 🏢 For Corporate Partners (Recruiters)
+| Page | URL |
+|---|---|
+| **Company Login** | [`https://www.shpeosu.com/company`](https://www.shpeosu.com/company) |
+| **Company Dashboard** _(after login)_ | [`https://www.shpeosu.com/company/dashboard`](https://www.shpeosu.com/company/dashboard) |
+
+> Access codes for the company dashboard are generated and distributed by the E-Board.
+
+### 🔐 For the E-Board (Admins)
+| Page | URL |
+|---|---|
+| **Admin Login** | [`https://www.shpeosu.com/admin/login`](https://www.shpeosu.com/admin/login) |
+| **Admin Dashboard** _(after login)_ | [`https://www.shpeosu.com/admin`](https://www.shpeosu.com/admin) |
+| **Resume Approval** _(after login)_ | [`https://www.shpeosu.com/admin/resumes`](https://www.shpeosu.com/admin/resumes) |
+
+> Admin credentials are created manually in the Supabase Dashboard → Authentication → Users. Never share the admin login URL publicly.
+
