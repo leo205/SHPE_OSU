@@ -1,6 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { events, categoryColors } from '../data/events';
 import ImagePlaceholder from '../components/ImagePlaceholder';
+import { supabase } from '../lib/supabase';
 
 /* ── Calendar helpers ──────────────────────────────────────── */
 function getDaysInMonth(year, month) {
@@ -163,6 +164,42 @@ export default function Events() {
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const [members, setMembers] = useState([]);
+
+  useEffect(() => {
+    const fetchMembers = async () => {
+      const { data, error } = await supabase
+        .from('attendance')
+        .select('*');
+
+      if (!error && data) {
+        // Aggregate attendance by dot number
+        const memberAttendance = {};
+        data.forEach(r => {
+          const dotnum = r.last_name_dotnum?.toLowerCase();
+          if (!dotnum) return;
+          if (!memberAttendance[dotnum]) {
+            memberAttendance[dotnum] = {
+              count: 0,
+              firstName: r.first_name,
+              lastName: r.last_name_dotnum,
+              dotnum
+            };
+          }
+          memberAttendance[dotnum].count++;
+        });
+
+        // Sort by count descending
+        const sortedMembers = Object.values(memberAttendance)
+          .sort((a, b) => b.count - a.count);
+
+        setMembers(sortedMembers);
+      }
+    };
+    fetchMembers();
+  }, []);
+
+  const topMember = members && members.length > 0 ? members[0] : { firstName: "TBD", lastName: "", count: 0 };
 
   const monthName = new Date(year, month).toLocaleString('en-US', {
     month: 'long',
@@ -457,6 +494,70 @@ export default function Events() {
         </div>
       </section>
 
+
+      {/* ── STANDINGS / LEADERBOARD ────────────────────────── */}
+      <section className="max-w-7xl mx-auto px-6 mt-20 mb-20">
+        <div className="bg-white/90 backdrop-blur-md p-6 rounded-3xl shadow-xl border border-white/50 text-center max-w-sm mb-10 mx-auto">
+          <h2 className="text-3xl font-black text-[#A33700]">Leaderboard</h2>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
+
+          {/* LEFT COLUMN: The Leaderboard (Takes up 2/3 of space) */}
+          <div className="lg:col-span-2 bg-[#F6F0E9] p-8 rounded-[2rem] shadow-2xl border border-white/40 overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b-2 border-[#f26534]/20">
+                  <th className="text-left text-[#302E2B] font-bold p-4 text-xl">Name.#</th>
+                  <th className="text-right text-[#302E2B] font-bold p-4 text-xl">Events Attended</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {members?.map((m, index) => (
+                  <tr key={m.dotnum} className="hover:bg-white/40 transition-colors">
+                    <td className="p-4 text-gray-800 font-medium whitespace-nowrap">
+                      <span className="mr-3 text-gray-400">{index + 1}.</span>
+                      {m.firstName} {m.lastName}
+                    </td>
+                    <td className="p-4 text-right font-mono text-[#f26534] font-bold text-lg">
+                      {m.count}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="flex flex-col gap-6">
+            <div className="bg-[#BCD3FF] p-8 rounded-[2rem] shadow-2xl border-4 border-white transform lg:rotate-2">
+              <div className="text-center">
+                <span className="text-5xl mb-4 block">🌟</span>
+                <h3 className="text-[#3B5B91] font-black text-2xl uppercase tracking-widest">
+                  Member of the Month
+                </h3>
+                <p className="text-[#3B5B91] font-bold mb-6">April 2026</p>
+
+                <div className="bg-white rounded-2xl p-6 shadow-inner">
+                  <div className="w-24 h-24 bg-gray-200 rounded-full mx-auto mb-4 border-4 border-[#f26534]/20 flex items-center justify-center">
+                    <span className="text-gray-400 text-xs">Photo</span>
+                  </div>
+                  <h4 className="text-[#3B5B91] text-2xl font-black truncate">
+                    Brutus Buckeye
+                  </h4>
+                  <p className="text-gray-500 font-medium mt-1 text-sm leading-snug">
+                    "Quote from the member about their experience or dedication to SHPE. This is just a placeholder for now!"
+                  </p>
+                </div>
+
+                <p className="text-[#3B5B91] mt-6 text-sm italic font-medium">
+                  Thank you for your dedication to the Familia!
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ── THIS WEEK'S EVENTS ─────────────────────────────── */}
       <section className="max-w-7xl mx-auto px-6 mt-20 mb-20">
         <h3 className="font-headline text-4xl font-extrabold text-on-background mb-12 flex items-center gap-4">
@@ -514,6 +615,7 @@ export default function Events() {
           })}
         </div>
       </section>
+
 
       {/* ── EVENT MODAL ────────────────────────────────────── */}
       {selectedEvent && (
