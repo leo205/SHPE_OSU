@@ -1,30 +1,6 @@
 import { useState } from 'react';
 import { supabase } from '../lib/supabase';
 
-// ── Constants ───────────────────────────────────────────────────────────────
-const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
-const PDF_MAGIC = [0x25, 0x50, 0x44, 0x46]; // %PDF
-
-// OSU email domains accepted (members + alumni graduate addresses)
-const VALID_EMAIL_DOMAINS = ['@osu.edu', '@alumni.osu.edu', '@buckeyemail.osu.edu'];
-
-// ── Helpers ─────────────────────────────────────────────────────────────────
-/**
- * Reads the first 4 bytes of a File and checks for the PDF magic number %PDF.
- * This prevents MIME-type spoofing (e.g., renaming malware.exe → resume.pdf).
- */
-async function isValidPDF(file) {
-  const buf = await file.slice(0, 4).arrayBuffer();
-  const bytes = new Uint8Array(buf);
-  return PDF_MAGIC.every((b, i) => bytes[i] === b);
-}
-
-function isOSUEmail(email) {
-  const lower = email.toLowerCase().trim();
-  return VALID_EMAIL_DOMAINS.some((domain) => lower.endsWith(domain));
-}
-
-// ── Component ────────────────────────────────────────────────────────────────
 export default function ResumeUpload() {
   const [formData, setFormData] = useState({
     full_name: '',
@@ -38,29 +14,12 @@ export default function ResumeUpload() {
 
   const handleUpload = async (e) => {
     e.preventDefault();
-
-    // ── File presence ────────────────────────────────────────────────────────
     if (!file) {
       setErrorMsg('Please select a PDF file.');
       return;
     }
-
-    // ── File size cap (5 MB) ─────────────────────────────────────────────────
-    if (file.size > MAX_FILE_SIZE_BYTES) {
-      setErrorMsg('File must be under 5 MB. Please compress your PDF and try again.');
-      return;
-    }
-
-    // ── OSU email validation (M3) ────────────────────────────────────────────
-    if (!isOSUEmail(formData.email)) {
-      setErrorMsg('Please use your OSU email address (e.g. name.1@osu.edu).');
-      return;
-    }
-
-    // ── Magic-byte PDF check (C4) — must await before upload ─────────────────
-    const pdfValid = await isValidPDF(file);
-    if (!pdfValid) {
-      setErrorMsg('The selected file does not appear to be a valid PDF. Only PDF files are accepted.');
+    if (file.type !== 'application/pdf') {
+      setErrorMsg('Only PDF files are allowed.');
       return;
     }
 
@@ -68,21 +27,22 @@ export default function ResumeUpload() {
     setErrorMsg('');
 
     try {
-      // 1. Build a safe, user-independent filename — never trust file.name (C4)
-      const safeFileName = `${Date.now()}_${crypto.randomUUID()}.pdf`;
-      const filePath = `submissions/${safeFileName}`;
+      // 1. Upload to Storage
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `submissions/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('resumes')
-        .upload(filePath, file, { contentType: 'application/pdf' });
+        .upload(filePath, file);
 
       if (uploadError) throw uploadError;
 
-      // 2. Insert metadata into DB
+      // 2. Insert into DB
       const { error: dbError } = await supabase.from('resumes').insert([
         {
-          full_name: formData.full_name.trim(),
-          email: formData.email.trim().toLowerCase(),
+          full_name: formData.full_name,
+          email: formData.email,
           major: formData.major,
           graduation_year: formData.graduation_year,
           resume_path: filePath,
@@ -94,9 +54,8 @@ export default function ResumeUpload() {
 
       setStatus('success');
     } catch (err) {
-      // M4: Log raw error for devs — never surface internal messages to users
-      console.error('[ResumeUpload] Upload error:', err);
-      setErrorMsg('Something went wrong. Please try again or contact an E-Board member.');
+      console.error(err);
+      setErrorMsg(err.message || 'Something went wrong.');
       setStatus('error');
     }
   };
@@ -153,7 +112,6 @@ export default function ResumeUpload() {
               <input
                 required
                 type="text"
-                maxLength={200}
                 value={formData.full_name}
                 onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
                 className="w-full px-4 py-3 rounded-xl border border-outline-variant bg-surface-bright focus:outline-none focus:ring-2 focus:ring-primary/50"
@@ -161,13 +119,10 @@ export default function ResumeUpload() {
               />
             </div>
             <div>
-              <label className="block text-sm font-bold text-on-surface mb-2">
-                Email <span className="text-xs font-normal text-on-surface-variant">(OSU email required)</span>
-              </label>
+              <label className="block text-sm font-bold text-on-surface mb-2">Email</label>
               <input
                 required
                 type="email"
-                maxLength={254}
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 className="w-full px-4 py-3 rounded-xl border border-outline-variant bg-surface-bright focus:outline-none focus:ring-2 focus:ring-primary/50"
@@ -186,14 +141,14 @@ export default function ResumeUpload() {
                 className="w-full px-4 py-3 rounded-xl border border-outline-variant bg-surface-bright focus:outline-none focus:ring-2 focus:ring-primary/50"
               >
                 <option value="" disabled>Select Major</option>
-                <option value="Computer Science &amp; Engineering">Computer Science &amp; Engineering</option>
+                <option value="Computer Science & Engineering">Computer Science & Engineering</option>
                 <option value="Mechanical Engineering">Mechanical Engineering</option>
                 <option value="Electrical Engineering">Electrical Engineering</option>
                 <option value="Civil Engineering">Civil Engineering</option>
                 <option value="Biomedical Engineering">Biomedical Engineering</option>
                 <option value="Aerospace Engineering">Aerospace Engineering</option>
                 <option value="Chemical Engineering">Chemical Engineering</option>
-                <option value="Industrial &amp; Systems Eng.">Industrial &amp; Systems Eng.</option>
+                <option value="Industrial & Systems Eng.">Industrial & Systems Eng.</option>
                 <option value="Materials Science">Materials Science</option>
                 <option value="Data Analytics">Data Analytics</option>
                 <option value="Other">Other</option>
@@ -221,30 +176,20 @@ export default function ResumeUpload() {
           </div>
 
           <div>
-            <label className="block text-sm font-bold text-on-surface mb-2">
-              Upload Resume (PDF only, max 5 MB)
-            </label>
+            <label className="block text-sm font-bold text-on-surface mb-2">Upload Resume (PDF only)</label>
             <div className="border-2 border-dashed border-outline-variant rounded-xl p-8 text-center bg-surface-bright hover:bg-surface-container transition-colors cursor-pointer relative">
               <input
                 required
                 type="file"
-                accept=".pdf,application/pdf"
-                onChange={(e) => {
-                  setErrorMsg('');
-                  setFile(e.target.files[0] || null);
-                }}
+                accept=".pdf"
+                onChange={(e) => setFile(e.target.files[0])}
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
               />
               <span className="material-symbols-outlined text-4xl text-on-surface-variant mb-2">
                 upload_file
               </span>
               {file ? (
-                <div>
-                  <p className="font-bold text-primary">{file.name}</p>
-                  <p className="text-xs text-on-surface-variant mt-1">
-                    {(file.size / 1024 / 1024).toFixed(2)} MB
-                  </p>
-                </div>
+                <p className="font-bold text-primary">{file.name}</p>
               ) : (
                 <p className="text-on-surface-variant text-sm font-medium">
                   Click or drag and drop to upload your PDF
