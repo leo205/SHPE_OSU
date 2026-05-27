@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { getCompanySession, clearCompanySession } from './CompanyLogin';
 
 export default function CompanyDashboard() {
   const [resumes, setResumes] = useState([]);
@@ -11,14 +12,27 @@ export default function CompanyDashboard() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Check auth
-    const session = localStorage.getItem('shpe_company_access');
+    // C3/L2: Validate session from sessionStorage with TTL check
+    const session = getCompanySession();
     if (!session) {
       navigate('/company');
       return;
     }
-    setCompanyName(JSON.parse(session).company);
+    setCompanyName(session.company);
     fetchResumes();
+
+    // L2: Auto-logout when tab regains focus and TTL has expired
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        const current = getCompanySession();
+        if (!current) {
+          clearCompanySession();
+          navigate('/company');
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [navigate]);
 
   const fetchResumes = async () => {
@@ -36,7 +50,7 @@ export default function CompanyDashboard() {
   };
 
   const handleSignOut = () => {
-    localStorage.removeItem('shpe_company_access');
+    clearCompanySession();
     navigate('/company');
   };
 
@@ -110,7 +124,9 @@ export default function CompanyDashboard() {
         </div>
 
         {loading ? (
-          <div className="flex justify-center py-20"><span className="material-symbols-outlined animate-spin text-4xl text-primary">progress_activity</span></div>
+          <div className="flex justify-center py-20">
+            <span className="material-symbols-outlined animate-spin text-4xl text-primary">progress_activity</span>
+          </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-20 text-on-surface-variant bg-surface-container-lowest rounded-2xl border border-outline-variant/20">
             <span className="material-symbols-outlined text-5xl mb-4 opacity-50">folder_open</span>

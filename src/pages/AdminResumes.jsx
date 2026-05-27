@@ -37,7 +37,14 @@ export default function AdminResumes() {
   const handleGenerateCode = async (e) => {
     e.preventDefault();
     if (!newCompany) return;
-    const randomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+    // C3: Use crypto.getRandomValues for cryptographically strong randomness
+    // (Math.random() is NOT cryptographically secure)
+    const bytes = crypto.getRandomValues(new Uint8Array(5));
+    const randomCode = Array.from(bytes)
+      .map(b => b.toString(36).padStart(2, '0'))
+      .join('')
+      .toUpperCase()
+      .slice(0, 8);
     const { error } = await supabase.from('company_access').insert([{
       company_name: newCompany,
       access_code: randomCode
