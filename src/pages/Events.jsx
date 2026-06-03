@@ -467,7 +467,7 @@ export default function Events() {
           </div>
 
           {/* Newsletter signup */}
-          <div className="bg-primary-container text-on-primary-container rounded-lg p-8 sticker-rotate-neg shadow-lg">
+          <div className="bg-primary-container text-on-primary-container rounded-lg p-8 shadow-lg">
             <h4 className="font-headline font-black text-xl mb-2">
               Don't miss a beat!
             </h4>
@@ -522,7 +522,7 @@ export default function Events() {
           </div>
 
           <div className="flex flex-col gap-6">
-            <div className="bg-[#BCD3FF] p-8 rounded-[2rem] shadow-2xl border-4 border-white transform lg:rotate-2">
+            <div className="bg-[#BCD3FF] p-8 rounded-[2rem] shadow-2xl border-4 border-white">
               <div className="text-center">
                 <span className="text-5xl mb-4 block">🌟</span>
                 <h3 className="text-[#3B5B91] font-black text-2xl uppercase tracking-widest">
