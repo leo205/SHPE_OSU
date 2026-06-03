@@ -474,22 +474,15 @@ export default function Events() {
             <p className="text-sm opacity-90 mb-4">
               Join our newsletter to receive updates about upcoming events.
             </p>
-            <form
-              onSubmit={(e) => e.preventDefault()}
-              className="flex gap-2"
+            <a
+              href="https://ohio-state.us10.list-manage.com/subscribe?u=83a66b4e27a8f6ab6405e8295&id=26dc1dc690"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-2 bg-on-primary-container text-primary-container px-6 py-3 rounded-xl font-bold hover:opacity-90 transition-all w-full text-center shadow-md hover:scale-[1.02] active:scale-[0.98]"
             >
-              <input
-                type="email"
-                placeholder="Email address"
-                className="bg-on-primary-container/10 border-none rounded-xl flex-grow text-sm placeholder:text-on-primary-container/50 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-on-primary-container"
-              />
-              <button
-                type="submit"
-                className="bg-on-primary-container text-primary-container p-2 rounded-xl hover:opacity-90 transition-opacity"
-              >
-                <span className="material-symbols-outlined">send</span>
-              </button>
-            </form>
+              <span>Subscribe</span>
+              <span className="material-symbols-outlined">open_in_new</span>
+            </a>
           </div>
         </div>
       </section>
