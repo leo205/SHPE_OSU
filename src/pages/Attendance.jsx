@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { events } from '../data/events';
 
+// ── Whitelisted enum values (C2, M2) ────────────────────────────────────────
 const YEARS = ['1st Year', '2nd Year', '3rd Year', '4th Year', '5th Year', 'Graduate Student', 'Professional'];
 
 const MAJORS = [
@@ -43,11 +44,40 @@ const EVENT_OPTIONS = events.map((e) => {
   return `${dateLabel} - ${e.title}`;
 });
 
+// ── Rate-limit constants (H1) ────────────────────────────────────────────────
+const SUBMIT_COOLDOWN_SEC = 30;
+
+// ── Validation helper (C2, M2) ───────────────────────────────────────────────
+function validatePayload(form, isFirst) {
+  if (!EVENT_OPTIONS.includes(form.event_name)) return 'Invalid event selection.';
+  if (!YEARS.includes(form.year)) return 'Invalid year selection.';
+  if (!form.first_name.trim()) return 'First name is required.';
+  if (!form.last_name_dotnum.trim()) return 'Last Name.## is required.';
+  if (form.first_name.trim().length > 100) return 'First name is too long.';
+  if (form.last_name_dotnum.trim().length > 100) return 'Last name/dot number is too long.';
+  if (form.feedback && form.feedback.length > 2000) return 'Feedback must be under 2000 characters.';
+  if (isFirst) {
+    if (!MAJORS.includes(form.major)) return 'Invalid major selection.';
+    if (!PRONOUNS.includes(form.pronouns)) return 'Invalid pronouns selection.';
+    if (!HOW_HEARD.includes(form.how_heard)) return 'Invalid "how heard" selection.';
+  }
+  return null;
+}
+
+// ── Component ────────────────────────────────────────────────────────────────
 export default function Attendance() {
   const [step, setStep] = useState(1); // 1 = section 1, 2 = new member section, 3 = success
   const [isFirst, setIsFirst] = useState(null); // null | true | false
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+
+  // H1: Rate-limit state
+  const [cooldownUntil, setCooldownUntil] = useState(null);
+  const [cooldownSec, setCooldownSec] = useState(0);
+  const cooldownTimer = useRef(null);
+
+  // H1: Double-submit guard
+  const isSubmittingRef = useRef(false);
 
   const [form, setForm] = useState({
     event_name: '',
@@ -55,7 +85,6 @@ export default function Attendance() {
     last_name_dotnum: '',
     year: '',
     feedback: '',
-    // new member fields
     major: '',
     pronouns: '',
     how_heard: '',
@@ -63,6 +92,24 @@ export default function Attendance() {
 
   const handleChange = (e) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+
+  // ── Cooldown ticker ─────────────────────────────────────────────────────────
+  const startCooldown = () => {
+    const until = Date.now() + SUBMIT_COOLDOWN_SEC * 1000;
+    setCooldownUntil(until);
+    setCooldownSec(SUBMIT_COOLDOWN_SEC);
+    clearInterval(cooldownTimer.current);
+    cooldownTimer.current = setInterval(() => {
+      const remaining = Math.ceil((until - Date.now()) / 1000);
+      if (remaining <= 0) {
+        clearInterval(cooldownTimer.current);
+        setCooldownUntil(null);
+        setCooldownSec(0);
+      } else {
+        setCooldownSec(remaining);
+      }
+    }, 1000);
   };
 
   const handleSection1Submit = (e) => {
@@ -73,7 +120,7 @@ export default function Attendance() {
     }
     setError('');
     if (isFirst) {
-      setStep(2); // show new member section
+      setStep(2);
     } else {
       submitForm();
     }
@@ -85,6 +132,20 @@ export default function Attendance() {
   };
 
   const submitForm = async () => {
+    if (isSubmittingRef.current) return;
+    if (cooldownUntil && Date.now() < cooldownUntil) {
+      setError(`Please wait ${cooldownSec} second${cooldownSec !== 1 ? 's' : ''} before submitting again.`);
+      return;
+    }
+
+    // C2/M2: Whitelist validation before hitting the DB
+    const validationError = validatePayload(form, isFirst);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    isSubmittingRef.current = true;
     setSubmitting(true);
     setError('');
 
@@ -102,11 +163,14 @@ export default function Attendance() {
 
     const { error: dbError } = await supabase.from('attendance').insert([payload]);
 
+    isSubmittingRef.current = false;
+    setSubmitting(false);
+
     if (dbError) {
+      console.error('[Attendance] Insert error:', dbError);
       setError('Something went wrong. Please try again or let an E-Board member know.');
-      console.error(dbError);
-      setSubmitting(false);
     } else {
+      startCooldown();
       setStep(3);
     }
   };
@@ -131,9 +195,7 @@ export default function Attendance() {
         </p>
         {isFirst && (
           <div className="mt-8 bg-surface-container-high rounded-2xl p-8 max-w-sm w-full text-left space-y-4">
-            <h3 className="font-headline font-bold text-lg text-on-surface">
-              Stay connected 👋
-            </h3>
+            <h3 className="font-headline font-bold text-lg text-on-surface">Stay connected 👋</h3>
             <a
               href="https://groupme.com/join_group/33253300/9a2V8k"
               target="_blank"
@@ -164,6 +226,8 @@ export default function Attendance() {
     );
   }
 
+  const isCoolingDown = cooldownUntil && Date.now() < cooldownUntil;
+
   return (
     <div className="min-h-screen bg-surface px-4 py-12">
       <div className="max-w-lg mx-auto">
@@ -182,8 +246,6 @@ export default function Attendance() {
           <p className="text-on-surface-variant text-sm mt-1">
             We're so glad you could make it 🙌
           </p>
-
-          {/* Step indicator */}
           {step === 2 && (
             <div className="mt-4 flex items-center justify-center gap-2">
               <div className="w-8 h-2 rounded-full bg-primary" />
@@ -199,7 +261,6 @@ export default function Attendance() {
             onSubmit={handleSection1Submit}
             className="bg-surface-container-lowest border border-outline-variant/20 rounded-2xl p-8 shadow-sm space-y-6"
           >
-            {/* Event */}
             <div>
               <label className="block text-sm font-bold uppercase tracking-wider mb-2 text-on-surface-variant">
                 Which event did you attend? *
@@ -213,14 +274,11 @@ export default function Attendance() {
               >
                 <option value="">Select an event…</option>
                 {EVENT_OPTIONS.map((opt) => (
-                  <option key={opt} value={opt}>
-                    {opt}
-                  </option>
+                  <option key={opt} value={opt}>{opt}</option>
                 ))}
               </select>
             </div>
 
-            {/* Name */}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-bold uppercase tracking-wider mb-2 text-on-surface-variant">
@@ -230,6 +288,7 @@ export default function Attendance() {
                   name="first_name"
                   required
                   type="text"
+                  maxLength={100}
                   value={form.first_name}
                   onChange={handleChange}
                   placeholder="Maria"
@@ -244,6 +303,7 @@ export default function Attendance() {
                   name="last_name_dotnum"
                   required
                   type="text"
+                  maxLength={100}
                   value={form.last_name_dotnum}
                   onChange={handleChange}
                   placeholder="Buckeye.01"
@@ -252,7 +312,6 @@ export default function Attendance() {
               </div>
             </div>
 
-            {/* Year */}
             <div>
               <label className="block text-sm font-bold uppercase tracking-wider mb-2 text-on-surface-variant">
                 Year *
@@ -271,7 +330,6 @@ export default function Attendance() {
               </select>
             </div>
 
-            {/* Feedback */}
             <div>
               <label className="block text-sm font-bold uppercase tracking-wider mb-2 text-on-surface-variant">
                 Any Feedback or Suggestions?
@@ -280,13 +338,18 @@ export default function Attendance() {
                 name="feedback"
                 value={form.feedback}
                 onChange={handleChange}
+                maxLength={2000}
                 rows={3}
                 placeholder="Optional — we read every response!"
                 className="w-full px-4 py-3 rounded-xl border border-outline-variant bg-surface focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all resize-none"
               />
+              {form.feedback.length > 1800 && (
+                <p className="text-xs text-on-surface-variant mt-1 text-right">
+                  {form.feedback.length}/2000
+                </p>
+              )}
             </div>
 
-            {/* First meeting? */}
             <div>
               <p className="text-sm font-bold uppercase tracking-wider mb-3 text-on-surface-variant">
                 Is this your first meeting this year? *
@@ -312,16 +375,20 @@ export default function Attendance() {
               </div>
             </div>
 
-            {error && (
-              <p className="text-sm font-bold text-error">{error}</p>
-            )}
+            {error && <p className="text-sm font-bold text-error">{error}</p>}
 
             <button
               type="submit"
-              disabled={submitting}
+              disabled={submitting || isCoolingDown}
               className="w-full bg-primary text-on-primary py-4 rounded-full font-bold text-lg hover:bg-primary-fixed-dim transition-all shadow-lg active:scale-95 disabled:opacity-60"
             >
-              {isFirst ? 'Next →' : submitting ? 'Submitting…' : 'Submit'}
+              {isCoolingDown
+                ? `Please wait ${cooldownSec}s…`
+                : isFirst
+                ? 'Next →'
+                : submitting
+                ? 'Submitting…'
+                : 'Submit'}
             </button>
           </form>
         )}
@@ -333,15 +400,12 @@ export default function Attendance() {
             className="bg-surface-container-lowest border border-outline-variant/20 rounded-2xl p-8 shadow-sm space-y-6"
           >
             <div className="bg-tertiary-container text-on-tertiary-container rounded-xl p-5 mb-2">
-              <h2 className="font-headline font-bold text-lg mb-1">
-                Welcome to the Familia! 🎉
-              </h2>
+              <h2 className="font-headline font-bold text-lg mb-1">Welcome to the Familia! 🎉</h2>
               <p className="text-sm opacity-90">
                 We're so excited you're here. Just a few more questions to help us get to know you better.
               </p>
             </div>
 
-            {/* Major */}
             <div>
               <label className="block text-sm font-bold uppercase tracking-wider mb-2 text-on-surface-variant">
                 Major *
@@ -360,7 +424,6 @@ export default function Attendance() {
               </select>
             </div>
 
-            {/* Pronouns */}
             <div>
               <label className="block text-sm font-bold uppercase tracking-wider mb-2 text-on-surface-variant">
                 Pronouns *
@@ -379,7 +442,6 @@ export default function Attendance() {
               </select>
             </div>
 
-            {/* How heard */}
             <div>
               <label className="block text-sm font-bold uppercase tracking-wider mb-2 text-on-surface-variant">
                 How did you find out about SHPE at OSU? *
@@ -398,9 +460,7 @@ export default function Attendance() {
               </select>
             </div>
 
-            {error && (
-              <p className="text-sm font-bold text-error">{error}</p>
-            )}
+            {error && <p className="text-sm font-bold text-error">{error}</p>}
 
             <div className="flex gap-3">
               <button
@@ -412,10 +472,10 @@ export default function Attendance() {
               </button>
               <button
                 type="submit"
-                disabled={submitting}
+                disabled={submitting || isCoolingDown}
                 className="flex-1 bg-primary text-on-primary py-4 rounded-full font-bold hover:bg-primary-fixed-dim transition-all shadow-lg active:scale-95 disabled:opacity-60"
               >
-                {submitting ? 'Submitting…' : 'Submit'}
+                {isCoolingDown ? `Please wait ${cooldownSec}s…` : submitting ? 'Submitting…' : 'Submit'}
               </button>
             </div>
           </form>

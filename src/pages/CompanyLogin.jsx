@@ -2,6 +2,41 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 
+// ── Session constants (C3, L2) ───────────────────────────────────────────────
+// NOTE: The JS guard here is UX-only. Real security lives in Supabase RLS:
+// the `resumes` table must have policies that restrict SELECT to authenticated
+// sessions or service-role tokens — not just an anon key check.
+// See HANDOFF.md Security section for details.
+const SESSION_KEY = 'shpe_company_session';
+const SESSION_TTL_MS = 8 * 60 * 60 * 1000; // 8 hours
+
+export function saveCompanySession(companyName) {
+  sessionStorage.setItem(
+    SESSION_KEY,
+    JSON.stringify({ company: companyName, expiresAt: Date.now() + SESSION_TTL_MS })
+  );
+}
+
+export function getCompanySession() {
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    const session = JSON.parse(raw);
+    if (!session?.expiresAt || Date.now() > session.expiresAt) {
+      sessionStorage.removeItem(SESSION_KEY);
+      return null;
+    }
+    return session;
+  } catch {
+    sessionStorage.removeItem(SESSION_KEY);
+    return null;
+  }
+}
+
+export function clearCompanySession() {
+  sessionStorage.removeItem(SESSION_KEY);
+}
+
 export default function CompanyLogin() {
   const [accessCode, setAccessCode] = useState('');
   const [loading, setLoading] = useState(false);
@@ -17,27 +52,28 @@ export default function CompanyLogin() {
       const { data, error: fetchError } = await supabase
         .from('company_access')
         .select('*')
-        .eq('access_code', accessCode)
+        .eq('access_code', accessCode.trim().toUpperCase())
         .single();
 
       if (fetchError || !data) {
         throw new Error('Invalid access code.');
       }
 
-      // Optional: Check if expired
+      // Check expiry
       if (data.expires_at && new Date(data.expires_at) < new Date()) {
-        throw new Error('This access code has expired.');
+        throw new Error('This access code has expired. Please contact SHPE OSU for a new code.');
       }
 
-      // Valid! Persist session locally
-      localStorage.setItem('shpe_company_access', JSON.stringify({
-        company: data.company_name,
-        code: data.access_code,
-      }));
-
+      // C3/L2: sessionStorage + TTL instead of localStorage
+      saveCompanySession(data.company_name);
       navigate('/company/dashboard');
     } catch (err) {
-      setError(err.message || 'Invalid access code.');
+      console.error('[CompanyLogin] Auth error:', err);
+      setError(
+        err.message === 'Invalid access code.' || err.message.includes('expired')
+          ? err.message
+          : 'Something went wrong. Please try again.'
+      );
     } finally {
       setLoading(false);
     }
@@ -68,6 +104,7 @@ export default function CompanyLogin() {
               value={accessCode}
               onChange={(e) => setAccessCode(e.target.value)}
               placeholder="Enter Access Code"
+              maxLength={10}
               className="w-full px-4 py-3 rounded-xl border border-outline-variant bg-surface-bright focus:outline-none focus:ring-2 focus:ring-primary/50 text-center font-mono tracking-widest uppercase"
             />
           </div>

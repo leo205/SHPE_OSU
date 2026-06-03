@@ -1,28 +1,84 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
+
+// ── Brute-force constants (H2) ───────────────────────────────────────────────
+const MAX_ATTEMPTS = 5;
+const LOCKOUT_DURATION_MS = 5 * 60 * 1000; // 5 minutes
 
 export default function AdminLogin() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [status, setStatus] = useState('idle'); // idle | loading | error
+  const [status, setStatus] = useState('idle'); // idle | loading | error | locked
   const [errorMsg, setErrorMsg] = useState('');
+
+  // H2: Track consecutive failures and lockout state
+  const [failCount, setFailCount] = useState(0);
+  const [lockoutUntil, setLockoutUntil] = useState(null);
+  const [lockoutRemaining, setLockoutRemaining] = useState(0);
+  const lockoutTimer = useRef(null);
+
   const navigate = useNavigate();
 
+  // ── Lockout countdown ticker ─────────────────────────────────────────────
+  const startLockout = (until) => {
+    setLockoutUntil(until);
+    setStatus('locked');
+    clearInterval(lockoutTimer.current);
+    lockoutTimer.current = setInterval(() => {
+      const remaining = Math.ceil((until - Date.now()) / 1000);
+      if (remaining <= 0) {
+        clearInterval(lockoutTimer.current);
+        setLockoutUntil(null);
+        setLockoutRemaining(0);
+        setFailCount(0);
+        setStatus('idle');
+        setErrorMsg('');
+      } else {
+        setLockoutRemaining(remaining);
+      }
+    }, 1000);
+  };
+
+  // ── Submit handler ───────────────────────────────────────────────────────
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // H2: Block submit while locked out
+    if (lockoutUntil && Date.now() < lockoutUntil) return;
+
     setStatus('loading');
     setErrorMsg('');
 
     const { error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
-      setStatus('error');
-      setErrorMsg('Invalid email or password. Please try again.');
+      const newCount = failCount + 1;
+      setFailCount(newCount);
+
+      if (newCount >= MAX_ATTEMPTS) {
+        const until = Date.now() + LOCKOUT_DURATION_MS;
+        startLockout(until);
+        setLockoutRemaining(Math.ceil(LOCKOUT_DURATION_MS / 1000));
+        setErrorMsg('Too many failed attempts. Please wait 5 minutes before trying again.');
+      } else {
+        const attemptsLeft = MAX_ATTEMPTS - newCount;
+        setStatus('error');
+        // H2: Generic — don't distinguish bad email vs bad password
+        setErrorMsg(
+          `Invalid credentials. ${attemptsLeft} attempt${attemptsLeft !== 1 ? 's' : ''} remaining before lockout.`
+        );
+      }
     } else {
+      setFailCount(0);
+      clearInterval(lockoutTimer.current);
       navigate('/admin');
     }
   };
+
+  const isLocked = status === 'locked';
+  const minutesLeft = Math.floor(lockoutRemaining / 60);
+  const secondsLeft = lockoutRemaining % 60;
 
   return (
     <div className="min-h-screen bg-surface flex items-center justify-center px-4">
@@ -50,9 +106,23 @@ export default function AdminLogin() {
             Access the attendance dashboard and chapter analytics.
           </p>
 
-          {status === 'error' && (
+          {/* Error / Lockout banner */}
+          {(status === 'error' || isLocked) && (
             <div className="mb-6 p-4 bg-error-container text-on-error-container rounded-xl text-sm font-bold">
-              {errorMsg}
+              {isLocked ? (
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-lg">lock</span>
+                  <span>
+                    Account locked. Try again in{' '}
+                    <span className="font-mono">
+                      {minutesLeft > 0 ? `${minutesLeft}m ` : ''}
+                      {String(secondsLeft).padStart(2, '0')}s
+                    </span>
+                  </span>
+                </div>
+              ) : (
+                errorMsg
+              )}
             </div>
           )}
 
@@ -68,10 +138,11 @@ export default function AdminLogin() {
                 id="email"
                 type="email"
                 required
+                disabled={isLocked}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="name.1@osu.edu"
-                className="w-full px-4 py-3 rounded-xl border border-outline-variant bg-surface focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                className="w-full px-4 py-3 rounded-xl border border-outline-variant bg-surface focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               />
             </div>
 
@@ -86,19 +157,25 @@ export default function AdminLogin() {
                 id="password"
                 type="password"
                 required
+                disabled={isLocked}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full px-4 py-3 rounded-xl border border-outline-variant bg-surface focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                className="w-full px-4 py-3 rounded-xl border border-outline-variant bg-surface focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               />
             </div>
 
             <button
               type="submit"
-              disabled={status === 'loading'}
+              disabled={status === 'loading' || isLocked}
               className="w-full bg-primary text-on-primary py-4 rounded-full font-bold text-lg hover:bg-primary-fixed-dim transition-all shadow-lg active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2"
             >
-              {status === 'loading' ? (
+              {isLocked ? (
+                <>
+                  <span className="material-symbols-outlined text-xl">lock</span>
+                  Locked
+                </>
+              ) : status === 'loading' ? (
                 <>
                   <span className="material-symbols-outlined animate-spin text-xl">
                     progress_activity

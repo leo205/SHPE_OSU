@@ -171,21 +171,34 @@ export default function AdminDashboard() {
   });
 
   /* ── CSV export ─────────────────────────────────────────── */
+  /**
+   * Sanitizes a value for safe inclusion in a CSV cell (H3 — CSV Injection).
+   * Prefixes formula-injection trigger characters (=, +, -, @, TAB, CR) with
+   * a single-quote so spreadsheet apps treat the cell as plain text.
+   * Wraps in double-quotes and escapes internal double-quotes per RFC 4180.
+   */
+  const sanitizeCSVCell = (value) => {
+    if (value === null || value === undefined) return '';
+    let str = String(value);
+    if (/^[=+\-@\t\r]/.test(str)) str = `'${str}`;
+    return `"${str.replace(/"/g, '""')}"`;
+  };
+
   const exportCSV = () => {
     const headers = ['First Name', 'Last Name.##', 'Year', 'Event', 'First Meeting', 'Major', 'Pronouns', 'How Heard', 'Feedback', 'Date'];
     const csvRows = [
       headers.join(','),
       ...filteredRows.map((r) =>
         [
-          r.first_name,
-          r.last_name_dotnum,
-          r.year,
-          `"${r.event_name}"`,
+          sanitizeCSVCell(r.first_name),
+          sanitizeCSVCell(r.last_name_dotnum),
+          sanitizeCSVCell(r.year),
+          sanitizeCSVCell(r.event_name),
           r.is_first_meeting ? 'Yes' : 'No',
-          r.major || '',
-          r.pronouns || '',
-          r.how_heard || '',
-          `"${(r.feedback || '').replace(/"/g, "'")}"`,
+          sanitizeCSVCell(r.major),
+          sanitizeCSVCell(r.pronouns),
+          sanitizeCSVCell(r.how_heard),
+          sanitizeCSVCell(r.feedback),
           r.created_at?.slice(0, 10) || '',
         ].join(',')
       ),
