@@ -486,28 +486,30 @@ export default function Events() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
 
           {/* LEFT COLUMN: The Leaderboard (Takes up 2/3 of space) */}
-          <div className="lg:col-span-2 bg-[#F6F0E9] p-8 rounded-[2rem] shadow-2xl border border-white/40 overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b-2 border-[#f26534]/20">
-                  <th className="text-left text-[#302E2B] font-bold p-4 text-xl">Name.#</th>
-                  <th className="text-right text-[#302E2B] font-bold p-4 text-xl">Events Attended</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {members?.map((m, index) => (
-                  <tr key={m.dotnum} className="hover:bg-white/40 transition-colors">
-                    <td className="p-4 text-gray-800 font-medium whitespace-nowrap">
-                      <span className="mr-3 text-gray-400">{index + 1}.</span>
-                      {m.firstName} {m.lastName}
-                    </td>
-                    <td className="p-4 text-right font-mono text-[#f26534] font-bold text-lg">
-                      {m.count}
-                    </td>
+          <div className="lg:col-span-2 bg-[#F6F0E9] p-8 rounded-[2rem] shadow-2xl border border-white/40 flex flex-col max-h-[440px]">
+            <div className="overflow-y-auto overflow-x-auto flex-grow pr-1">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b-2 border-[#f26534]/20 sticky top-0 z-10">
+                    <th className="text-left text-[#302E2B] font-bold p-4 text-xl bg-[#F6F0E9]">Name.#</th>
+                    <th className="text-right text-[#302E2B] font-bold p-4 text-xl bg-[#F6F0E9]">Events Attended</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {members?.map((m, index) => (
+                    <tr key={m.dotnum} className="hover:bg-white/40 transition-colors">
+                      <td className="p-4 text-gray-800 font-medium whitespace-nowrap">
+                        <span className="mr-3 text-gray-400">{index + 1}.</span>
+                        {m.firstName} {m.lastName}
+                      </td>
+                      <td className="p-4 text-right font-mono text-[#f26534] font-bold text-lg">
+                        {m.count}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
 
           <div className="flex flex-col gap-6">
