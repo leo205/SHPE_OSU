@@ -169,31 +169,20 @@ export default function Events() {
   useEffect(() => {
     const fetchMembers = async () => {
       const { data, error } = await supabase
-        .from('attendance')
-        .select('*');
+        .from('leaderboard')
+        .select('first_name, last_name_dotnum, dotnum, count')
+        .order('count', { ascending: false });
 
       if (!error && data) {
-        // Aggregate attendance by dot number
-        const memberAttendance = {};
-        data.forEach(r => {
-          const dotnum = r.last_name_dotnum?.toLowerCase();
-          if (!dotnum) return;
-          if (!memberAttendance[dotnum]) {
-            memberAttendance[dotnum] = {
-              count: 0,
-              firstName: r.first_name,
-              lastName: r.last_name_dotnum,
-              dotnum
-            };
-          }
-          memberAttendance[dotnum].count++;
-        });
-
-        // Sort by count descending
-        const sortedMembers = Object.values(memberAttendance)
-          .sort((a, b) => b.count - a.count);
-
+        const sortedMembers = data.map(r => ({
+          firstName: r.first_name,
+          lastName: r.last_name_dotnum,
+          dotnum: r.dotnum,
+          count: r.count
+        }));
         setMembers(sortedMembers);
+      } else if (error) {
+        console.error('[Events] Error fetching leaderboard view:', error);
       }
     };
     fetchMembers();
