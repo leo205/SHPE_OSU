@@ -276,185 +276,165 @@ export default function Events() {
 
       {/* ── CALENDAR + SIDEBAR ─────────────────────────────── */}
       <section className="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Calendar */}
-        <div className="lg:col-span-8 bg-surface-container-low rounded-lg p-6 md:p-8 shadow-sm border border-outline-variant/10">
-          {/* Month nav */}
-          <div className="flex justify-between items-center mb-8">
-            <h2 className="font-headline text-2xl md:text-3xl font-bold text-on-background">
-              {monthName}
-            </h2>
-            <div className="flex gap-2">
-              <button
-                onClick={prevMonth}
-                className="p-2 hover:bg-surface-container rounded-full transition-colors"
-                aria-label="Previous month"
-              >
-                <span className="material-symbols-outlined">chevron_left</span>
-              </button>
-              <button
-                onClick={() => {
-                  setMonth(today.getMonth());
-                  setYear(today.getFullYear());
-                }}
-                className="px-3 py-1 text-xs font-bold uppercase tracking-widest text-primary hover:bg-primary/10 rounded-full transition-colors"
-              >
-                Today
-              </button>
-              <button
-                onClick={nextMonth}
-                className="p-2 hover:bg-surface-container rounded-full transition-colors"
-                aria-label="Next month"
-              >
-                <span className="material-symbols-outlined">chevron_right</span>
-              </button>
+        {/* Left Column: Calendar & Widgets */}
+        <div className="lg:col-span-8 flex flex-col gap-6">
+          {/* Calendar */}
+          <div className="bg-surface-container-low rounded-lg p-6 md:p-8 shadow-sm border border-outline-variant/10">
+            {/* Month nav */}
+            <div className="flex justify-between items-center mb-8">
+              <h2 className="font-headline text-2xl md:text-3xl font-bold text-on-background">
+                {monthName}
+              </h2>
+              <div className="flex gap-2">
+                <button
+                  onClick={prevMonth}
+                  className="p-2 hover:bg-surface-container rounded-full transition-colors"
+                  aria-label="Previous month"
+                >
+                  <span className="material-symbols-outlined">chevron_left</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setMonth(today.getMonth());
+                    setYear(today.getFullYear());
+                  }}
+                  className="px-3 py-1 text-xs font-bold uppercase tracking-widest text-primary hover:bg-primary/10 rounded-full transition-colors"
+                >
+                  Today
+                </button>
+                <button
+                  onClick={nextMonth}
+                  className="p-2 hover:bg-surface-container rounded-full transition-colors"
+                  aria-label="Next month"
+                >
+                  <span className="material-symbols-outlined">chevron_right</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Day headers */}
+            <div className="grid grid-cols-7 gap-1 mb-2">
+              {DAYS.map((d) => (
+                <div
+                  key={d}
+                  className="text-center font-bold text-secondary text-xs py-2"
+                >
+                  {d}
+                </div>
+              ))}
+            </div>
+
+            {/* Calendar grid */}
+            <div className="grid grid-cols-7 gap-1 auto-rows-[80px] md:auto-rows-[100px]">
+              {/* Previous month filler */}
+              {Array.from({ length: firstDay }).map((_, i) => (
+                <div
+                  key={`prev-${i}`}
+                  className="bg-surface-container-lowest rounded-lg p-2 opacity-30 text-sm"
+                >
+                  {prevMonthDays - firstDay + 1 + i}
+                </div>
+              ))}
+
+              {/* Current month days */}
+              {Array.from({ length: daysInMonth }).map((_, i) => {
+                const day = i + 1;
+                const key = formatDateKey(year, month, day);
+                const dayEvents = eventMap[key] || [];
+                const isToday =
+                  day === today.getDate() &&
+                  month === today.getMonth() &&
+                  year === today.getFullYear();
+
+                return (
+                  <div
+                    key={day}
+                    className={`rounded-lg p-2 text-sm relative overflow-hidden transition-all ${dayEvents.length > 0
+                      ? 'cursor-pointer hover:shadow-md hover:scale-[1.02] bg-surface-container-lowest border border-outline-variant/20'
+                      : 'bg-surface-container-lowest'
+                      } ${isToday ? 'ring-2 ring-primary' : ''}`}
+                    onClick={() => dayEvents.length > 0 && setSelectedEvent(dayEvents[0])}
+                  >
+                    <span
+                      className={`text-xs font-bold ${isToday
+                        ? 'bg-primary text-on-primary rounded-full w-6 h-6 flex items-center justify-center'
+                        : ''
+                        }`}
+                    >
+                      {day}
+                    </span>
+                    <div className="mt-1 space-y-0.5">
+                      {dayEvents.slice(0, 2).map((ev) => {
+                        const colors = categoryColors[ev.category] || categoryColors.GBM;
+                        return (
+                          <div
+                            key={ev.id}
+                            className={`text-[9px] md:text-[10px] font-bold px-1 py-0.5 rounded leading-tight truncate ${colors.bg} ${colors.text}`}
+                          >
+                            {ev.title}
+                          </div>
+                        );
+                      })}
+                      {dayEvents.length > 2 && (
+                        <div className="text-[9px] text-outline font-bold">
+                          +{dayEvents.length - 2} more
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Category legend */}
+            <div className="flex flex-wrap gap-3 mt-6 pt-4 border-t border-outline-variant/20">
+              {Object.entries(categoryColors).map(([cat, colors]) => (
+                <div key={cat} className="flex items-center gap-1.5 text-xs font-bold">
+                  <div className={`w-3 h-3 rounded-full ${colors.dot}`} />
+                  {cat}
+                </div>
+              ))}
             </div>
           </div>
 
-          {/* Day headers */}
-          <div className="grid grid-cols-7 gap-1 mb-2">
-            {DAYS.map((d) => (
-              <div
-                key={d}
-                className="text-center font-bold text-secondary text-xs py-2"
-              >
-                {d}
+          {/* Leaderboard Section nested under Left Column */}
+          <div className="mt-8 space-y-4">
+            <h3 className="font-headline text-3xl font-extrabold text-on-background flex items-center gap-4">
+              Leaderboard
+              <div className="h-1 flex-grow bg-surface-container-highest rounded-full" />
+            </h3>
+
+            {/* Leaderboard Card (full width of Left Column) */}
+            <div className="bg-[#F6F0E9] p-6 md:p-8 rounded-[2rem] shadow-2xl border border-white/40 flex flex-col max-h-[550px]">
+              <div className="overflow-y-auto overflow-x-auto flex-grow pr-1">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b-2 border-[#f26534]/20 sticky top-0 z-10">
+                      <th className="text-left text-[#302E2B] font-bold p-4 text-xl bg-[#F6F0E9]">Name.#</th>
+                      <th className="text-right text-[#302E2B] font-bold p-4 text-xl bg-[#F6F0E9]">Events Attended</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {members?.map((m, index) => (
+                      <tr key={m.dotnum} className="hover:bg-white/40 transition-colors">
+                        <td className="p-4 text-gray-800 font-medium whitespace-nowrap">
+                          <span className="mr-3 text-gray-400">{index + 1}.</span>
+                          {m.firstName} {m.lastName}
+                        </td>
+                        <td className="p-4 text-right font-mono text-[#f26534] font-bold text-lg">
+                          {m.count}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            ))}
-          </div>
-
-          {/* Calendar grid */}
-          <div className="grid grid-cols-7 gap-1 auto-rows-[80px] md:auto-rows-[100px]">
-            {/* Previous month filler */}
-            {Array.from({ length: firstDay }).map((_, i) => (
-              <div
-                key={`prev-${i}`}
-                className="bg-surface-container-lowest rounded-lg p-2 opacity-30 text-sm"
-              >
-                {prevMonthDays - firstDay + 1 + i}
-              </div>
-            ))}
-
-            {/* Current month days */}
-            {Array.from({ length: daysInMonth }).map((_, i) => {
-              const day = i + 1;
-              const key = formatDateKey(year, month, day);
-              const dayEvents = eventMap[key] || [];
-              const isToday =
-                day === today.getDate() &&
-                month === today.getMonth() &&
-                year === today.getFullYear();
-
-              return (
-                <div
-                  key={day}
-                  className={`rounded-lg p-2 text-sm relative overflow-hidden transition-all ${dayEvents.length > 0
-                    ? 'cursor-pointer hover:shadow-md hover:scale-[1.02] bg-surface-container-lowest border border-outline-variant/20'
-                    : 'bg-surface-container-lowest'
-                    } ${isToday ? 'ring-2 ring-primary' : ''}`}
-                  onClick={() => dayEvents.length > 0 && setSelectedEvent(dayEvents[0])}
-                >
-                  <span
-                    className={`text-xs font-bold ${isToday
-                      ? 'bg-primary text-on-primary rounded-full w-6 h-6 flex items-center justify-center'
-                      : ''
-                      }`}
-                  >
-                    {day}
-                  </span>
-                  <div className="mt-1 space-y-0.5">
-                    {dayEvents.slice(0, 2).map((ev) => {
-                      const colors = categoryColors[ev.category] || categoryColors.GBM;
-                      return (
-                        <div
-                          key={ev.id}
-                          className={`text-[9px] md:text-[10px] font-bold px-1 py-0.5 rounded leading-tight truncate ${colors.bg} ${colors.text}`}
-                        >
-                          {ev.title}
-                        </div>
-                      );
-                    })}
-                    {dayEvents.length > 2 && (
-                      <div className="text-[9px] text-outline font-bold">
-                        +{dayEvents.length - 2} more
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Category legend */}
-          <div className="flex flex-wrap gap-3 mt-6 pt-4 border-t border-outline-variant/20">
-            {Object.entries(categoryColors).map(([cat, colors]) => (
-              <div key={cat} className="flex items-center gap-1.5 text-xs font-bold">
-                <div className={`w-3 h-3 rounded-full ${colors.dot}`} />
-                {cat}
-              </div>
-            ))}
+            </div>
           </div>
         </div>
 
         {/* Sidebar */}
         <div className="lg:col-span-4 flex flex-col gap-6">
-          {/* Featured Events */}
-          <div className="bg-surface-container-highest rounded-lg p-6 flex-grow">
-            <h3 className="font-headline text-2xl font-bold mb-6 flex items-center gap-2">
-              <span
-                className="material-symbols-outlined text-primary"
-                style={{ fontVariationSettings: '"FILL" 1' }}
-              >
-                star
-              </span>
-              Featured Events
-            </h3>
-            <div className="space-y-6">
-              {featuredEvents.map((ev) => {
-                const colors = categoryColors[ev.category] || categoryColors.GBM;
-                const dateObj = new Date(ev.date + 'T12:00:00');
-                const dateLabel = dateObj
-                  .toLocaleDateString('en-US', { month: 'short', day: '2-digit' })
-                  .toUpperCase();
-                return (
-                  <div
-                    key={ev.id}
-                    className="group cursor-pointer"
-                    onClick={() => setSelectedEvent(ev)}
-                  >
-                    <div className={`relative rounded-xl overflow-hidden mb-3 bg-surface-container-lowest ${!ev.photo ? 'h-48 sm:h-56' : ''}`}>
-                      {/*
-                       * 📸 SWAP: replace with real event photo per event
-                       * <img src="/photos/event-name.jpg" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                       */}
-                      {ev.photo ? (
-                        <img src={ev.photo.replace(/\.(jpg|jpeg|png)$/i, '.webp')} alt={`${ev.title} Photo`} className="w-full h-auto object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
-                      ) : (
-                        <ImagePlaceholder label={`${ev.title} Photo`} className="w-full h-full group-hover:scale-105 transition-transform duration-500" />
-                      )}
-                      <div
-                        className={`absolute top-3 left-3 px-3 py-1 rounded-full text-xs font-bold ${colors.badge}`}
-                      >
-                        {dateLabel}
-                      </div>
-                    </div>
-                    <h4 className="font-headline font-bold text-lg text-on-surface mb-1 group-hover:text-primary transition-colors">
-                      {ev.title}
-                    </h4>
-                    <p className="text-sm text-on-surface-variant flex items-center gap-1 mb-1">
-                      <span className="material-symbols-outlined text-[16px]">
-                        schedule
-                      </span>
-                      {ev.time} • {ev.location}
-                    </p>
-                    <p className="text-sm text-on-surface-variant line-clamp-2">
-                      {ev.description}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
           {/* Newsletter signup */}
           <div className="bg-primary-container text-on-primary-container rounded-lg p-8 shadow-lg">
             <h4 className="font-headline font-black text-xl mb-2">
@@ -473,74 +453,99 @@ export default function Events() {
               <span className="material-symbols-outlined">open_in_new</span>
             </a>
           </div>
-        </div>
-      </section>
 
+          {/* Member of the Month */}
+          <div className="bg-[#BCD3FF] p-8 rounded-[2rem] shadow-2xl border-4 border-white">
+            <div className="text-center">
+              <span className="text-5xl mb-4 block">🌟</span>
+              <h3 className="text-[#3B5B91] font-black text-2xl uppercase tracking-widest leading-none">
+                Member of the Month
+              </h3>
+              <p className="text-[#3B5B91] font-bold mb-6 text-sm">April 2026</p>
 
-      {/* ── STANDINGS / LEADERBOARD ────────────────────────── */}
-      <section className="max-w-7xl mx-auto px-6 mt-20 mb-20">
-        <div className="bg-white/90 backdrop-blur-md p-6 rounded-3xl shadow-xl border border-white/50 text-center max-w-sm mb-10 mx-auto">
-          <h2 className="text-3xl font-black text-[#A33700]">Leaderboard</h2>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
-
-          {/* LEFT COLUMN: The Leaderboard (Takes up 2/3 of space) */}
-          <div className="lg:col-span-2 bg-[#F6F0E9] p-8 rounded-[2rem] shadow-2xl border border-white/40 flex flex-col max-h-[440px]">
-            <div className="overflow-y-auto overflow-x-auto flex-grow pr-1">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b-2 border-[#f26534]/20 sticky top-0 z-10">
-                    <th className="text-left text-[#302E2B] font-bold p-4 text-xl bg-[#F6F0E9]">Name.#</th>
-                    <th className="text-right text-[#302E2B] font-bold p-4 text-xl bg-[#F6F0E9]">Events Attended</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {members?.map((m, index) => (
-                    <tr key={m.dotnum} className="hover:bg-white/40 transition-colors">
-                      <td className="p-4 text-gray-800 font-medium whitespace-nowrap">
-                        <span className="mr-3 text-gray-400">{index + 1}.</span>
-                        {m.firstName} {m.lastName}
-                      </td>
-                      <td className="p-4 text-right font-mono text-[#f26534] font-bold text-lg">
-                        {m.count}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-6">
-            <div className="bg-[#BCD3FF] p-8 rounded-[2rem] shadow-2xl border-4 border-white">
-              <div className="text-center">
-                <span className="text-5xl mb-4 block">🌟</span>
-                <h3 className="text-[#3B5B91] font-black text-2xl uppercase tracking-widest">
-                  Member of the Month
-                </h3>
-                <p className="text-[#3B5B91] font-bold mb-6">April 2026</p>
-
-                <div className="bg-white rounded-2xl p-6 shadow-inner">
-                  <div className="w-24 h-24 bg-gray-200 rounded-full mx-auto mb-4 border-4 border-[#f26534]/20 flex items-center justify-center">
-                    <span className="text-gray-400 text-xs">Photo</span>
-                  </div>
-                  <h4 className="text-[#3B5B91] text-2xl font-black truncate">
-                    Brutus Buckeye
-                  </h4>
-                  <p className="text-gray-500 font-medium mt-1 text-sm leading-snug">
-                    "Quote from the member about their experience or dedication to SHPE. This is just a placeholder for now!"
-                  </p>
+              <div className="bg-white rounded-2xl p-6 shadow-inner">
+                <div className="w-24 h-24 bg-gray-200 rounded-full mx-auto mb-4 border-4 border-[#f26534]/20 flex items-center justify-center">
+                  <span className="text-gray-400 text-xs">Photo</span>
                 </div>
-
-                <p className="text-[#3B5B91] mt-6 text-sm italic font-medium">
-                  Thank you for your dedication to the Familia!
+                <h4 className="text-[#3B5B91] text-2xl font-black truncate">
+                  Brutus Buckeye
+                </h4>
+                <p className="text-gray-500 font-medium mt-1 text-sm leading-snug">
+                  "Quote from the member about their experience or dedication to SHPE. This is just a placeholder for now!"
                 </p>
               </div>
+
+              <p className="text-[#3B5B91] mt-6 text-sm italic font-medium">
+                Thank you for your dedication to the Familia!
+              </p>
             </div>
           </div>
+
+          {/* Spotlight Event Card */}
+          {featuredEvents.length > 0 && (
+            <div className="bg-surface-container-highest rounded-lg p-6 shadow-sm border border-outline-variant/10 flex flex-col justify-between flex-grow">
+              <div>
+                <h3 className="font-headline text-lg font-bold mb-4 flex items-center gap-2 text-on-surface">
+                  <span
+                    className="material-symbols-outlined text-primary text-lg"
+                    style={{ fontVariationSettings: '"FILL" 1' }}
+                  >
+                    star
+                  </span>
+                  Featured Event
+                </h3>
+                {(() => {
+                  const ev = featuredEvents[0];
+                  const colors = categoryColors[ev.category] || categoryColors.GBM;
+                  const dateObj = new Date(ev.date + 'T12:00:00');
+                  const dateLabel = dateObj
+                    .toLocaleDateString('en-US', { month: 'short', day: '2-digit' })
+                    .toUpperCase();
+                  return (
+                    <div
+                      className="group cursor-pointer"
+                      onClick={() => setSelectedEvent(ev)}
+                    >
+                      <div className="relative rounded-xl overflow-hidden mb-3 bg-surface-container-lowest h-72 md:h-[420px]">
+                        {ev.photo ? (
+                          <img
+                            src={ev.photo.replace(/\.(jpg|jpeg|png)$/i, '.webp')}
+                            alt={`${ev.title} Photo`}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <ImagePlaceholder label={`${ev.title} Photo`} className="w-full h-full group-hover:scale-105 transition-transform duration-500" />
+                        )}
+                        <div
+                          className={`absolute top-3 left-3 px-3 py-1 rounded-full text-xs font-bold ${colors.badge}`}
+                        >
+                          {dateLabel}
+                        </div>
+                      </div>
+                      <h4 className="font-headline font-bold text-base text-on-surface mb-1 group-hover:text-primary transition-colors">
+                        {ev.title}
+                      </h4>
+                      <p className="text-xs text-on-surface-variant flex items-center gap-1 mb-1">
+                        <span className="material-symbols-outlined text-[14px]">
+                          schedule
+                        </span>
+                        {ev.time} • {ev.location}
+                      </p>
+                      <p className="text-xs text-on-surface-variant line-clamp-2">
+                        {ev.description}
+                      </p>
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+          )}
+
         </div>
       </section>
+
+
 
       {/* ── THIS WEEK'S EVENTS ─────────────────────────────── */}
       <section className="max-w-7xl mx-auto px-6 mt-20 mb-20">
