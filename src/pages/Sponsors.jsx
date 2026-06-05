@@ -98,7 +98,6 @@ const sponsors = {
   ],
   gold: [
     { name: 'GM', logo: '/photos/sponsors/GM.webp' },
-    { name: 'JPMC', logo: '/photos/sponsors/JPMC.png' },
   ],
   bronze: [
     { name: 'Honda', logo: '/photos/sponsors/honda.webp' },
