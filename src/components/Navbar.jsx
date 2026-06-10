@@ -7,6 +7,7 @@ const navLinks = [
   { to: '/eboard', label: 'E-Board' },
   { to: '/sponsors', label: 'Sponsors' },
   { to: '/resources', label: 'Resources' },
+  { to: '/professional-development', label: 'Prof. Dev.' },
 ];
 
 export default function Navbar() {

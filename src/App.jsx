@@ -7,6 +7,7 @@ import Events from './pages/Events';
 import Eboard from './pages/Eboard';
 import Sponsors from './pages/Sponsors';
 import Resources from './pages/Resources';
+import ProfessionalDevelopment from './pages/ProfessionalDevelopment';
 import Attendance from './pages/Attendance';
 import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
@@ -34,6 +35,7 @@ export default function App() {
                 <Route path="/eboard" element={<Eboard />} />
                 <Route path="/sponsors" element={<Sponsors />} />
                 <Route path="/resources" element={<Resources />} />
+                <Route path="/professional-development" element={<ProfessionalDevelopment />} />
                 <Route path="*" element={<Home />} />
               </Routes>
               <Footer />
