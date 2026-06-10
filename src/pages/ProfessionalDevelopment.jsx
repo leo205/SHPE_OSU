@@ -488,7 +488,7 @@ export default function ProfessionalDevelopment() {
                   one massive event. SHPE OSU attends every year.
                 </p>
                 <a
-                  href="https://convention.shpe.org/"
+                  href="https://shpe.org/engage/events/national-convention/"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 bg-primary text-on-primary px-6 py-3 rounded-full font-bold hover:bg-primary-fixed-dim transition-all shadow-lg"
