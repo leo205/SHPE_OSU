@@ -77,7 +77,7 @@ const spotlights = [
   {
     id: 1,
     name: 'Isabella Staschiak',
-    company: 'U.S. EPA',
+    company: 'General Motors',
     role: 'Environmental Engineering Intern',
     photo: '/photos/eboard/isa.webp',
     quote:
@@ -88,24 +88,24 @@ const spotlights = [
   {
     id: 2,
     name: 'Ricardo Tinoco Lopez',
-    company: 'General Motors',
-    role: 'Industrial Engineering Intern',
+    company: 'Ford',
+    role: 'Indirect Purchasing IT Buyer',
     photo: '/photos/eboard/ricardo.webp',
     quote:
       "The company visits organized by SHPE let me see what day-to-day engineering looks like—that's what convinced me to apply.",
-    major: 'Industrial & Systems Engineering',
+    major: 'Honors Industrial & Systems Engineering',
     year: '3rd Year',
   },
   {
     id: 3,
     name: 'Eric Santos Martinez',
-    company: 'Accenture',
-    role: 'Technology Consulting Intern',
+    company: 'Lincoln Electric',
+    role: 'Engineering Intern',
     photo: '/photos/eboard/ericM.webp',
     quote:
       "Resume workshops and the SHPE network helped me get multiple offers. Don't sleep on these resources!",
-    major: 'Computer Science & Engineering',
-    year: '4th Year',
+    major: 'Material Science & Engineering',
+    year: '2nd Year',
   },
 ];
 
