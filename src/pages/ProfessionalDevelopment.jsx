@@ -317,7 +317,7 @@ export default function ProfessionalDevelopment() {
             <div className="relative flex items-center justify-center">
               <div className="w-full rounded-2xl overflow-hidden shadow-2xl border-8 border-surface-container-lowest aspect-video">
                 <img
-                  src="/photos/picsMain/shpeBrunch.webp"
+                  src="/photos/profDev/shpeNationalPic.webp"
                   alt="SHPE professional development event"
                   className="w-full h-full object-cover"
                   width="1200"
@@ -499,7 +499,7 @@ export default function ProfessionalDevelopment() {
               </div>
               <div className="rounded-lg overflow-hidden shadow-xl aspect-video">
                 <img
-                  src="/photos/picsMain/SHPE_convention.webp"
+                  src="/photos/profDev/shpeNationalGroup.webp"
                   alt="SHPE National Convention"
                   className="w-full h-full object-cover"
                   loading="lazy"
