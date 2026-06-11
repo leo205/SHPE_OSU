@@ -82,9 +82,10 @@ export default function Resources() {
               The ultimate roadmap for new Buckeyes. From scheduling tips to
               campus secrets, we've got you covered.
             </p>
-            {/* TODO: Replace href="#" with your First-Year Guide PDF link, e.g. '/first-year-guide.pdf' or a Google Drive share URL */}
             <a
-              href="#"
+              href="/photos/First-Year-Guide.pdf"
+              target="_blank"
+              rel="noopener noreferrer"
               className="w-full inline-flex justify-center items-center gap-3 bg-secondary text-on-secondary px-8 py-4 rounded-full font-bold hover:shadow-md transition-all active:scale-95"
             >
               Download PDF
