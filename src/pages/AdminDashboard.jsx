@@ -67,6 +67,11 @@ export default function AdminDashboard() {
   const [search, setSearch] = useState('');
   const [filterEvent, setFilterEvent] = useState('All');
 
+  // Inline major editing
+  const [editingId, setEditingId] = useState(null);
+  const [editMajorVal, setEditMajorVal] = useState('');
+  const [savingId, setSavingId] = useState(null);
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -89,6 +94,25 @@ export default function AdminDashboard() {
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     navigate('/admin/login');
+  };
+
+  /* ── Save edited major ───────────────────────────────────────────── */
+  const saveMajor = async (id) => {
+    setSavingId(id);
+    const trimmed = editMajorVal.trim();
+    const { error } = await supabase
+      .from('attendance')
+      .update({ major: trimmed || null })
+      .eq('id', id);
+    if (!error) {
+      setRows((prev) =>
+        prev.map((r) => (r.id === id ? { ...r, major: trimmed || null } : r))
+      );
+      setEditingId(null);
+    } else {
+      console.error('[AdminDashboard] Update error:', error);
+    }
+    setSavingId(null);
   };
 
   /* ── Derived analytics ──────────────────────────────────── */
@@ -420,7 +444,7 @@ export default function AdminDashboard() {
                   <table className="w-full text-sm">
                     <thead className="bg-surface-container-high text-on-surface-variant font-bold uppercase tracking-wider text-xs">
                       <tr>
-                        {['Name', 'Dot #', 'Year', 'Event', 'First?', 'Major', 'Date'].map((h) => (
+                        {['Name', 'Dot #', 'Year', 'Event', 'First?', 'Major', 'Date', ''].map((h) => (
                           <th key={h} className="text-left px-4 py-3 whitespace-nowrap">
                             {h}
                           </th>
@@ -454,11 +478,56 @@ export default function AdminDashboard() {
                               </span>
                             )}
                           </td>
-                          <td className="px-4 py-3 text-on-surface-variant max-w-[160px] truncate">
-                            {r.major || '—'}
+                          <td className="px-4 py-3 text-on-surface-variant max-w-[200px]">
+                            {editingId === r.id ? (
+                              <div className="flex items-center gap-1.5">
+                                <input
+                                  autoFocus
+                                  type="text"
+                                  maxLength={150}
+                                  value={editMajorVal}
+                                  onChange={(e) => setEditMajorVal(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') saveMajor(r.id);
+                                    if (e.key === 'Escape') setEditingId(null);
+                                  }}
+                                  className="flex-1 min-w-0 px-2 py-1 rounded-lg border border-outline-variant bg-surface text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                                />
+                                <button
+                                  onClick={() => saveMajor(r.id)}
+                                  disabled={savingId === r.id}
+                                  title="Save"
+                                  className="p-1 rounded-lg bg-primary/10 hover:bg-primary/20 transition-colors disabled:opacity-50"
+                                >
+                                  <span className="material-symbols-outlined text-primary text-base">
+                                    {savingId === r.id ? 'progress_activity' : 'check'}
+                                  </span>
+                                </button>
+                                <button
+                                  onClick={() => setEditingId(null)}
+                                  title="Cancel"
+                                  className="p-1 rounded-lg hover:bg-surface-container transition-colors"
+                                >
+                                  <span className="material-symbols-outlined text-on-surface-variant text-base">close</span>
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="truncate block">{r.major || '—'}</span>
+                            )}
                           </td>
                           <td className="px-4 py-3 text-on-surface-variant whitespace-nowrap">
                             {r.created_at?.slice(0, 10) || '—'}
+                          </td>
+                          <td className="px-4 py-3">
+                            {editingId !== r.id && (
+                              <button
+                                onClick={() => { setEditingId(r.id); setEditMajorVal(r.major || ''); }}
+                                title="Edit major"
+                                className="p-1 rounded-lg hover:bg-surface-container transition-colors opacity-40 hover:opacity-100"
+                              >
+                                <span className="material-symbols-outlined text-on-surface-variant text-base">edit</span>
+                              </button>
+                            )}
                           </td>
                         </tr>
                       ))}

@@ -48,7 +48,7 @@ const EVENT_OPTIONS = events.map((e) => {
 const SUBMIT_COOLDOWN_SEC = 30;
 
 // ── Validation helper (C2, M2) ───────────────────────────────────────────────
-function validatePayload(form, isFirst) {
+function validatePayload(form, isFirst, customMajor) {
   if (!EVENT_OPTIONS.includes(form.event_name)) return 'Invalid event selection.';
   if (!YEARS.includes(form.year)) return 'Invalid year selection.';
   if (!form.first_name.trim()) return 'First name is required.';
@@ -58,6 +58,8 @@ function validatePayload(form, isFirst) {
   if (form.feedback && form.feedback.length > 2000) return 'Feedback must be under 2000 characters.';
   if (isFirst) {
     if (!MAJORS.includes(form.major)) return 'Invalid major selection.';
+    if (form.major === 'Other' && !customMajor.trim()) return 'Please describe your major.';
+    if (customMajor.trim().length > 150) return 'Major description is too long.';
     if (!PRONOUNS.includes(form.pronouns)) return 'Invalid pronouns selection.';
     if (!HOW_HEARD.includes(form.how_heard)) return 'Invalid "how heard" selection.';
   }
@@ -78,6 +80,9 @@ export default function Attendance() {
 
   // H1: Double-submit guard
   const isSubmittingRef = useRef(false);
+
+  // Custom major text when "Other" is selected
+  const [customMajor, setCustomMajor] = useState('');
 
   const [form, setForm] = useState({
     event_name: '',
@@ -139,7 +144,7 @@ export default function Attendance() {
     }
 
     // C2/M2: Whitelist validation before hitting the DB
-    const validationError = validatePayload(form, isFirst);
+    const validationError = validatePayload(form, isFirst, customMajor);
     if (validationError) {
       setError(validationError);
       return;
@@ -149,6 +154,13 @@ export default function Attendance() {
     setSubmitting(true);
     setError('');
 
+    // If major is "Other", store "Other – [custom text]" so admins can see the real major
+    const resolvedMajor = isFirst
+      ? (form.major === 'Other' && customMajor.trim()
+          ? `Other – ${customMajor.trim()}`
+          : form.major)
+      : null;
+
     const payload = {
       event_name: form.event_name,
       first_name: form.first_name.trim(),
@@ -156,7 +168,7 @@ export default function Attendance() {
       year: form.year,
       is_first_meeting: isFirst,
       feedback: form.feedback.trim() || null,
-      major: isFirst ? form.major : null,
+      major: resolvedMajor,
       pronouns: isFirst ? form.pronouns : null,
       how_heard: isFirst ? form.how_heard : null,
     };
@@ -422,6 +434,22 @@ export default function Attendance() {
                   <option key={m} value={m}>{m}</option>
                 ))}
               </select>
+              {form.major === 'Other' && (
+                <div className="mt-3">
+                  <label className="block text-sm font-bold uppercase tracking-wider mb-2 text-on-surface-variant">
+                    Please describe your major *
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={150}
+                    required
+                    value={customMajor}
+                    onChange={(e) => setCustomMajor(e.target.value)}
+                    placeholder="e.g. Environmental Engineering"
+                    className="w-full px-4 py-3 rounded-xl border border-outline-variant bg-surface focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                  />
+                </div>
+              )}
             </div>
 
             <div>
