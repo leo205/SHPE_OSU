@@ -7,6 +7,11 @@ export default function AdminResumes() {
   const [loading, setLoading] = useState(true);
   const [newCompany, setNewCompany] = useState('');
 
+  // Inline major editing
+  const [editingId, setEditingId] = useState(null);
+  const [editMajorVal, setEditMajorVal] = useState('');
+  const [savingId, setSavingId] = useState(null);
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -25,6 +30,24 @@ export default function AdminResumes() {
   const handleToggleApproval = async (id, currentStatus) => {
     const { error } = await supabase.from('resumes').update({ approved: !currentStatus }).eq('id', id);
     if (!error) fetchData();
+  };
+
+  const saveMajor = async (id) => {
+    setSavingId(id);
+    const trimmed = editMajorVal.trim();
+    const { error } = await supabase
+      .from('resumes')
+      .update({ major: trimmed || null })
+      .eq('id', id);
+    if (!error) {
+      setResumes((prev) =>
+        prev.map((r) => (r.id === id ? { ...r, major: trimmed || null } : r))
+      );
+      setEditingId(null);
+    } else {
+      console.error('[AdminResumes] Update error:', error);
+    }
+    setSavingId(null);
   };
 
   const handleDeleteResume = async (id, path) => {
@@ -92,7 +115,52 @@ export default function AdminResumes() {
                   <td className="px-6 py-4 font-medium">
                     {r.full_name} <br/><span className="text-xs text-on-surface-variant font-normal">{r.email}</span>
                   </td>
-                  <td className="px-6 py-4">{r.major} ({r.graduation_year})</td>
+                  <td className="px-6 py-4">
+                    {editingId === r.id ? (
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          autoFocus
+                          type="text"
+                          maxLength={150}
+                          value={editMajorVal}
+                          onChange={(e) => setEditMajorVal(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') saveMajor(r.id);
+                            if (e.key === 'Escape') setEditingId(null);
+                          }}
+                          className="px-2 py-1 rounded-lg border border-outline-variant bg-surface text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 w-44"
+                        />
+                        <button
+                          onClick={() => saveMajor(r.id)}
+                          disabled={savingId === r.id}
+                          title="Save"
+                          className="p-1 rounded-lg bg-primary/10 hover:bg-primary/20 transition-colors disabled:opacity-50"
+                        >
+                          <span className="material-symbols-outlined text-primary text-base">
+                            {savingId === r.id ? 'progress_activity' : 'check'}
+                          </span>
+                        </button>
+                        <button
+                          onClick={() => setEditingId(null)}
+                          title="Cancel"
+                          className="p-1 rounded-lg hover:bg-surface-container transition-colors"
+                        >
+                          <span className="material-symbols-outlined text-on-surface-variant text-base">close</span>
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 group">
+                        <span>{r.major} ({r.graduation_year})</span>
+                        <button
+                          onClick={() => { setEditingId(r.id); setEditMajorVal(r.major || ''); }}
+                          title="Edit major"
+                          className="p-1 rounded-lg hover:bg-surface-container transition-colors opacity-40 hover:opacity-100 focus:opacity-100"
+                        >
+                          <span className="material-symbols-outlined text-on-surface-variant text-base">edit</span>
+                        </button>
+                      </div>
+                    )}
+                  </td>
                   <td className="px-6 py-4">
                     {r.approved ? (
                       <span className="px-2 py-1 bg-primary/10 text-primary rounded-md font-bold text-xs">Approved</span>

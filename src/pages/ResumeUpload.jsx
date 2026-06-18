@@ -8,6 +8,25 @@ const PDF_MAGIC = [0x25, 0x50, 0x44, 0x46]; // %PDF
 // OSU email domains accepted (members + alumni graduate addresses)
 const VALID_EMAIL_DOMAINS = ['@osu.edu', '@alumni.osu.edu', '@buckeyemail.osu.edu'];
 
+const MAJORS = [
+  'Aerospace Engineering',
+  'Biomedical Engineering',
+  'Chemical Engineering',
+  'Civil Engineering',
+  'Computer Science & Engineering',
+  'Computer & Information Science',
+  'Data Analytics',
+  'Electrical and Computer Engineering',
+  'Engineering Physics',
+  'Environmental Engineering',
+  'Food, Agricultural, & Biological Engineering',
+  'Industrial & Systems Eng.',
+  'Materials Science Engineering',
+  'Mechanical Engineering',
+  'Welding Engineering',
+  'Other',
+];
+
 // ── Helpers ─────────────────────────────────────────────────────────────────
 /**
  * Reads the first 4 bytes of a File and checks for the PDF magic number %PDF.
@@ -32,6 +51,7 @@ export default function ResumeUpload() {
     major: '',
     graduation_year: '',
   });
+  const [customMajor, setCustomMajor] = useState('');
   const [file, setFile] = useState(null);
   const [status, setStatus] = useState('idle'); // idle | uploading | success | error
   const [errorMsg, setErrorMsg] = useState('');
@@ -57,6 +77,16 @@ export default function ResumeUpload() {
       return;
     }
 
+    // ── Validation for custom major ─────────────────────────────────────────
+    if (formData.major === 'Other' && !customMajor.trim()) {
+      setErrorMsg('Please describe your major.');
+      return;
+    }
+    if (formData.major === 'Other' && customMajor.trim().length > 150) {
+      setErrorMsg('Major description is too long.');
+      return;
+    }
+
     // ── Magic-byte PDF check (C4) — must await before upload ─────────────────
     const pdfValid = await isValidPDF(file);
     if (!pdfValid) {
@@ -78,12 +108,17 @@ export default function ResumeUpload() {
 
       if (uploadError) throw uploadError;
 
+      // Resolve major name
+      const resolvedMajor = formData.major === 'Other'
+        ? `Other – ${customMajor.trim()}`
+        : formData.major;
+
       // 2. Insert metadata into DB
       const { error: dbError } = await supabase.from('resumes').insert([
         {
           full_name: formData.full_name.trim(),
           email: formData.email.trim().toLowerCase(),
-          major: formData.major,
+          major: resolvedMajor,
           graduation_year: formData.graduation_year,
           resume_path: filePath,
           approved: false, // Requires admin approval
@@ -116,6 +151,7 @@ export default function ResumeUpload() {
             onClick={() => {
               setStatus('idle');
               setFile(null);
+              setCustomMajor('');
               setFormData({ full_name: '', email: '', major: '', graduation_year: '' });
             }}
             className="text-primary font-bold hover:underline"
@@ -183,21 +219,29 @@ export default function ResumeUpload() {
                 required
                 value={formData.major}
                 onChange={(e) => setFormData({ ...formData, major: e.target.value })}
-                className="w-full px-4 py-3 rounded-xl border border-outline-variant bg-surface-bright focus:outline-none focus:ring-2 focus:ring-primary/50"
+                className="w-full px-4 py-3 rounded-xl border border-outline-variant bg-surface-bright focus:outline-none focus:ring-2 focus:ring-primary/50 animate-fade-in"
               >
                 <option value="" disabled>Select Major</option>
-                <option value="Computer Science &amp; Engineering">Computer Science &amp; Engineering</option>
-                <option value="Mechanical Engineering">Mechanical Engineering</option>
-                <option value="Electrical Engineering">Electrical Engineering</option>
-                <option value="Civil Engineering">Civil Engineering</option>
-                <option value="Biomedical Engineering">Biomedical Engineering</option>
-                <option value="Aerospace Engineering">Aerospace Engineering</option>
-                <option value="Chemical Engineering">Chemical Engineering</option>
-                <option value="Industrial &amp; Systems Eng.">Industrial &amp; Systems Eng.</option>
-                <option value="Materials Science">Materials Science</option>
-                <option value="Data Analytics">Data Analytics</option>
-                <option value="Other">Other</option>
+                {MAJORS.map((m) => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
               </select>
+              {formData.major === 'Other' && (
+                <div className="mt-3">
+                  <label className="block text-sm font-bold text-on-surface mb-2">
+                    Please describe your major *
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={150}
+                    required
+                    value={customMajor}
+                    onChange={(e) => setCustomMajor(e.target.value)}
+                    placeholder="e.g. Environmental Engineering"
+                    className="w-full px-4 py-3 rounded-xl border border-outline-variant bg-surface focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                  />
+                </div>
+              )}
             </div>
             <div>
               <label className="block text-sm font-bold text-on-surface mb-2">Graduation Year</label>
