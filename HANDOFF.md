@@ -1,186 +1,198 @@
 # SHPE OSU Website — Engineering Handoff
 
-_Last updated: 2026-05-15 | Session: 1760d6eb-c024-4aaf-a7a4-30b58694034f_
+_Last updated: 2026-06-21_
+
+This document serves as the developer documentation and handoff reference for the Digital Operations Chair and developers of the SHPE chapter at The Ohio State University. It covers system architecture, database design, security measures, maintenance protocols, and deployment details.
 
 ---
 
-## 1. Project Goal
+## 1. System Architecture
 
-Build and maintain the public-facing website for the SHPE Ohio State University chapter.
+The SHPE OSU website is built as a serverless Single Page Application (SPA) to eliminate maintenance overhead and hosting costs for the student chapter.
 
-**Ultimate deliverable:** A live, self-maintainable website that the current and future digital operations E-Board members can maintain.
+```mermaid
+graph TD
+    User(Student / Recruiter / Admin) -->|Interacts| Frontend[React + Vite on Vercel]
+    Frontend -->|Queries / Mutations| Supabase[Supabase Database + Auth + Storage]
+    Frontend -->|Sends Inquiry| EmailJS[EmailJS API]
+    SponsorForm[Sponsors Contact Page] -->|Submits| EmailJS
+```
 
-**Constraints:**
-- Must be very low cost or free to host (Vercel + Supabase free tier)
-- Weekly content updates (events, photos) must require only editing one JS data file
-- No backend server — all external services are SaaS (Supabase, EmailJS)
-- Must pass to next Digital Operations Chair without institutional knowledge loss
-
-**Current priorities (as of last session):**
-1. Securing the new **Corporate Resume Portal** (currently under development) with proper Supabase Row Level Security (RLS) policies.
-2. Ensure the "Most Active Members" scrollable card in the Admin Dashboard is scaling correctly as more members check in.
-3. Verify mobile responsiveness on real devices for the newly centered E-Board grid and the new SHPEtinas spotlight section on the Home page.
-
----
-
-## 2. Current State
-
-### ✅ Working
-- Full public site: Home, Events, E-Board, Sponsors, Resources
-- Interactive calendar with Google Calendar / Apple Calendar (.ics) export
-- Sponsor contact form via EmailJS (credentials live in `Sponsors.jsx`)
-- Attendance form at `/attendance` — submits to Supabase `attendance` table
-- Admin login at `/admin/login` — Supabase email/password auth
-- Admin dashboard at `/admin` — check-ins, unique members, events, and a ranked "Most Active Members" scrollable list.
-- **E-Board Page** — Fully populated with 19 members. Implemented a responsive Loteria-style layout with a custom CSS Grid configuration to automatically center the last row.
-- **Home Page** — Cleaned up, removed the broken "Interest Form", and added a new "SHPEtinas" spotlight section.
-- Auto-deploy: push to `main` → Vercel deploys in ~60s
-
-### ⚠️ Partially Working / Needs Verification
-- **Resume Portal (In Development):** New files were recently added for a Corporate Resume Book (`AdminResumes.jsx`, `CompanyDashboard.jsx`, `CompanyLogin.jsx`, `ResumeUpload.jsx`). Need to establish the Supabase tables, storage buckets, and RLS policies to handle secure resume uploads and time-limited corporate access.
-- **Mobile layout:** Fixes applied to Eboard.jsx (flex-wrap grid centering) and Home.jsx. Not fully verified on physical mobile screens post-deploy.
-
-### ❌ Broken / Missing
-- No known missing files, but the resume portal is not fully wired up to a backend storage bucket yet.
-
-### Architectural Decisions (do not reverse without reason)
-- **No backend server.** Supabase REST API is called directly from the browser using the publishable key + RLS.
-- **Events are data-driven.** All content lives in `src/data/events.js`. Never hardcode events in JSX.
-- **Hidden routes pattern.** `/attendance`, `/admin`, and the new Resume/Company routes are not in the Navbar.
-- **Supabase publishable key** (not anon JWT) — the project uses Supabase's newer key format `sb_publishable_...`. This required the RLS policy to use `to public` instead of `to anon`.
-- **Feature Branch Workflow.** Development for major features (like the Admin Dashboard refactor) should be done on a branch (e.g. `feature/admin-stat-cards`) and merged via Pull Request to protect `main`.
+### Architectural Principles
+*   **Zero-Cost Hosting**: Vercel handles static frontend hosting on their free tier, while Supabase handles Database, Auth, and Storage on their free tier.
+*   **Serverless Data Direct Access**: The client communicates directly with Supabase via `@supabase/supabase-js`. Database records and storage assets are secured entirely via **Row-Level Security (RLS)** rules.
+*   **Static Configuration**: Fast updates (like adding events) are controlled by editing centralized JavaScript data structures instead of database queries.
 
 ---
 
-## 3. Active Context
+## 2. Database Schema (PostgreSQL)
 
-### Assumptions
-- User pushes from `shpe-osu/` subdirectory only — there is an unrelated git repo in the parent `Documents/` directory that caused confusion. Always `cd shpe-osu` before any git command.
-- Vercel is connected to GitHub repo `leo205/SHPE_OSU` on `main` branch.
+The application utilizes three tables and one storage bucket in Supabase.
 
-### Environment
-- **Local dev:** `cd /Users/leonardomedina/Documents/SHPE_web/shpe-osu && npm run dev` → `localhost:5173`
-- **Node:** standard macOS install
-- **Package manager:** npm
+### 1. `attendance`
+Stores all student check-in records.
+```sql
+CREATE TABLE attendance (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  created_at timestamptz DEFAULT now(),
+  event_name text NOT NULL,
+  first_name text NOT NULL,
+  last_name_dotnum text NOT NULL,
+  year text NOT NULL,
+  is_first_meeting boolean NOT NULL,
+  feedback text,
+  major text, -- Stores standard major name or "Other – [custom text]"
+  pronouns text,
+  how_heard text
+);
+```
 
-### Services & Credentials
-| Service | Where credentials live | Notes |
-|---|---|---|
-| Supabase | `src/lib/supabase.js` | Project URL + publishable key hardcoded (safe — RLS protects data) |
-| EmailJS | `src/pages/Sponsors.jsx` lines 18-20 | Service ID, Template ID, Public Key |
-| Vercel | vercel.com dashboard | Connected to GitHub, auto-deploys on push |
-| GitHub | github.com/leo205/SHPE_OSU | Main branch = production |
+### 2. `resumes`
+Stores student metadata and pointers to files in the Storage bucket.
+```sql
+CREATE TABLE resumes (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  uploaded_at timestamptz DEFAULT now(),
+  full_name text NOT NULL,
+  email text NOT NULL,
+  major text NOT NULL,
+  graduation_year text NOT NULL,
+  resume_path text NOT NULL, -- Format: submissions/timestamp_uuid.pdf
+  approved boolean DEFAULT false NOT NULL
+);
+```
 
-### Supabase Details
-- **Project URL:** `https://ekuaqbelulybowihmact.supabase.co`
-- **Publishable key:** `sb_publishable_62E03z0eVijDd2rctrUPoA_DbFzpWfp`
-- **Table:** `attendance`
-- **RLS policies:**
-  - `Allow public inserts` → INSERT → `public` role
-  - `Admins can read attendance` → SELECT → `authenticated` role
-- **Admin users:** Created in Supabase Dashboard → Authentication → Users (not in code)
+### 3. `company_access`
+Stores access codes distributed to corporate recruiters.
+```sql
+CREATE TABLE company_access (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  created_at timestamptz DEFAULT now(),
+  company_name text NOT NULL,
+  access_code text NOT NULL UNIQUE, -- 8-character uppercase string
+  expires_at timestamptz -- Nullable, used to restrict access after events
+);
+```
 
-### Branch & Commands
+### Supabase Storage Bucket: `resumes`
+*   Contains a folder called `submissions/` where all resume files are stored.
+*   All file permissions are private. Downloads/reads require generating a **Signed URL** with a 60-second TTL.
+
+---
+
+## 3. Security Architectures & Safeguards
+
+The website contains several critical client-side and database-level security mechanisms.
+
+### Row-Level Security (RLS) Policies
+Do not modify or disable these policies without a clear security strategy.
+
+| Table / Bucket | Policy Name | Role | Operations | Check/Condition |
+|---|---|---|---|---|
+| `attendance` | `Allow public inserts` | `public` | `INSERT` | `true` |
+| `attendance` | `Admins can read attendance` | `authenticated` | `SELECT` | `auth.role() = 'authenticated'` |
+| `attendance` | `Admins can update attendance` | `authenticated` | `UPDATE` | `auth.role() = 'authenticated'` |
+| `resumes` | `Allow public inserts` | `public` | `INSERT` | `true` |
+| `resumes` | `Authenticated select/update` | `authenticated` | `SELECT, UPDATE, DELETE` | `auth.role() = 'authenticated'` |
+| `resumes` | `Recruiter code select` | `public` | `SELECT` | Allowed if recruiter has a valid `company_access` session (validated client-side, protected by signed URLs) |
+| `company_access` | `Admins full access` | `authenticated` | `ALL` | `auth.role() = 'authenticated'` |
+| `company_access` | `Public read code` | `public` | `SELECT` | `true` (restricted to query by code lookup) |
+
+### Frontend Code Safeguards
+1.  **Magic-Byte PDF Verification**:
+    To prevent MIME-type spoofing (e.g. naming an executable malware file `resume.pdf`), `ResumeUpload.jsx` checks the first 4 bytes of the binary buffer for `%PDF` (`0x25, 0x50, 0x44, 0x46`):
+    ```javascript
+    async function isValidPDF(file) {
+      const buf = await file.slice(0, 4).arrayBuffer();
+      const bytes = new Uint8Array(buf);
+      return PDF_MAGIC.every((b, i) => bytes[i] === b);
+    }
+    ```
+2.  **Expiring Recruiter Sessions (TTL)**:
+    Recruiter login tokens are saved in `sessionStorage` with a strict **8-hour Time-to-Live (TTL)** expiration window. The application uses a window visibility listener (`visibilitychange`) so if a recruiter focuses back on the browser tab after the TTL expires, they are immediately logged out:
+    ```javascript
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        const current = getCompanySession();
+        if (!current) {
+          clearCompanySession();
+          navigate('/company');
+        }
+      }
+    };
+    ```
+3.  **Cryptographically Secure Access Codes**:
+    Codes generated for companies in `AdminResumes.jsx` use `crypto.getRandomValues()` instead of `Math.random()` to prevent code guessing attacks.
+4.  **CSV Injection Prevention**:
+    When exporting check-in tables, cells starting with formula triggers (`=`, `+`, `-`, `@`, tab, or carriage returns) are automatically prefixed with a single-quote `'` to mitigate spreadsheet software hijack attacks.
+5.  **Safe Upload Filenames**:
+    User-uploaded filenames are discarded. They are renamed on upload to `submissions/${Date.now()}_${crypto.randomUUID()}.pdf` to mitigate directory traversal and path traversal exploits.
+
+---
+
+## 4. Maintenance & Rollover Guide
+
+### Weekly Content Updates (E-Board Workflow)
+1.  Open `src/data/events.js`.
+2.  Add a new event object at the top of the `events` array. Ensure the category matches one of the values: `"GBM" | "Social" | "Professional" | "Academic" | "Outreach" | "Fundraiser"`.
+3.  If showing a photo, convert your image to `.webp` format and drop it into `public/photos/events/`.
+4.  Reference the path: `photo: '/photos/events/imageName.webp'`.
+5.  To highlight the event in the sidebar of the home page, set `featured: true`.
+6.  Push changes to GitHub:
+    ```bash
+    git add .
+    git commit -m "feat: add upcoming GBM"
+    git push origin main
+    ```
+    Vercel will auto-deploy in under 60 seconds.
+
+### Semester Rollover Protocols
+At the start of a new semester (Autumn/Spring):
+1.  **Clear/Archive Calendar**:
+    *   Open `src/data/events.js` and move last semester's events to an archive file if desired, or clear the array, keeping only upcoming events.
+    *   *Note: The attendance check-in form (`/attendance`) dynamically pulls event options from this array. Clearing old events keeps the check-in dropdown clean.*
+2.  **E-Board Roster Update**:
+    *   Collect new E-board member headshots, convert them to `.webp`, and place them in `public/photos/eboard/`.
+    *   Open `src/pages/Eboard.jsx`. Update the `eboardMembers` array with names, majors, graduation years, and roles.
+    *   To adjust vertical/horizontal alignment of any headshot, modify the conditional class mapping in `LoteriaCard` (e.g. `member.id === X ? 'object-top' : 'object-center'`).
+3.  **Database Attendance Rollover**:
+    *   Go to the Supabase Dashboard → SQL Editor.
+    *   It is recommended to run a query to back up the current semester's check-ins before truncation, or export the full history to CSV from the Admin Dashboard.
+4.  **Rotate Environment variables / Anon Keys**:
+    *   If E-Board credentials leak, go to Supabase Dashboard → Project Settings → API.
+    *   Click **Roll Project API Keys** for the `anon` key.
+    *   Instantly update `VITE_SUPABASE_ANON_KEY` in the `.env` file and on Vercel Dashboard → Settings → Environment Variables.
+
+---
+
+## 5. Development & Contribution Guide
+
+### Environment Variables
+Setup a local `.env` file in the `shpe-osu` directory:
+```env
+VITE_SUPABASE_URL=https://your-project-id.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key-here
+```
+
+### Useful CLI Commands
+Run these commands inside the `/Users/leonardomedina/Documents/SHPE_web/shpe-osu` directory:
+
 ```bash
-# Always work from here
-cd /Users/leonardomedina/Documents/SHPE_web/shpe-osu
-
-# Dev server
+# Run local Vite development server
 npm run dev
 
-# Safe Branch Workflow (Use this for new features!)
-git checkout -b feature/my-new-feature
-# (make changes)
-git add .
-git commit -m "added feature"
-git push -u origin feature/my-new-feature
-# Go to GitHub and merge to main
+# Run local preview of build output
+npm run preview
 
-# Build check before pushing
+# Verify build succeeds before pushing to main
 npm run build
+
+# Run ESLint validation checks
+npm run lint
 ```
 
----
-
-## 4. Files Touched
-
-| File | Purpose | What Changed | Keep? |
-|---|---|---|---|
-| `src/App.jsx` | Routing | Added new routes for Resume Portal and Company Dashboard | ✅ Keep |
-| `src/pages/Home.jsx` | Home page | Replaced Interest Form with SHPEtinas spotlight, fixed image aspect ratios | ✅ Keep |
-| `src/pages/Eboard.jsx` | E-Board Page | Added 19 photos, changed border to black, applied `object-top` for Fern, centered last row using `flex-wrap justify-center` with explicit CSS width calculations | ✅ Keep |
-| `src/pages/AdminDashboard.jsx` | Admin analytics | Removed "New" stat, renamed unique to "Members", added "Check-ins", refactored "Top Members" to rank all members in a scrollable list spanning 3 columns | ✅ Keep |
-| `src/pages/ResumeUpload.jsx` | Resume Portal | NEW — UI for members to upload resumes | ✅ Keep |
-| `src/pages/CompanyDashboard.jsx`| Resume Portal | NEW — UI for corporate sponsors to view resumes | ✅ Keep |
-| `src/pages/CompanyLogin.jsx` | Resume Portal | NEW — Login for sponsors | ✅ Keep |
-| `src/pages/AdminResumes.jsx` | Resume Portal | NEW — Dashboard for admins to approve/manage resumes | ✅ Keep |
-
----
-
-## 5. Failed Attempts / Dead Ends
-
-### CSS Grid Centering on E-Board
-- **What happened:** Tried to use advanced `col-start` rules to center the last row of the E-Board grid (`grid-cols-5`). This broke the layout entirely because responsive grids shift items unexpectedly depending on screen size.
-- **Fix:** Used a flexbox fallback. The grid container is now `flex flex-wrap justify-center`, and each card is explicitly sized using `w-[calc(25%-18px)]` to mimic the grid gap behavior. This correctly forces a center alignment on the orphaned last row.
-
-### Supabase 403 on attendance insert
-- **What happened:** Form submitted but got 403 Forbidden from Supabase
-- **Root cause:** RLS policy used `to anon` but the new Supabase publishable key format (`sb_publishable_...`) does not map to the `anon` role the same way as the old JWT key
-- **Fix:** Changed policy from `to anon` to `to public`
-- **Do NOT retry `to anon`** without first verifying that the Supabase client version handles new key format correctly
-
----
-
-## 6. Known Bugs / Risks
-
-| Issue | Severity | Notes |
-|---|---|---|
-| Resume Portal Security | High | The new resume portal needs strong RLS policies. Do not upload actual user resumes until Supabase Storage is configured to block unauthorized reads. Companies need expiring access tokens. |
-| Semester rollover | Medium | All events in `events.js` are Spring 2026. At semester start, clear old events and add new ones. The attendance dropdown auto-pulls from this file. |
-| Admin Dashboard Performance | Low | Currently fetching the entire `attendance` table into memory to calculate "Most Active Members". This is fine for 1,000 rows, but will lag if the table grows to 10,000+. Consider a SQL View or RPC function in the future. |
-| Outer git repo in Documents/ | Low | `/Users/leonardomedina/Documents/` has a `.git` folder. If user ever runs git from Documents or SHPE_web, it causes submodule confusion. Not harmful if avoided. |
-
----
-
-## 7. Fast Restart Prompt
-
-Paste this into a new chat session to get up to speed instantly:
-
-> **Project:** SHPE Ohio State University chapter website. Vite + React + Tailwind CSS. Live at `shpe-osu.vercel.app`. Repo: `github.com/leo205/SHPE_OSU`, branch `main`, auto-deploys to Vercel on push. Always run commands from `/Users/leonardomedina/Documents/SHPE_web/shpe-osu/`.
->
-> **Stack:** React Router DOM, Tailwind CSS (custom SHPE palette), EmailJS (sponsor form), Supabase (attendance DB + admin auth), Recharts (admin charts).
->
-> **Key features built:**
-> - `/attendance` — QR code check-in form
-> - `/admin` — protected E-Board dashboard with advanced attendance analytics and scrollable leaderboard
-> - `/eboard` — Loteria-themed eboard page with responsive flex-wrap centering
-> - **In Progress:** Corporate Resume Book Portal (`/resumes`, `/company/login`)
->
-> **Supabase:** Project `https://ekuaqbelulybowihmact.supabase.co`, publishable key in `src/lib/supabase.js`. RLS: `public` can INSERT, `authenticated` can SELECT. Admin users created manually in Supabase Dashboard.
->
-> **Important gotcha:** RLS policy for public inserts must use `to public` not `to anon` due to the new Supabase publishable key format.
->
-> **Current issue to continue:** [DESCRIBE WHAT YOU NEED HELP WITH]
-
----
-
-## 8. Important Context Dump
-
-### Asset folder structure
-```
-public/
-├── photos/
-│   ├── picsMain/          # Home page hero + mission images + shpeTinas.png
-│   ├── events/            # Event photos (referenced in events.js)
-│   ├── sponsors/          # Sponsor logos
-│   ├── eboard/            # All 19 E-Board member headshots
-│   ├── shpeLogo.png       # Used in forms
-│   └── thompsonPic.jpg    # Resources page
-└── vite.svg
-```
-
-### Weekly content update workflow (for E-Board)
-1. Edit `src/data/events.js` — add new events, set `featured: true` for sidebar
-2. Drop new photos in `public/photos/events/`
-3. Reference photo in event object: `photo: '/photos/events/filename.jpg'`
-4. `git add . && git commit -m "update events" && git push`
+### Git Branch Strategy
+*   Never commit directly to `main` for large feature blocks.
+*   Create a branch: `git checkout -b feature/your-feature-name`.
+*   Verify the build locally (`npm run build`) before pushing your branch.
+*   Merge branch into `main` via a GitHub Pull Request to trigger the Vercel production deployment pipeline.
