@@ -106,6 +106,13 @@ const sponsors = {
 };
 
 /* ── Sponsor Logo Card ─────────────────────────────────────── */
+/**
+ * WCAG 1.1.1 Non-text Content:
+ * Every corporate logo image must have an explicit, descriptive alt attribute.
+ * When the logo acts as a purely decorative flourish inside a labelled section,
+ * we still provide company identity alt text so AT users understand who sponsors us.
+ * Format: "[Company] corporate sponsor logo"
+ */
 function SponsorCard({ sponsor, size = 'lg' }) {
   const h = size === 'lg' ? 'h-28' : size === 'md' ? 'h-24' : 'h-20';
   const w = size === 'lg' ? 'w-[320px]' : size === 'md' ? 'w-[280px]' : 'w-[240px]';
@@ -114,7 +121,7 @@ function SponsorCard({ sponsor, size = 'lg' }) {
       {sponsor.logo ? (
         <img
           src={sponsor.logo}
-          alt={`${sponsor.name} logo`}
+          alt={`${sponsor.name} corporate sponsor logo`}
           className={`${h} max-w-full object-contain`}
           loading="lazy"
           width="600"
@@ -392,14 +399,26 @@ export default function Sponsors() {
                 className="bg-secondary-container text-on-secondary-container px-8 py-4 rounded-xl font-bold text-lg hover:opacity-90 transition-all inline-block"
               >
                 View Packet
+                <span className="sr-only">(opens in a new tab)</span>
               </a>
             </div>
           </div>
           <div className="relative scale-105 md:scale-110">
             <div className="relative z-10 rounded-lg overflow-hidden border-8 border-surface-container-lowest shadow-2xl">
-              <img src="/photos/sponsors/eventGM.webp" alt="Partnership Hero" className="w-full aspect-[4/3] object-cover object-center" width="900" height="675" />
+              {/* WCAG 1.1.1: Descriptive alt instead of generic "Partnership Hero" */}
+              <img
+                src="/photos/sponsors/eventGM.webp"
+                alt="SHPE OSU members networking with General Motors representatives at a campus event"
+                className="w-full aspect-[4/3] object-cover object-center"
+                width="900"
+                height="675"
+              />
             </div>
-            <div className="absolute -bottom-6 -left-6 z-20 bg-primary-container p-6 rounded-lg text-on-primary-container shadow-xl">
+            {/* Decorative stat badge — duplicated as visible text so no information is lost */}
+            <div
+              className="absolute -bottom-6 -left-6 z-20 bg-primary-container p-6 rounded-lg text-on-primary-container shadow-xl"
+              aria-hidden="true"
+            >
               <p className="font-headline font-black text-4xl">200+</p>
               <p className="font-bold text-sm uppercase">Active Members</p>
             </div>
@@ -509,6 +528,7 @@ export default function Sponsors() {
                 </ul>
                 <a
                   href="#become-a-sponsor"
+                  aria-label={`Get started with the ${tier.name} sponsorship tier`}
                   className={`text-center py-3 rounded-full font-bold transition-all ${tier.premium
                     ? 'bg-on-primary text-primary hover:opacity-90'
                     : 'bg-primary text-on-primary hover:bg-primary-fixed-dim'
