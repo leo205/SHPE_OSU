@@ -105,6 +105,7 @@ export default function AdminResumes() {
               <tr>
                 <th className="px-6 py-4">Student</th>
                 <th className="px-6 py-4">Major</th>
+                <th className="px-6 py-4">Submitted</th>
                 <th className="px-6 py-4">Status</th>
                 <th className="px-6 py-4 text-right">Actions</th>
               </tr>
@@ -159,6 +160,23 @@ export default function AdminResumes() {
                           <span className="material-symbols-outlined text-on-surface-variant text-base">edit</span>
                         </button>
                       </div>
+                    )}
+                  </td>
+                  <td className="px-6 py-4">
+                    {r.uploaded_at ? (
+                      <span className="text-on-surface-variant text-xs leading-snug block">
+                        {new Date(r.uploaded_at).toLocaleDateString('en-US', {
+                          month: 'short', day: 'numeric', year: 'numeric',
+                        })}
+                        <br />
+                        <span className="opacity-70">
+                          {new Date(r.uploaded_at).toLocaleTimeString('en-US', {
+                            hour: 'numeric', minute: '2-digit', hour12: true,
+                          })}
+                        </span>
+                      </span>
+                    ) : (
+                      <span className="text-on-surface-variant text-xs opacity-50">—</span>
                     )}
                   </td>
                   <td className="px-6 py-4">

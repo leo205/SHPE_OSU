@@ -86,4 +86,49 @@
   .collage-container {
     perspective: 1000px;
   }
+
+  /* ── WCAG 2.1 AA: Screen-reader-only utility ───────────────
+   * Visually hides content while keeping it accessible to AT.
+   * Usage: <span class="sr-only">opens in a new tab</span>
+   */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+
+  /* ── WCAG 2.1 AA 2.4.7: Focus Visible ─────────────────────
+   * Never suppress focus without providing a visible replacement.
+   * This global rule ensures every focusable element has a
+   * high-contrast 3px outline when navigated via keyboard.
+   */
+  :focus-visible {
+    outline: 3px solid #a33700;
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+}
+
+/* ── WCAG 2.1 AA 1.4.12 / 2.3.3: Reduced Motion ────────────
+ * Respect the user's OS-level preference to reduce animations.
+ * This prevents vestibular disorder triggers.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .loteria-card:hover {
+    transform: none;
+  }
 }
