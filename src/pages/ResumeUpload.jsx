@@ -185,8 +185,9 @@ export default function ResumeUpload() {
         <form onSubmit={handleUpload} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-bold text-on-surface mb-2">Full Name</label>
+              <label htmlFor="full-name" className="block text-sm font-bold text-on-surface mb-2">Full Name</label>
               <input
+                id="full-name"
                 required
                 type="text"
                 maxLength={200}
@@ -197,10 +198,11 @@ export default function ResumeUpload() {
               />
             </div>
             <div>
-              <label className="block text-sm font-bold text-on-surface mb-2">
+              <label htmlFor="email" className="block text-sm font-bold text-on-surface mb-2">
                 Email <span className="text-xs font-normal text-on-surface-variant">(OSU email required)</span>
               </label>
               <input
+                id="email"
                 required
                 type="email"
                 maxLength={254}
@@ -214,8 +216,9 @@ export default function ResumeUpload() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-bold text-on-surface mb-2">Major</label>
+              <label htmlFor="major" className="block text-sm font-bold text-on-surface mb-2">Major</label>
               <select
+                id="major"
                 required
                 value={formData.major}
                 onChange={(e) => setFormData({ ...formData, major: e.target.value })}
@@ -228,10 +231,11 @@ export default function ResumeUpload() {
               </select>
               {formData.major === 'Other' && (
                 <div className="mt-3">
-                  <label className="block text-sm font-bold text-on-surface mb-2">
+                  <label htmlFor="custom-major" className="block text-sm font-bold text-on-surface mb-2">
                     Please describe your major *
                   </label>
                   <input
+                    id="custom-major"
                     type="text"
                     maxLength={150}
                     required
@@ -244,8 +248,9 @@ export default function ResumeUpload() {
               )}
             </div>
             <div>
-              <label className="block text-sm font-bold text-on-surface mb-2">Graduation Year</label>
+              <label htmlFor="grad-year" className="block text-sm font-bold text-on-surface mb-2">Graduation Year</label>
               <select
+                id="grad-year"
                 required
                 value={formData.graduation_year}
                 onChange={(e) => setFormData({ ...formData, graduation_year: e.target.value })}
@@ -265,11 +270,12 @@ export default function ResumeUpload() {
           </div>
 
           <div>
-            <label className="block text-sm font-bold text-on-surface mb-2">
+            <label htmlFor="resume-file" className="block text-sm font-bold text-on-surface mb-2">
               Upload Resume (PDF only, max 5 MB)
             </label>
             <div className="border-2 border-dashed border-outline-variant rounded-xl p-8 text-center bg-surface-bright hover:bg-surface-container transition-colors cursor-pointer relative">
               <input
+                id="resume-file"
                 required
                 type="file"
                 accept=".pdf,application/pdf"

@@ -482,7 +482,6 @@ export default function AdminDashboard() {
                             {editingId === r.id ? (
                               <div className="flex items-center gap-1.5">
                                 <input
-                                  autoFocus
                                   type="text"
                                   maxLength={150}
                                   value={editMajorVal}

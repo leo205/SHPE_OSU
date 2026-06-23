@@ -721,7 +721,7 @@ export default function ProfessionalDevelopment() {
               <div className="rounded-lg overflow-hidden shadow-xl aspect-video">
                 <img
                   src="/photos/profDev/shpeNationalGroup.webp"
-                  alt="SHPE OSU student group photo at the National Convention"
+                  alt="SHPE OSU students at the National Convention"
                   className="w-full h-full object-cover"
                   loading="lazy"
                   width="1200"

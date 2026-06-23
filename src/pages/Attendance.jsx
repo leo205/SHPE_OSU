@@ -274,10 +274,11 @@ export default function Attendance() {
             className="bg-surface-container-lowest border border-outline-variant/20 rounded-2xl p-8 shadow-sm space-y-6"
           >
             <div>
-              <label className="block text-sm font-bold uppercase tracking-wider mb-2 text-on-surface-variant">
+              <label htmlFor="event-name" className="block text-sm font-bold uppercase tracking-wider mb-2 text-on-surface-variant">
                 Which event did you attend? *
               </label>
               <select
+                id="event-name"
                 name="event_name"
                 required
                 value={form.event_name}
@@ -293,10 +294,11 @@ export default function Attendance() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-bold uppercase tracking-wider mb-2 text-on-surface-variant">
+                <label htmlFor="first-name" className="block text-sm font-bold uppercase tracking-wider mb-2 text-on-surface-variant">
                   First Name *
                 </label>
                 <input
+                  id="first-name"
                   name="first_name"
                   required
                   type="text"
@@ -308,10 +310,11 @@ export default function Attendance() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-bold uppercase tracking-wider mb-2 text-on-surface-variant">
+                <label htmlFor="last-name" className="block text-sm font-bold uppercase tracking-wider mb-2 text-on-surface-variant">
                   Last Name.## *
                 </label>
                 <input
+                  id="last-name"
                   name="last_name_dotnum"
                   required
                   type="text"
@@ -325,10 +328,11 @@ export default function Attendance() {
             </div>
 
             <div>
-              <label className="block text-sm font-bold uppercase tracking-wider mb-2 text-on-surface-variant">
+              <label htmlFor="year" className="block text-sm font-bold uppercase tracking-wider mb-2 text-on-surface-variant">
                 Year *
               </label>
               <select
+                id="year"
                 name="year"
                 required
                 value={form.year}
@@ -343,10 +347,11 @@ export default function Attendance() {
             </div>
 
             <div>
-              <label className="block text-sm font-bold uppercase tracking-wider mb-2 text-on-surface-variant">
+              <label htmlFor="feedback" className="block text-sm font-bold uppercase tracking-wider mb-2 text-on-surface-variant">
                 Any Feedback or Suggestions?
               </label>
               <textarea
+                id="feedback"
                 name="feedback"
                 value={form.feedback}
                 onChange={handleChange}
@@ -419,10 +424,11 @@ export default function Attendance() {
             </div>
 
             <div>
-              <label className="block text-sm font-bold uppercase tracking-wider mb-2 text-on-surface-variant">
+              <label htmlFor="major" className="block text-sm font-bold uppercase tracking-wider mb-2 text-on-surface-variant">
                 Major *
               </label>
               <select
+                id="major"
                 name="major"
                 required
                 value={form.major}
@@ -436,10 +442,11 @@ export default function Attendance() {
               </select>
               {form.major === 'Other' && (
                 <div className="mt-3">
-                  <label className="block text-sm font-bold uppercase tracking-wider mb-2 text-on-surface-variant">
+                  <label htmlFor="custom-major" className="block text-sm font-bold uppercase tracking-wider mb-2 text-on-surface-variant">
                     Please describe your major *
                   </label>
                   <input
+                    id="custom-major"
                     type="text"
                     maxLength={150}
                     required
@@ -453,10 +460,11 @@ export default function Attendance() {
             </div>
 
             <div>
-              <label className="block text-sm font-bold uppercase tracking-wider mb-2 text-on-surface-variant">
+              <label htmlFor="pronouns" className="block text-sm font-bold uppercase tracking-wider mb-2 text-on-surface-variant">
                 Pronouns *
               </label>
               <select
+                id="pronouns"
                 name="pronouns"
                 required
                 value={form.pronouns}
@@ -471,10 +479,11 @@ export default function Attendance() {
             </div>
 
             <div>
-              <label className="block text-sm font-bold uppercase tracking-wider mb-2 text-on-surface-variant">
+              <label htmlFor="how-heard" className="block text-sm font-bold uppercase tracking-wider mb-2 text-on-surface-variant">
                 How did you find out about SHPE at OSU? *
               </label>
               <select
+                id="how-heard"
                 name="how_heard"
                 required
                 value={form.how_heard}
