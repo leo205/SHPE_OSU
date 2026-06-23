@@ -23,7 +23,6 @@
  */
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import PublicLeaderboard from '../components/PublicLeaderboard';
 
 /* ─────────────────────────────────────────────
    DATA — Professional Development events
@@ -31,7 +30,6 @@ import PublicLeaderboard from '../components/PublicLeaderboard';
 const internshipStats = [
   { value: '85%', label: 'Internship Placement Rate', icon: 'trending_up' },
   { value: '25+', label: '2025 Offers Received', icon: 'workspace_premium' },
-  { value: '$25k', label: 'Avg. Intern Salary (annualized)', icon: 'payments' },
   { value: '3x',  label: 'More Offers w/ SHPE Network', icon: 'diversity_3' },
 ];
 
@@ -148,10 +146,8 @@ const conferenceSteps = [
    Four tabs so recruiters/sponsors have a dedicated view.
 ───────────────────────────────────────────── */
 const TABS = [
-  { id: 'overview',   label: 'Overview'        },
-  { id: 'events',     label: 'Events'          },
-  { id: 'convention', label: 'Convention'      },
-  { id: 'leaderboard',label: 'Leaderboard'     },
+  { id: 'overview',   label: 'Overview'   },
+  { id: 'convention', label: 'Convention' },
 ];
 
 /* ─────────────────────────────────────────────
@@ -586,254 +582,6 @@ export default function ProfessionalDevelopment() {
             </div>
           </div>
         </section>
-      </div>
-
-      {/* ── EVENTS PANEL ── */}
-      <div
-        id="panel-events"
-        role="tabpanel"
-        aria-labelledby="tab-events"
-        tabIndex={0}
-        hidden={activeTab !== 'events'}
-        className="outline-none"
-      >
-        <section aria-labelledby="events-heading" className="py-20 px-6 md:px-12">
-          <div className="max-w-screen-2xl mx-auto">
-            <div className="text-center mb-14">
-              <span className="text-primary font-bold tracking-widest uppercase text-sm">Level Up</span>
-              <h2 id="events-heading" className="font-headline text-4xl md:text-5xl font-extrabold mt-2 text-on-surface">
-                Professional Development Events
-              </h2>
-              <p className="mt-4 text-on-surface-variant max-w-2xl mx-auto text-lg font-medium">
-                Year-round programming designed to make you career-ready before graduation.
-              </p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {profDevEvents.map((ev) => {
-                const c = colorMap[ev.color];
-                return (
-                  <article
-                    key={ev.id}
-                    aria-labelledby={`event-title-${ev.id}`}
-                    className={`bg-surface-container-lowest rounded-lg p-8 border border-outline-variant/20 ${c.border} hover:-translate-y-1 hover:shadow-xl transition-all flex flex-col gap-4`}
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="p-3 bg-surface-container rounded-xl">
-                        <span
-                          className={`material-symbols-outlined text-3xl ${c.icon}`}
-                          style={{ fontVariationSettings: '"FILL" 1' }}
-                          aria-hidden="true"
-                        >
-                          {ev.icon}
-                        </span>
-                      </div>
-                      <span className={`text-xs font-bold px-3 py-1 rounded-full ${c.tag}`}>
-                        {ev.tag}
-                      </span>
-                    </div>
-                    <div>
-                      <h3 id={`event-title-${ev.id}`} className="font-headline text-xl font-extrabold text-on-surface mb-1">
-                        {ev.title}
-                      </h3>
-                      <p className={`text-xs font-bold uppercase tracking-wide mb-3 ${c.icon}`}>
-                        <time>{ev.date}</time>
-                      </p>
-                      <p className="text-on-surface-variant text-sm leading-relaxed">
-                        {ev.description}
-                      </p>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-
-        {/* Subscribe CTA */}
-        <section aria-labelledby="newsletter-heading" className="py-20 px-6 md:px-12 bg-surface-container-low">
-          <div className="max-w-screen-2xl mx-auto bg-secondary text-on-secondary rounded-xl p-10 md:p-14 flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden shadow-2xl">
-            <div className="absolute top-0 left-0 w-64 h-64 bg-on-secondary/10 rounded-full blur-3xl -ml-32 -mt-32 pointer-events-none" aria-hidden="true" />
-            <div className="z-10">
-              <h2 id="newsletter-heading" className="font-headline text-3xl md:text-4xl font-extrabold mb-3">
-                Ready to launch your career?
-              </h2>
-              <p className="opacity-85 max-w-xl text-lg leading-relaxed">
-                Join SHPE at Ohio State and tap into our professional development
-                programs, industry connections, and a familia that will champion you.
-              </p>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-3 z-10 flex-shrink-0">
-              <a
-                href="https://ohio-state.us10.list-manage.com/subscribe?u=83a66b4e27a8f6ab6405e8295&id=26dc1dc690"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="bg-on-secondary text-secondary px-8 py-4 rounded-full font-bold hover:opacity-90 hover:-translate-y-0.5 transition-all text-center flex items-center justify-center gap-2 shadow-lg"
-              >
-                Subscribe to Newsletter
-                <span className="material-symbols-outlined text-sm" aria-hidden="true">mail</span>
-                <span className="sr-only">(opens in a new tab)</span>
-              </a>
-              <a
-                href="/events"
-                className="border-2 border-on-secondary/40 text-on-secondary px-8 py-4 rounded-full font-bold hover:bg-on-secondary/10 transition-all text-center"
-              >
-                View Events
-              </a>
-            </div>
-          </div>
-        </section>
-      </div>
-
-      {/* ── CONVENTION PANEL ── */}
-      <div
-        id="panel-convention"
-        role="tabpanel"
-        aria-labelledby="tab-convention"
-        tabIndex={0}
-        hidden={activeTab !== 'convention'}
-        className="outline-none"
-      >
-        <section aria-labelledby="convention-heading" className="py-20 px-6 md:px-12">
-          <div className="max-w-screen-2xl mx-auto">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center mb-12">
-              <div>
-                <span className="text-primary font-bold tracking-widest uppercase text-sm">SHPE National</span>
-                <h2 id="convention-heading" className="font-headline text-4xl md:text-5xl font-extrabold text-on-surface mt-2 mb-4">
-                  National Convention
-                </h2>
-                <p className="text-on-surface-variant text-lg font-medium leading-relaxed mb-6">
-                  SHPE&apos;s National Convention is the largest annual gathering of
-                  Hispanic STEM professionals and students in the world — a career
-                  fair, leadership summit, and cultural celebration in one massive
-                  event. SHPE OSU attends every year.
-                </p>
-                <a
-                  href="https://shpe.org/engage/events/national-convention/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 bg-primary text-on-primary px-6 py-3 rounded-full font-bold hover:bg-primary-fixed-dim transition-all shadow-lg"
-                >
-                  SHPE National Convention Website
-                  <span className="material-symbols-outlined text-sm" aria-hidden="true">open_in_new</span>
-                  <span className="sr-only">(opens in a new tab)</span>
-                </a>
-              </div>
-              <div className="rounded-lg overflow-hidden shadow-xl aspect-video">
-                <img
-                  src="/photos/profDev/shpeNationalGroup.webp"
-                  alt="SHPE OSU students at the National Convention"
-                  className="w-full h-full object-cover"
-                  loading="lazy"
-                  width="1200"
-                  height="675"
-                />
-              </div>
-            </div>
-
-            {/* Fast-facts */}
-            <dl className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
-              {[
-                { icon: 'calendar_month', value: 'Every October',     label: 'Annual Event' },
-                { icon: 'groups',         value: '5,000+',            label: 'Attendees' },
-                { icon: 'corporate_fare', value: '200+',              label: 'Recruiting Companies' },
-                { icon: 'location_on',    value: 'New City Each Year', label: 'U.S. Location' },
-              ].map(({ icon, value, label }) => (
-                <div key={label} className="bg-surface-container-low rounded-xl p-5 text-center border border-outline-variant/20">
-                  <dt className="sr-only">{label}</dt>
-                  <span
-                    className="material-symbols-outlined text-primary text-3xl mb-2 block"
-                    style={{ fontVariationSettings: '"FILL" 1' }}
-                    aria-hidden="true"
-                  >
-                    {icon}
-                  </span>
-                  <dd className="font-headline font-extrabold text-on-surface text-lg leading-tight">{value}</dd>
-                  <p className="text-on-surface-variant text-xs font-bold uppercase tracking-wide mt-1" aria-hidden="true">{label}</p>
-                </div>
-              ))}
-            </dl>
-
-            {/* Freshman note */}
-            <aside
-              aria-labelledby="freshman-note-heading"
-              className="bg-primary-container text-on-primary-container rounded-lg p-8 md:p-10 mb-12 flex flex-col md:flex-row gap-8 items-start shadow-lg"
-            >
-              <div className="flex-shrink-0 w-16 h-16 bg-on-primary-container/15 rounded-2xl flex items-center justify-center mt-1" aria-hidden="true">
-                <span className="material-symbols-outlined text-3xl" style={{ fontVariationSettings: '"FILL" 1' }} aria-hidden="true">waving_hand</span>
-              </div>
-              <div className="flex-1">
-                <h3 id="freshman-note-heading" className="font-headline text-2xl font-extrabold mb-3">
-                  Hey Freshmen 👋 — Here&apos;s What to Expect
-                </h3>
-                <p className="opacity-90 leading-relaxed mb-4">
-                  National Convention is a 5-day event held every October in a different U.S. city.
-                  As a first-year, you&apos;ll attend professional development workshops, walk the
-                  career fair floor with hundreds of top engineering companies, and connect with
-                  thousands of other Hispanic engineers from across the country.
-                </p>
-                <p className="opacity-90 leading-relaxed">
-                  SHPE OSU covers the logistics. We organize group travel, hotel coordination,
-                  and prep sessions so you show up confident and ready. Many members land their
-                  first internship offer right on the convention floor.
-                </p>
-              </div>
-            </aside>
-
-            {/* Preparation steps */}
-            <div>
-              <h3 className="font-headline text-3xl md:text-4xl font-extrabold text-on-surface text-center mb-4">
-                How to Prepare
-              </h3>
-              <p className="text-on-surface-variant mt-2 font-medium text-center mb-10">
-                Follow these steps to get the most out of your convention experience.
-              </p>
-              <ol className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" aria-label="Convention preparation steps">
-                {conferenceSteps.map((step) => (
-                  <li
-                    key={step.step}
-                    className="relative bg-surface-container-lowest rounded-lg p-7 border border-outline-variant/20 hover:shadow-xl hover:-translate-y-1 transition-all group list-none"
-                  >
-                    <span className="absolute top-5 right-6 text-6xl font-black text-on-surface/5 font-headline pointer-events-none select-none" aria-hidden="true">
-                      {step.step}
-                    </span>
-                    <div className="mb-4 w-12 h-12 bg-primary-container/30 rounded-xl flex items-center justify-center group-hover:bg-primary group-hover:text-on-primary transition-colors">
-                      <span
-                        className="material-symbols-outlined text-primary group-hover:text-on-primary transition-colors"
-                        style={{ fontVariationSettings: '"FILL" 1' }}
-                        aria-hidden="true"
-                      >
-                        {step.icon}
-                      </span>
-                    </div>
-                    <h4 className="font-headline text-lg font-extrabold text-on-surface mb-2">
-                      {step.title}
-                    </h4>
-                    <p className="text-on-surface-variant text-sm leading-relaxed">
-                      {step.desc}
-                    </p>
-                  </li>
-                ))}
-              </ol>
-            </div>
-          </div>
-        </section>
-      </div>
-
-      {/* ── LEADERBOARD PANEL ── */}
-      <div
-        id="panel-leaderboard"
-        role="tabpanel"
-        aria-labelledby="tab-leaderboard"
-        tabIndex={0}
-        hidden={activeTab !== 'leaderboard'}
-        className="outline-none"
-      >
-        {/*
-         * PublicLeaderboard is a standalone component with its own
-         * aria-labelledby heading, aria-live region, and semantic <table>.
-         * See src/components/PublicLeaderboard.jsx for full compliance notes.
-         */}
-        <PublicLeaderboard />
       </div>
 
     </main>
