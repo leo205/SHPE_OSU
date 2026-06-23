@@ -63,17 +63,24 @@ function EventModal({ event, onClose }) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+      role="presentation"
       onClick={onClose}
+      onKeyDown={(e) => e.key === 'Escape' && onClose()}
     >
+      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/click-events-have-key-events */}
       <div
         className="bg-surface rounded-2xl shadow-2xl max-w-lg w-full p-8 relative"
+        role="dialog"
+        aria-modal="true"
+        aria-label={event.title}
         onClick={(e) => e.stopPropagation()}
       >
         <button
           onClick={onClose}
           className="absolute top-4 right-4 p-2 rounded-full hover:bg-surface-container transition-colors"
+          aria-label="Close event details"
         >
-          <span className="material-symbols-outlined">close</span>
+          <span className="material-symbols-outlined" aria-hidden="true">close</span>
         </button>
 
         <span
@@ -87,7 +94,7 @@ function EventModal({ event, onClose }) {
 
         <div className="space-y-2 text-on-surface-variant text-sm mb-6">
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[18px] text-primary">
+            <span className="material-symbols-outlined text-[18px] text-primary" aria-hidden="true">
               calendar_month
             </span>
             <span>
@@ -100,7 +107,7 @@ function EventModal({ event, onClose }) {
             </span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[18px] text-primary">
+            <span className="material-symbols-outlined text-[18px] text-primary" aria-hidden="true">
               schedule
             </span>
             <span>
@@ -109,7 +116,7 @@ function EventModal({ event, onClose }) {
             </span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[18px] text-primary">
+            <span className="material-symbols-outlined text-[18px] text-primary" aria-hidden="true">
               location_on
             </span>
             <span>{event.location}</span>
@@ -256,10 +263,10 @@ export default function Events() {
           {/* Photo collage — desktop only (absolute positions overflow on mobile) */}
           <div className="w-full md:w-1/2 relative h-[300px] md:h-[500px] hidden md:block">
             <div className="absolute -top-10 right-4 w-80 h-96 rounded-lg overflow-hidden shadow-2xl z-20 border-8 border-surface-container-lowest">
-              <img src="/photos/events/cakeSHPE.webp" alt="Event Photo" className="w-full h-full object-cover object-center" width="900" height="1200" />
+              <img src="/photos/events/cakeSHPE.webp" alt="SHPE cake celebration" className="w-full h-full object-cover object-center" width="900" height="1200" />
             </div>
             <div className="absolute bottom-4 left-4 w-96 h-64 rounded-lg overflow-hidden shadow-xl z-30 border-8 border-surface-container-lowest">
-              <img src="/photos/events/pickleBall.webp" alt="Event Photo" className="w-full h-full object-cover object-center" width="900" height="645" />
+              <img src="/photos/events/pickleBall.webp" alt="SHPE pickleball social event" className="w-full h-full object-cover object-center" width="900" height="645" />
             </div>
           </div>
           {/* Mobile: display both images cleanly */}
@@ -353,7 +360,16 @@ export default function Events() {
                       ? 'cursor-pointer hover:shadow-md hover:scale-[1.02] bg-surface-container-lowest border border-outline-variant/20'
                       : 'bg-surface-container-lowest'
                       } ${isToday ? 'ring-2 ring-primary' : ''}`}
+                    role={dayEvents.length > 0 ? 'button' : undefined}
+                    tabIndex={dayEvents.length > 0 ? 0 : undefined}
+                    aria-label={dayEvents.length > 0 ? `${day} — ${dayEvents[0].title}` : undefined}
                     onClick={() => dayEvents.length > 0 && setSelectedEvent(dayEvents[0])}
+                    onKeyDown={(e) => {
+                      if (dayEvents.length > 0 && (e.key === 'Enter' || e.key === ' ')) {
+                        e.preventDefault();
+                        setSelectedEvent(dayEvents[0]);
+                      }
+                    }}
                   >
                     <span
                       className={`text-xs font-bold ${isToday
@@ -504,13 +520,22 @@ export default function Events() {
                   return (
                     <div
                       className="group cursor-pointer"
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`View details for ${ev.title}`}
                       onClick={() => setSelectedEvent(ev)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setSelectedEvent(ev);
+                        }
+                      }}
                     >
                       <div className="relative rounded-xl overflow-hidden mb-3 bg-surface-container-lowest h-72 md:h-[420px]">
                         {ev.photo ? (
                           <img
                             src={ev.photo.replace(/\.(jpg|jpeg|png)$/i, '.webp')}
-                            alt={`${ev.title} Photo`}
+                            alt={ev.title}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                             loading="lazy"
                           />
@@ -560,7 +585,16 @@ export default function Events() {
               <div
                 key={ev.id}
                 className="bg-surface-container-low rounded-lg p-6 hover:-translate-y-2 transition-all cursor-pointer shadow-sm hover:shadow-lg"
+                role="button"
+                tabIndex={0}
+                aria-label={`View details for ${ev.title}`}
                 onClick={() => setSelectedEvent(ev)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setSelectedEvent(ev);
+                  }
+                }}
               >
                 <div className={`w-12 h-12 ${colors.bg} rounded-full flex items-center justify-center mb-6`}>
                   <span className={`material-symbols-outlined ${colors.text}`}>

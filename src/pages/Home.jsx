@@ -144,7 +144,7 @@ export default function Home() {
             {/* Academic */}
             <div className="bg-surface-container-highest p-8 rounded-lg md:col-span-1 flex flex-col gap-4 hover:shadow-2xl transition-all group">
               <div className="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-4 group-hover:bg-primary group-hover:text-on-primary transition-colors">
-                <span className="material-symbols-outlined text-4xl">school</span>
+                <span className="material-symbols-outlined text-4xl" aria-hidden="true">school</span>
               </div>
               <h3 className="font-headline text-2xl font-bold">
                 Academic Excellence
@@ -159,7 +159,7 @@ export default function Home() {
             <div className="bg-primary-container p-8 rounded-lg md:col-span-2 flex flex-col md:flex-row gap-8 items-center text-on-primary-container group">
               <div className="flex-1">
                 <div className="w-16 h-16 bg-on-primary-container/10 text-on-primary-container rounded-full flex items-center justify-center mb-4 group-hover:bg-on-primary-container group-hover:text-primary-container transition-colors">
-                  <span className="material-symbols-outlined text-4xl">work</span>
+                  <span className="material-symbols-outlined text-4xl" aria-hidden="true">work</span>
                 </div>
                 <h3 className="font-headline text-2xl font-bold">
                   Professional Growth
@@ -178,7 +178,7 @@ export default function Home() {
             <div className="bg-secondary-container p-8 rounded-lg md:col-span-2 flex flex-col md:flex-row-reverse gap-8 items-center text-on-secondary-container group">
               <div className="flex-1">
                 <div className="w-16 h-16 bg-on-secondary-container/10 text-on-secondary-container rounded-full flex items-center justify-center mb-4 group-hover:bg-on-secondary-container group-hover:text-secondary-container transition-colors">
-                  <span className="material-symbols-outlined text-4xl">groups</span>
+                  <span className="material-symbols-outlined text-4xl" aria-hidden="true">groups</span>
                 </div>
                 <h3 className="font-headline text-2xl font-bold">
                   Leadership Development
@@ -197,7 +197,7 @@ export default function Home() {
             {/* Chapter */}
             <div className="bg-tertiary-container p-8 rounded-lg md:col-span-1 flex flex-col gap-4 text-on-tertiary-container group">
               <div className="w-16 h-16 bg-on-tertiary-container/10 text-on-tertiary-container rounded-full flex items-center justify-center mb-4 group-hover:bg-on-tertiary-container group-hover:text-tertiary-container transition-colors">
-                <span className="material-symbols-outlined text-4xl">diversity_3</span>
+                <span className="material-symbols-outlined text-4xl" aria-hidden="true">diversity_3</span>
               </div>
               <h3 className="font-headline text-2xl font-bold">Chapter Spirit</h3>
               <p className="opacity-90 font-medium">
@@ -267,7 +267,7 @@ export default function Home() {
             <div className="bg-surface-container-highest p-6 md:p-10 rounded-lg shadow-xl relative overflow-hidden flex flex-col justify-between">
               <div>
                 <h3 className="font-headline text-2xl font-bold mb-4 flex items-center gap-3">
-                  <span className="material-symbols-outlined text-primary">
+                  <span className="material-symbols-outlined text-primary" aria-hidden="true">
                     volunteer_activism
                   </span>
                   SHPEtinas
@@ -294,7 +294,7 @@ export default function Home() {
             <div className="bg-surface-container-highest p-6 md:p-10 rounded-lg shadow-xl flex flex-col justify-between">
               <div>
                 <h3 className="font-headline text-2xl font-bold mb-4 flex items-center gap-3">
-                  <span className="material-symbols-outlined text-secondary">
+                  <span className="material-symbols-outlined text-secondary" aria-hidden="true">
                     diversity_1
                   </span>
                   Connect with Familia
