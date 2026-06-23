@@ -18,7 +18,7 @@ export default function Navbar() {
     to === '/' ? pathname === '/' : pathname.startsWith(to);
 
   return (
-    <header className="fixed top-0 w-full z-50 bg-surface/70 backdrop-blur-xl shadow-sm">
+    <header className="fixed top-0 w-full z-50 bg-surface backdrop-blur-xl shadow-sm">
       <div className="flex justify-between items-center px-6 md:px-10 py-4 max-w-screen-2xl mx-auto font-headline font-semibold tracking-tight">
         {/* Logo */}
         <Link
