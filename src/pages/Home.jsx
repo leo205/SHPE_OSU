@@ -91,7 +91,7 @@ export default function Home() {
       </section>
 
       {/* ── MISSION ────────────────────────────────────────── */}
-      <section className="py-24 px-6 md:px-12 bg-surface-container-low">
+      <section className="py-12 md:py-24 px-6 md:px-12 bg-surface-container-low">
         <div className="max-w-screen-2xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
             {/* Image */}
@@ -130,7 +130,7 @@ export default function Home() {
       </section>
 
       {/* ── DEVELOPMENT BENTO ──────────────────────────────── */}
-      <section className="py-24 px-6 md:px-12">
+      <section className="py-12 md:py-24 px-6 md:px-12">
         <div className="max-w-screen-2xl mx-auto">
           <div className="text-center mb-16">
             <span className="text-primary font-bold tracking-widest uppercase text-sm">
@@ -156,7 +156,7 @@ export default function Home() {
             </div>
 
             {/* Professional */}
-            <div className="bg-primary-container p-8 rounded-lg md:col-span-2 flex flex-col md:flex-row gap-8 items-center text-on-primary-container group">
+            <div className="bg-primary-container p-8 rounded-lg md:col-span-2 flex flex-col md:flex-row gap-8 md:items-center text-on-primary-container group">
               <div className="flex-1">
                 <div className="w-16 h-16 bg-on-primary-container/10 text-on-primary-container rounded-full flex items-center justify-center mb-4 group-hover:bg-on-primary-container group-hover:text-primary-container transition-colors">
                   <span className="material-symbols-outlined text-4xl" aria-hidden="true">work</span>
@@ -169,13 +169,13 @@ export default function Home() {
                   fairs, resume workshops, and mock interview sessions.
                 </p>
               </div>
-              <div className="w-full md:w-64 h-48 rounded-xl overflow-hidden">
+              <div className="w-full md:w-64 h-48 rounded-lg overflow-hidden flex-shrink-0">
                 <img src="/photos/picsMain/shpeBrunch.webp" alt="SHPE Brunch" className="w-full h-full object-cover" loading="lazy" width="1200" height="800" />
               </div>
             </div>
 
             {/* Leadership */}
-            <div className="bg-secondary-container p-8 rounded-lg md:col-span-2 flex flex-col md:flex-row-reverse gap-8 items-center text-on-secondary-container group">
+            <div className="bg-secondary-container p-8 rounded-lg md:col-span-2 flex flex-col md:flex-row-reverse gap-8 md:items-center text-on-secondary-container group">
               <div className="flex-1">
                 <div className="w-16 h-16 bg-on-secondary-container/10 text-on-secondary-container rounded-full flex items-center justify-center mb-4 group-hover:bg-on-secondary-container group-hover:text-secondary-container transition-colors">
                   <span className="material-symbols-outlined text-4xl" aria-hidden="true">groups</span>
@@ -189,7 +189,7 @@ export default function Home() {
                   experience.
                 </p>
               </div>
-              <div className="w-full md:w-64 h-48 rounded-xl overflow-hidden">
+              <div className="w-full md:w-64 h-48 rounded-lg overflow-hidden flex-shrink-0">
                 <img src="/photos/picsMain/brunchPic2.webp" alt="SHPE Brunch" className="w-full h-full object-cover object-center" loading="lazy" width="1200" height="800" />
               </div>
             </div>
@@ -210,7 +210,7 @@ export default function Home() {
       </section>
 
       {/* ── STATS BANNER ───────────────────────────────────── */}
-      <section className="py-24 px-6 md:px-12 bg-surface">
+      <section className="py-12 md:py-24 px-6 md:px-12 bg-surface">
         <div className="max-w-screen-2xl mx-auto bg-primary rounded-xl p-6 sm:p-8 md:p-12 text-on-primary relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-on-primary/10 rounded-full blur-3xl -mr-32 -mt-32" />
           <div className="grid grid-cols-2 md:grid-cols-4 gap-12 text-center relative z-10">
@@ -251,7 +251,7 @@ export default function Home() {
       </section>
 
       {/* ── GET INVOLVED ───────────────────────────────────── */}
-      <section className="py-24 px-6 md:px-12 bg-surface-container-low">
+      <section className="py-12 md:py-24 px-6 md:px-12 bg-surface-container-low">
         <div className="max-w-screen-2xl mx-auto">
           <div className="text-center mb-16 max-w-3xl mx-auto">
             <h2 className="font-headline text-4xl md:text-6xl font-extrabold mb-6 text-on-surface">
