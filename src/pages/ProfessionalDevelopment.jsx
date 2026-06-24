@@ -239,8 +239,8 @@ function SpotlightCarousel() {
             aria-pressed={i === active}
             aria-label={`View spotlight for ${s.name}, ${s.role} at ${s.company}`}
             className={`flex items-center gap-3 p-3 rounded-xl transition-all text-left ${i === active
-                ? 'bg-primary text-on-primary shadow-lg'
-                : 'bg-surface-container-highest hover:bg-surface-container text-on-surface'
+              ? 'bg-primary text-on-primary shadow-lg'
+              : 'bg-surface-container-highest hover:bg-surface-container text-on-surface'
               }`}
           >
             <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
@@ -430,10 +430,10 @@ export default function ProfessionalDevelopment() {
           {/* Fast-facts */}
           <dl className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
             {[
-              { icon: 'calendar_month', value: 'Every October',     label: 'Annual Event' },
-              { icon: 'groups',         value: '5,000+',            label: 'Attendees' },
-              { icon: 'corporate_fare', value: '200+',              label: 'Recruiting Companies' },
-              { icon: 'location_on',    value: 'New City Each Year', label: 'U.S. Location' },
+              { icon: 'calendar_month', value: 'Every October', label: 'Annual Event' },
+              { icon: 'groups', value: '5,000+', label: 'Attendees' },
+              { icon: 'corporate_fare', value: '200+', label: 'Recruiting Companies' },
+              { icon: 'location_on', value: 'New City Each Year', label: 'U.S. Location' },
             ].map(({ icon, value, label }) => (
               <div key={label} className="bg-surface-container-lowest rounded-xl p-5 text-center border border-outline-variant/20 shadow-sm">
                 <dt className="sr-only">{label}</dt>
@@ -537,7 +537,7 @@ export default function ProfessionalDevelopment() {
           <div className="md:col-span-2 grid grid-cols-2 gap-4">
             {/* Left Column */}
             <div className="flex flex-col gap-4">
-              <div className="rounded-xl overflow-hidden shadow-md aspect-[4/5]">
+              <div className="rounded-xl overflow-hidden shadow-md aspect-[5/5]">
                 <img
                   src="/photos/profDev/shpeCyber.webp"
                   alt="SHPE OSU members at a cybersecurity workshop"
@@ -565,7 +565,7 @@ export default function ProfessionalDevelopment() {
                   loading="lazy"
                 />
               </div>
-              <div className="rounded-xl overflow-hidden shadow-md aspect-[4/5]">
+              <div className="rounded-xl overflow-hidden shadow-md aspect-[5/5]">
                 <img
                   src="/photos/profDev/shpeTinasN.webp"
                   alt="SHPEtinas members networking at a professional event"
