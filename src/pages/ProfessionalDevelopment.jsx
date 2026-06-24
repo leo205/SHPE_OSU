@@ -22,7 +22,7 @@
  *                                Tabpanel uses role="tabpanel", aria-labelledby.
  */
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect } from 'react';
 
 /* ─────────────────────────────────────────────
    DATA — Professional Development events
@@ -30,7 +30,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 const internshipStats = [
   { value: '85%', label: 'Internship Placement Rate', icon: 'trending_up' },
   { value: '25+', label: '2025 Offers Received', icon: 'workspace_premium' },
-  { value: '3x',  label: 'More Offers w/ SHPE Network', icon: 'diversity_3' },
+  { value: '3x', label: 'More Offers w/ SHPE Network', icon: 'diversity_3' },
 ];
 
 const profDevEvents = [
@@ -133,21 +133,12 @@ const spotlights = [
 ];
 
 const conferenceSteps = [
-  { step: '01', title: 'Register Early',      desc: "Secure your spot through SHPE National's portal as soon as registration opens. Spots for students fill fast.",          icon: 'how_to_reg' },
-  { step: '02', title: 'Polish Your Resume',  desc: 'Attend our resume workshop before the conference. Bring printed copies — companies love a physical resume on the floor.', icon: 'description' },
-  { step: '03', title: 'Research Companies',  desc: 'Review the list of attending companies ahead of time. Identify your top targets and research their open roles.',           icon: 'manage_search' },
-  { step: '04', title: 'Practice Your Pitch', desc: 'Nail your 60-second elevator pitch. Our mock sessions will help you feel natural, not rehearsed.',                        icon: 'record_voice_over' },
-  { step: '05', title: 'Dress Professionally',desc: 'Business professional is the standard. Need help? SHPE can connect you with resources for professional attire.',           icon: 'checkroom' },
-  { step: '06', title: 'Follow Up',           desc: 'Connect on LinkedIn within 24 hours. A brief, personalized message can turn a business card into an offer.',             icon: 'send' },
-];
-
-/* ─────────────────────────────────────────────
-   TAB PANEL CONFIG
-   Four tabs so recruiters/sponsors have a dedicated view.
-───────────────────────────────────────────── */
-const TABS = [
-  { id: 'overview',   label: 'Overview'   },
-  { id: 'convention', label: 'Convention' },
+  { step: '01', title: 'Register Early', desc: "Secure your spot through SHPE National's portal as soon as registration opens. Spots for students fill fast.", icon: 'how_to_reg' },
+  { step: '02', title: 'Polish Your Resume', desc: 'Attend our resume workshop before the conference. Bring printed copies — companies love a physical resume on the floor.', icon: 'description' },
+  { step: '03', title: 'Research Companies', desc: 'Review the list of attending companies ahead of time. Identify your top targets and research their open roles.', icon: 'manage_search' },
+  { step: '04', title: 'Practice Your Pitch', desc: 'Nail your 60-second elevator pitch. Our mock sessions will help you feel natural, not rehearsed.', icon: 'record_voice_over' },
+  { step: '05', title: 'Dress Professionally', desc: 'Business professional is the standard. Need help? SHPE can connect you with resources for professional attire.', icon: 'checkroom' },
+  { step: '06', title: 'Follow Up', desc: 'Connect on LinkedIn within 24 hours. A brief, personalized message can turn a business card into an offer.', icon: 'send' },
 ];
 
 /* ─────────────────────────────────────────────
@@ -157,9 +148,9 @@ const TABS = [
 function AnimCounter({ value, duration = 1400 }) {
   const prefix = value.match(/^[^0-9]*/)?.[0] || '';
   const suffix = value.match(/[^0-9]+$/)?.[0] || '';
-  const num    = parseInt(value.replace(/[^0-9]/g, ''), 10) || 0;
+  const num = parseInt(value.replace(/[^0-9]/g, ''), 10) || 0;
   const [count, setCount] = useState(0);
-  const ref     = useRef(null);
+  const ref = useRef(null);
   const started = useRef(false);
 
   useEffect(() => {
@@ -178,7 +169,7 @@ function AnimCounter({ value, duration = 1400 }) {
           const timer = setInterval(() => {
             cur += step;
             if (cur >= num) { setCount(num); clearInterval(timer); }
-            else             { setCount(cur); }
+            else { setCount(cur); }
           }, 16);
         }
       },
@@ -247,11 +238,10 @@ function SpotlightCarousel() {
             onClick={() => setActive(i)}
             aria-pressed={i === active}
             aria-label={`View spotlight for ${s.name}, ${s.role} at ${s.company}`}
-            className={`flex items-center gap-3 p-3 rounded-xl transition-all text-left ${
-              i === active
+            className={`flex items-center gap-3 p-3 rounded-xl transition-all text-left ${i === active
                 ? 'bg-primary text-on-primary shadow-lg'
                 : 'bg-surface-container-highest hover:bg-surface-container text-on-surface'
-            }`}
+              }`}
           >
             <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
               <img
@@ -279,69 +269,16 @@ function SpotlightCarousel() {
    PAGE COMPONENT: ProfessionalDevelopment
 ───────────────────────────────────────────── */
 export default function ProfessionalDevelopment() {
-  const [activeTab, setActiveTab] = useState('overview');
-  const tabRefs = useRef({});
-
-  /* ── Roving tabIndex keyboard pattern ──────────────────────
-   * When the user presses Arrow keys inside the tablist,
-   * focus moves between tabs. Enter/Space selects.
-   * This satisfies WCAG 2.1 SC 2.1.1 (Keyboard) and the
-   * ARIA Authoring Practices Guide tablist pattern.
-   */
-  const handleTabKeyDown = useCallback((e, tabId) => {
-    const ids = TABS.map(t => t.id);
-    const idx = ids.indexOf(tabId);
-
-    let next = null;
-    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
-      next = ids[(idx + 1) % ids.length];
-    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-      next = ids[(idx - 1 + ids.length) % ids.length];
-    } else if (e.key === 'Home') {
-      next = ids[0];
-    } else if (e.key === 'End') {
-      next = ids[ids.length - 1];
-    }
-
-    if (next) {
-      e.preventDefault();
-      setActiveTab(next);
-      tabRefs.current[next]?.focus();
-    }
-  }, []);
-
-  /* Focus the panel after tab selection (keyboard usability) */
-  const panelRef = useRef(null);
-  useEffect(() => {
-    // Only auto-focus when changed via keyboard (not mouse click)
-    // We use a data attribute on the tablist to detect keyboard vs mouse.
-  }, [activeTab]);
-
-  const colorMap = {
-    primary:   { icon: 'text-primary',   tag: 'bg-primary-container text-on-primary-container',     border: 'hover:border-primary/40'   },
-    secondary: { icon: 'text-secondary', tag: 'bg-secondary-container text-on-secondary-container', border: 'hover:border-secondary/40' },
-    tertiary:  { icon: 'text-tertiary',  tag: 'bg-tertiary-container text-on-tertiary-container',   border: 'hover:border-tertiary/40'  },
-  };
-
   return (
-    /*
-     * <main> landmark — required for screen readers to skip to primary content.
-     * WCAG 2.4.1 (Bypass Blocks).
-     */
     <main className="pt-24 pb-20" id="main-content">
 
       {/* ── HERO ─────────────────────────────────────────── */}
       <section aria-labelledby="profdev-hero-heading" className="relative px-6 md:px-12 py-16 md:py-20 overflow-hidden">
         <div className="max-w-screen-2xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-          {/* Text */}
           <div className="flex flex-col gap-6 z-10">
             <div className="inline-flex bg-tertiary-container text-on-tertiary-container font-bold px-4 py-1 rounded-full w-fit text-sm tracking-widest uppercase shadow-sm" aria-hidden="true">
               El Éxito
             </div>
-            {/*
-             * WCAG 1.3.1 / 2.4.6: This is the single <h1> on the page.
-             * All other section titles are <h2> or lower.
-             */}
             <h1
               id="profdev-hero-heading"
               className="font-headline text-5xl sm:text-6xl md:text-7xl font-extrabold text-on-surface leading-[1.05] tracking-tighter"
@@ -363,10 +300,9 @@ export default function ProfessionalDevelopment() {
               >
                 Connect on LinkedIn
                 <span className="material-symbols-outlined" aria-hidden="true">open_in_new</span>
-                <span className="sr-only">(opens in a new tab)</span>
               </a>
               <a
-                href="#profdev-tabs"
+                href="#spotlight-heading"
                 className="bg-surface-container-highest text-on-surface px-7 py-4 rounded-full text-base font-bold hover:bg-surface-container transition-all flex items-center gap-2"
               >
                 Explore Features
@@ -374,8 +310,6 @@ export default function ProfessionalDevelopment() {
               </a>
             </div>
           </div>
-
-          {/* Hero image */}
           <div className="relative flex items-center justify-center">
             <div className="w-full rounded-2xl overflow-hidden shadow-2xl border-8 border-surface-container-lowest aspect-video">
               <img
@@ -392,14 +326,12 @@ export default function ProfessionalDevelopment() {
             </div>
           </div>
         </div>
-        {/* Decorative — aria-hidden */}
         <div className="absolute -top-32 -right-32 w-[500px] h-[500px] bg-primary/5 rounded-full blur-3xl pointer-events-none" aria-hidden="true" />
       </section>
 
       {/* ── STATS BANNER ─────────────────────────────────── */}
       <section aria-labelledby="stats-heading" className="py-16 px-6 md:px-12 bg-surface-container-low">
         <div className="max-w-screen-2xl mx-auto bg-primary rounded-xl p-8 md:p-12 text-on-primary relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-72 h-72 bg-on-primary/10 rounded-full blur-3xl -mr-36 -mt-36 pointer-events-none" aria-hidden="true" />
           <div className="text-center mb-10 relative z-10">
             <span className="uppercase tracking-widest text-sm font-bold opacity-70">
               By the numbers
@@ -408,10 +340,9 @@ export default function ProfessionalDevelopment() {
               SHPE Members Get Hired
             </h2>
           </div>
-          <dl className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center relative z-10">
+          <dl className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center relative z-10 max-w-3xl mx-auto">
             {internshipStats.map(({ value, label, icon }) => (
               <div key={label} className="space-y-2">
-                {/* <dl>/<dt>/<dd> pattern gives screen readers semantic context */}
                 <dt className="sr-only">{label}</dt>
                 <div className="flex justify-center mb-2" aria-hidden="true">
                   <span
@@ -434,155 +365,250 @@ export default function ProfessionalDevelopment() {
         </div>
       </section>
 
-      {/* ── TAB NAVIGATION ───────────────────────────────────
-       *  WCAG 4.1.2 / ARIA Authoring Practices tablist pattern:
-       *   - role="tablist"  on the container
-       *   - role="tab"      on each button
-       *   - aria-selected   reflects current tab
-       *   - aria-controls   points to the corresponding tabpanel id
-       *   - tabIndex        managed (only selected tab is in tab order)
-       *   - Arrow key navigation moves focus within the tablist
-       */}
-      <nav
-        id="profdev-tabs"
-        aria-label="Professional development sections"
-        className="sticky top-16 z-30 bg-surface/95 backdrop-blur-md border-b border-outline-variant/20 shadow-sm"
-      >
-        <div
-          role="tablist"
-          aria-label="Professional development sections"
-          className="max-w-screen-2xl mx-auto px-6 md:px-12 flex gap-1 py-2 overflow-x-auto"
-        >
-          {TABS.map((tab) => (
-            <button
-              key={tab.id}
-              id={`tab-${tab.id}`}
-              ref={(el) => { tabRefs.current[tab.id] = el; }}
-              role="tab"
-              aria-selected={activeTab === tab.id}
-              aria-controls={`panel-${tab.id}`}
-              tabIndex={activeTab === tab.id ? 0 : -1}
-              onClick={() => setActiveTab(tab.id)}
-              onKeyDown={(e) => handleTabKeyDown(e, tab.id)}
-              className={`px-5 py-3 rounded-lg font-bold text-sm transition-all whitespace-nowrap ${
-                activeTab === tab.id
-                  ? 'bg-primary text-on-primary shadow-md'
-                  : 'text-on-surface-variant hover:bg-surface-container hover:text-on-surface'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      </nav>
-
-      {/* ── TAB PANELS ───────────────────────────────────────
-       *  Each panel has: role="tabpanel", aria-labelledby pointing to its tab,
-       *  and tabIndex={0} so it can receive focus programmatically.
-       */}
-
-      {/* ── OVERVIEW PANEL ── */}
-      <div
-        id="panel-overview"
-        role="tabpanel"
-        aria-labelledby="tab-overview"
-        tabIndex={0}
-        hidden={activeTab !== 'overview'}
-        className="outline-none"
-      >
-        {/* internSHPE Spotlight */}
-        <section aria-labelledby="spotlight-heading" className="py-20 px-6 md:px-12 bg-surface-container-low">
-          <div className="max-w-screen-2xl mx-auto">
-            <div className="flex items-center gap-6 mb-12">
-              <div>
-                <span className="text-secondary font-bold tracking-widest uppercase text-sm">Member Voices</span>
-                <h2 id="spotlight-heading" className="font-headline text-4xl md:text-5xl font-extrabold text-on-surface mt-1">
-                  internSHPE{' '}
-                  <span className="text-secondary">Spotlight</span>
-                </h2>
-              </div>
-              <div className="h-1 flex-1 bg-outline-variant/30 rounded-full hidden md:block" aria-hidden="true" />
-              <span
-                className="material-symbols-outlined text-6xl text-secondary opacity-20 hidden md:block"
-                style={{ fontVariationSettings: '"FILL" 1' }}
-                aria-hidden="true"
-              >
-                star
-              </span>
-            </div>
-            {/* figure wraps the quote + attribution (SpotlightCarousel) */}
-            <figure>
-              <SpotlightCarousel />
-            </figure>
-          </div>
-        </section>
-
-        {/* Photos / General CTA */}
-        <section aria-labelledby="photos-cta-heading" className="py-20 px-6 md:px-12">
-          <div className="max-w-screen-2xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+      {/* ── MEMBER VOICE / internSHPE SPOTLIGHT ───────────── */}
+      <section id="spotlight-heading" aria-labelledby="spotlight-title" className="py-20 px-6 md:px-12 bg-surface">
+        <div className="max-w-screen-2xl mx-auto">
+          <div className="flex items-center gap-6 mb-12">
             <div>
-              <h2 id="photos-cta-heading" className="font-headline text-4xl md:text-5xl font-extrabold text-on-surface mb-6">
-                Real experiences, real connections
+              <span className="text-secondary font-bold tracking-widest uppercase text-sm">Member Voices</span>
+              <h2 id="spotlight-title" className="font-headline text-4xl md:text-5xl font-extrabold text-on-surface mt-1">
+                internSHPE <span className="text-secondary">Spotlight</span>
               </h2>
-              <p className="text-on-surface-variant text-lg font-medium leading-relaxed mb-8">
-                See our members in action at national conferences, local networking
-                nights, and company site visits throughout the year.
+            </div>
+            <div className="h-1 flex-1 bg-outline-variant/30 rounded-full hidden md:block" aria-hidden="true" />
+            <span
+              className="material-symbols-outlined text-6xl text-secondary opacity-20 hidden md:block"
+              style={{ fontVariationSettings: '"FILL" 1' }}
+              aria-hidden="true"
+            >
+              star
+            </span>
+          </div>
+          <figure>
+            <SpotlightCarousel />
+          </figure>
+        </div>
+      </section>
+
+      {/* ── NATIONAL CONVENTION ────────────────────────────── */}
+      <section aria-labelledby="convention-heading" className="py-20 px-6 md:px-12 bg-surface-container-low">
+        <div className="max-w-screen-2xl mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center mb-12">
+            <div>
+              <span className="text-primary font-bold tracking-widest uppercase text-sm">SHPE National</span>
+              <h2 id="convention-heading" className="font-headline text-4xl md:text-5xl font-extrabold text-on-surface mt-2 mb-4">
+                National Convention
+              </h2>
+              <p className="text-on-surface-variant text-lg font-medium leading-relaxed mb-6">
+                SHPE&apos;s National Convention is the largest annual gathering of
+                Hispanic STEM professionals and students in the world — a career
+                fair, leadership summit, and cultural celebration in one massive
+                event. SHPE OSU attends every year.
               </p>
               <a
-                href="/events"
+                href="https://shpe.org/engage/events/national-convention/"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 bg-primary text-on-primary px-6 py-3 rounded-full font-bold hover:bg-primary-fixed-dim transition-all shadow-lg"
               >
-                View Upcoming Events
-                <span className="material-symbols-outlined text-sm" aria-hidden="true">arrow_forward</span>
+                SHPE National Convention Website
+                <span className="material-symbols-outlined text-sm" aria-hidden="true">open_in_new</span>
               </a>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              {[
-                { src: '/photos/profDev/shpeCyber.webp',       alt: 'SHPE OSU members at a cybersecurity workshop' },
-                { src: '/photos/profDev/shpeTinasN.webp',      alt: 'SHPEtinas members networking at a professional event' },
-                { src: '/photos/profDev/shpeNationalGroup.webp',alt: 'SHPE OSU group photo at the national convention' },
-                { src: '/photos/profDev/shpeNationalPic.webp', alt: 'SHPE national convention career fair floor' },
-              ].map(({ src, alt }) => (
-                <div key={src} className="rounded-xl overflow-hidden shadow-md aspect-square">
-                  <img src={src} alt={alt} className="w-full h-full object-cover" loading="lazy" />
-                </div>
-              ))}
+            <div className="rounded-lg overflow-hidden shadow-xl aspect-video">
+              <img
+                src="/photos/profDev/shpeNationalGroup.webp"
+                alt="SHPE OSU students at the National Convention"
+                className="w-full h-full object-cover"
+                loading="lazy"
+                width="1200"
+                height="675"
+              />
             </div>
           </div>
-        </section>
 
-        {/* SponsorSHPE CTA */}
-        <section aria-labelledby="sponsor-cta-heading" className="py-20 px-6 md:px-12 bg-surface-container-low">
-          <div className="max-w-screen-2xl mx-auto">
-            <div className="bg-tertiary-container text-on-tertiary-container rounded-xl p-10 md:p-14 flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden shadow-xl">
-              <div className="absolute -bottom-16 -right-16 w-64 h-64 bg-on-tertiary-container/10 rounded-full blur-3xl pointer-events-none" aria-hidden="true" />
-              <div className="z-10 flex-1">
-                <div className="inline-flex items-center gap-2 bg-on-tertiary-container/15 px-4 py-1 rounded-full text-xs font-bold uppercase tracking-widest mb-4">
-                  <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: '"FILL" 1' }} aria-hidden="true">handshake</span>
-                  For Companies &amp; Organizations
-                </div>
-                <h2 id="sponsor-cta-heading" className="font-headline text-3xl md:text-4xl font-extrabold mb-3">
-                  Collaborate With Us
-                </h2>
-                <p className="opacity-90 max-w-xl text-lg leading-relaxed">
-                  Partner with SHPE OSU to connect with a talented pipeline of
-                  Hispanic engineers. From career fair tabling to mentorship — sponsoring
-                  SHPE opens doors to over 200 engaged, career-driven students.
-                </p>
-              </div>
-              <div className="z-10 flex-shrink-0">
-                <a
-                  href="/sponsors"
-                  className="inline-flex items-center gap-3 bg-on-tertiary-container text-tertiary-container px-9 py-5 rounded-full font-bold text-lg hover:opacity-90 hover:-translate-y-0.5 transition-all shadow-lg"
+          {/* Fast-facts */}
+          <dl className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
+            {[
+              { icon: 'calendar_month', value: 'Every October',     label: 'Annual Event' },
+              { icon: 'groups',         value: '5,000+',            label: 'Attendees' },
+              { icon: 'corporate_fare', value: '200+',              label: 'Recruiting Companies' },
+              { icon: 'location_on',    value: 'New City Each Year', label: 'U.S. Location' },
+            ].map(({ icon, value, label }) => (
+              <div key={label} className="bg-surface-container-lowest rounded-xl p-5 text-center border border-outline-variant/20 shadow-sm">
+                <dt className="sr-only">{label}</dt>
+                <span
+                  className="material-symbols-outlined text-primary text-3xl mb-2 block"
+                  style={{ fontVariationSettings: '"FILL" 1' }}
+                  aria-hidden="true"
                 >
-                  <span className="material-symbols-outlined" style={{ fontVariationSettings: '"FILL" 1' }} aria-hidden="true">volunteer_activism</span>
-                  SponsorSHPE
-                </a>
+                  {icon}
+                </span>
+                <dd className="font-headline font-extrabold text-on-surface text-lg leading-tight">{value}</dd>
+                <p className="text-on-surface-variant text-xs font-bold uppercase tracking-wide mt-1" aria-hidden="true">{label}</p>
+              </div>
+            ))}
+          </dl>
+
+          {/* Freshman note */}
+          <aside
+            aria-labelledby="freshman-note-heading"
+            className="bg-primary-container text-on-primary-container rounded-lg p-8 md:p-10 mb-12 flex flex-col md:flex-row gap-8 items-start shadow-lg"
+          >
+            <div className="flex-shrink-0 w-16 h-16 bg-on-primary-container/15 rounded-2xl flex items-center justify-center mt-1" aria-hidden="true">
+              <span className="material-symbols-outlined text-3xl" style={{ fontVariationSettings: '"FILL" 1' }} aria-hidden="true">waving_hand</span>
+            </div>
+            <div className="flex-1">
+              <h3 id="freshman-note-heading" className="font-headline text-2xl font-extrabold mb-3">
+                Hey Freshmen 👋 — Here&apos;s What to Expect
+              </h3>
+              <p className="opacity-90 leading-relaxed mb-4">
+                National Convention is a 5-day event held every October in a different U.S. city.
+                As a first-year, you&apos;ll attend professional development workshops, walk the
+                career fair floor with hundreds of top engineering companies, and connect with
+                thousands of other Hispanic engineers from across the country.
+              </p>
+              <p className="opacity-90 leading-relaxed">
+                SHPE OSU covers the logistics. We organize group travel, hotel coordination,
+                and prep sessions so you show up confident and ready. Many members land their
+                first internship offer right on the convention floor.
+              </p>
+            </div>
+          </aside>
+
+          {/* Preparation steps */}
+          <div>
+            <h3 className="font-headline text-3xl md:text-4xl font-extrabold text-on-surface text-center mb-4">
+              How to Prepare
+            </h3>
+            <p className="text-on-surface-variant mt-2 font-medium text-center mb-10">
+              Follow these steps to get the most out of your convention experience.
+            </p>
+            <ol className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" aria-label="Convention preparation steps">
+              {conferenceSteps.map((step) => (
+                <li
+                  key={step.step}
+                  className="relative bg-surface-container-lowest rounded-lg p-7 border border-outline-variant/20 hover:shadow-xl hover:-translate-y-1 transition-all group list-none"
+                >
+                  <span className="absolute top-5 right-6 text-6xl font-black text-on-surface/5 font-headline pointer-events-none select-none" aria-hidden="true">
+                    {step.step}
+                  </span>
+                  <div className="mb-4 w-12 h-12 bg-primary-container/30 rounded-xl flex items-center justify-center group-hover:bg-primary group-hover:text-on-primary transition-colors">
+                    <span
+                      className="material-symbols-outlined text-primary group-hover:text-on-primary transition-colors"
+                      style={{ fontVariationSettings: '"FILL" 1' }}
+                      aria-hidden="true"
+                    >
+                      {step.icon}
+                    </span>
+                  </div>
+                  <h4 className="font-headline text-lg font-extrabold text-on-surface mb-2">
+                    {step.title}
+                  </h4>
+                  <p className="text-on-surface-variant text-sm leading-relaxed">
+                    {step.desc}
+                  </p>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </div>
+      </section>
+
+      {/* ── PHOTOS / GENERAL CTA ────────────────────────────── */}
+      <section aria-labelledby="photos-cta-heading" className="py-20 px-6 md:px-12 bg-surface">
+        <div className="max-w-screen-2xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
+          <div>
+            <h2 id="photos-cta-heading" className="font-headline text-4xl md:text-5xl font-extrabold text-on-surface mb-6">
+              Real experiences, real connections
+            </h2>
+            <p className="text-on-surface-variant text-lg font-medium leading-relaxed mb-8">
+              See our members in action at national conferences, local networking
+              nights, and company site visits throughout the year.
+            </p>
+            <a
+              href="/events"
+              className="inline-flex items-center gap-2 bg-primary text-on-primary px-6 py-3 rounded-full font-bold hover:bg-primary-fixed-dim transition-all shadow-lg"
+            >
+              View Upcoming Events
+              <span className="material-symbols-outlined text-sm" aria-hidden="true">arrow_forward</span>
+            </a>
+          </div>
+          <div className="md:col-span-2 grid grid-cols-2 gap-4">
+            {/* Left Column */}
+            <div className="flex flex-col gap-4">
+              <div className="rounded-xl overflow-hidden shadow-md aspect-[4/5]">
+                <img
+                  src="/photos/profDev/shpeCyber.webp"
+                  alt="SHPE OSU members at a cybersecurity workshop"
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                />
+              </div>
+              <div className="rounded-xl overflow-hidden shadow-md aspect-video">
+                <img
+                  src="/photos/profDev/shpeNationalGroup.webp"
+                  alt="SHPE OSU group at the national convention"
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                />
+              </div>
+            </div>
+
+            {/* Right Column */}
+            <div className="flex flex-col gap-4">
+              <div className="rounded-xl overflow-hidden shadow-md aspect-video">
+                <img
+                  src="/photos/profDev/shpeNationalPic.webp"
+                  alt="SHPE national convention career fair floor"
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                />
+              </div>
+              <div className="rounded-xl overflow-hidden shadow-md aspect-[4/5]">
+                <img
+                  src="/photos/profDev/shpeTinasN.webp"
+                  alt="SHPEtinas members networking at a professional event"
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                />
               </div>
             </div>
           </div>
-        </section>
-      </div>
+        </div>
+      </section>
+
+      {/* ── SPONSORSHPE CTA ───────────────────────────────── */}
+      <section aria-labelledby="sponsor-cta-heading" className="py-20 px-6 md:px-12 bg-surface-container-low">
+        <div className="max-w-screen-2xl mx-auto">
+          <div className="bg-tertiary-container text-on-tertiary-container rounded-xl p-10 md:p-14 flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden shadow-xl">
+            <div className="absolute -bottom-16 -right-16 w-64 h-64 bg-on-tertiary-container/10 rounded-full blur-3xl pointer-events-none" aria-hidden="true" />
+            <div className="z-10 flex-1">
+              <div className="inline-flex items-center gap-2 bg-on-tertiary-container/15 px-4 py-1 rounded-full text-xs font-bold uppercase tracking-widest mb-4">
+                <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: '"FILL" 1' }} aria-hidden="true">handshake</span>
+                For Companies &amp; Organizations
+              </div>
+              <h2 id="sponsor-cta-heading" className="font-headline text-3xl md:text-4xl font-extrabold mb-3">
+                Collaborate With Us
+              </h2>
+              <p className="opacity-90 max-w-xl text-lg leading-relaxed">
+                Partner with SHPE OSU to connect with a talented pipeline of
+                Hispanic engineers. From career fair tabling to mentorship — sponsoring
+                SHPE opens doors to over 200 engaged, career-driven students.
+              </p>
+            </div>
+            <div className="z-10 flex-shrink-0">
+              <a
+                href="/sponsors"
+                className="inline-flex items-center gap-3 bg-on-tertiary-container text-tertiary-container px-9 py-5 rounded-full font-bold text-lg hover:opacity-90 hover:-translate-y-0.5 transition-all shadow-lg"
+              >
+                <span className="material-symbols-outlined" style={{ fontVariationSettings: '"FILL" 1' }} aria-hidden="true">volunteer_activism</span>
+                SponsorSHPE
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
 
     </main>
   );
