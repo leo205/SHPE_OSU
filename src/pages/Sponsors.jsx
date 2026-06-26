@@ -97,7 +97,7 @@ const sponsors = {
     { name: 'Accenture', logo: '/photos/sponsors/Accenture.webp' },
   ],
   gold: [
-    { name: 'GM', logo: '/photos/sponsors/GM.webp' },
+    { name: 'GM', logo: '/photos/sponsors/GM.svg' },
   ],
   bronze: [
     { name: 'Honda', logo: '/photos/sponsors/honda.webp' },
@@ -122,9 +122,7 @@ function SponsorCard({ sponsor, size = 'lg' }) {
         <img
           src={sponsor.logo}
           alt={`${sponsor.name} corporate sponsor logo`}
-          className={`${h} max-w-full object-contain ${
-            sponsor.name === 'GM' ? 'pt-2' : ''
-          }`}
+          className={`${h} max-w-full object-contain`}
           loading="lazy"
           width="600"
         />
