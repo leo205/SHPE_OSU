@@ -96,6 +96,9 @@ const profDevEvents = [
   },
 ];
 
+/*
+* Eboard Members with Spotlight tabs
+*/
 const spotlights = [
   {
     id: 1,

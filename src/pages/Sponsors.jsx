@@ -122,7 +122,9 @@ function SponsorCard({ sponsor, size = 'lg' }) {
         <img
           src={sponsor.logo}
           alt={`${sponsor.name} corporate sponsor logo`}
-          className={`${h} max-w-full object-contain`}
+          className={`${h} max-w-full object-contain ${
+            sponsor.name === 'GM' ? 'pt-2' : ''
+          }`}
           loading="lazy"
           width="600"
         />
