@@ -30,7 +30,7 @@ const MAJORS = [
 // ── Helpers ─────────────────────────────────────────────────────────────────
 /**
  * Reads the first 4 bytes of a File and checks for the PDF magic number %PDF.
- * This prevents MIME-type spoofing (e.g., renaming malware.exe → resume.pdf).
+ * This prevents MIME-type spoofing (e.g., renaming malware.exe -> resume.pdf).
  */
 async function isValidPDF(file) {
   const buf = await file.slice(0, 4).arrayBuffer();
@@ -53,52 +53,34 @@ export default function ResumeUpload() {
   });
   const [customMajor, setCustomMajor] = useState('');
   const [file, setFile] = useState(null);
-  const [status, setStatus] = useState('idle'); // idle | uploading | success | error
+  const [status, setStatus] = useState('idle'); // idle | checking | confirming | uploading | success | error
   const [errorMsg, setErrorMsg] = useState('');
 
-  const handleUpload = async (e) => {
-    e.preventDefault();
+  // Holds the existing DB record when a duplicate email is detected
+  const [existingRecord, setExistingRecord] = useState(null);
 
-    // ── File presence ────────────────────────────────────────────────────────
-    if (!file) {
-      setErrorMsg('Please select a PDF file.');
-      return;
-    }
-
-    // ── File size cap (5 MB) ─────────────────────────────────────────────────
-    if (file.size > MAX_FILE_SIZE_BYTES) {
-      setErrorMsg('File must be under 5 MB. Please compress your PDF and try again.');
-      return;
-    }
-
-    // ── OSU email validation (M3) ────────────────────────────────────────────
-    if (!isOSUEmail(formData.email)) {
-      setErrorMsg('Please use your OSU email address (e.g. name.1@osu.edu).');
-      return;
-    }
-
-    // ── Validation for custom major ─────────────────────────────────────────
-    if (formData.major === 'Other' && !customMajor.trim()) {
-      setErrorMsg('Please describe your major.');
-      return;
-    }
-    if (formData.major === 'Other' && customMajor.trim().length > 150) {
-      setErrorMsg('Major description is too long.');
-      return;
-    }
-
-    // ── Magic-byte PDF check (C4) — must await before upload ─────────────────
-    const pdfValid = await isValidPDF(file);
-    if (!pdfValid) {
-      setErrorMsg('The selected file does not appear to be a valid PDF. Only PDF files are accepted.');
-      return;
-    }
-
+  // ── Core upload logic (shared by first-time and replace flows) ─────────────
+  const doUpload = async (replaceRecord = null) => {
     setStatus('uploading');
     setErrorMsg('');
 
     try {
-      // 1. Build a safe, user-independent filename — never trust file.name (C4)
+      // If replacing, delete the old storage file first
+      if (replaceRecord) {
+        const { error: removeErr } = await supabase.storage
+          .from('resumes')
+          .remove([replaceRecord.resume_path]);
+        if (removeErr) throw removeErr;
+
+        // Delete the old DB record
+        const { error: deleteErr } = await supabase
+          .from('resumes')
+          .delete()
+          .eq('id', replaceRecord.id);
+        if (deleteErr) throw deleteErr;
+      }
+
+      // Build a safe, user-independent filename — never trust file.name (C4)
       const safeFileName = `${Date.now()}_${crypto.randomUUID()}.pdf`;
       const filePath = `submissions/${safeFileName}`;
 
@@ -110,10 +92,10 @@ export default function ResumeUpload() {
 
       // Resolve major name
       const resolvedMajor = formData.major === 'Other'
-        ? `Other – ${customMajor.trim()}`
+        ? `Other - ${customMajor.trim()}`
         : formData.major;
 
-      // 2. Insert metadata into DB
+      // Insert new metadata row — always starts as pending (requires re-approval)
       const { error: dbError } = await supabase.from('resumes').insert([
         {
           full_name: formData.full_name.trim(),
@@ -121,7 +103,7 @@ export default function ResumeUpload() {
           major: resolvedMajor,
           graduation_year: formData.graduation_year,
           resume_path: filePath,
-          approved: false, // Requires admin approval
+          approved: false,
         },
       ]);
 
@@ -136,6 +118,58 @@ export default function ResumeUpload() {
     }
   };
 
+  // ── Form submit handler ────────────────────────────────────────────────────
+  const handleUpload = async (e) => {
+    e.preventDefault();
+
+    if (!file) { setErrorMsg('Please select a PDF file.'); return; }
+    if (file.size > MAX_FILE_SIZE_BYTES) { setErrorMsg('File must be under 5 MB. Please compress your PDF and try again.'); return; }
+    if (!isOSUEmail(formData.email)) { setErrorMsg('Please use your OSU email address (e.g. name.1@osu.edu).'); return; }
+    if (formData.major === 'Other' && !customMajor.trim()) { setErrorMsg('Please describe your major.'); return; }
+    if (formData.major === 'Other' && customMajor.trim().length > 150) { setErrorMsg('Major description is too long.'); return; }
+
+    const pdfValid = await isValidPDF(file);
+    if (!pdfValid) { setErrorMsg('The selected file does not appear to be a valid PDF. Only PDF files are accepted.'); return; }
+
+    setStatus('checking');
+    setErrorMsg('');
+
+    // Check if this email already has a resume on file
+    const { data: existing, error: lookupErr } = await supabase
+      .from('resumes')
+      .select('id, full_name, resume_path, approved, uploaded_at')
+      .eq('email', formData.email.trim().toLowerCase())
+      .maybeSingle();
+
+    if (lookupErr) {
+      console.error('[ResumeUpload] Lookup error:', lookupErr);
+      setErrorMsg('Something went wrong while checking your email. Please try again.');
+      setStatus('error');
+      return;
+    }
+
+    if (existing) {
+      // Duplicate found — pause and show confirmation prompt
+      setExistingRecord(existing);
+      setStatus('confirming');
+    } else {
+      // No duplicate — proceed directly
+      await doUpload(null);
+    }
+  };
+
+  // ── Confirmation handlers ──────────────────────────────────────────────────
+  const handleConfirmReplace = async () => {
+    await doUpload(existingRecord);
+    setExistingRecord(null);
+  };
+
+  const handleCancelReplace = () => {
+    setExistingRecord(null);
+    setStatus('idle');
+  };
+
+  // ── Success screen ─────────────────────────────────────────────────────────
   if (status === 'success') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-surface px-4">
@@ -163,6 +197,9 @@ export default function ResumeUpload() {
     );
   }
 
+  // ── Replace confirmation modal ─────────────────────────────────────────────
+  const showReplacePrompt = status === 'confirming' && existingRecord;
+
   return (
     <div className="min-h-screen bg-surface py-24 px-4">
       <div className="max-w-2xl mx-auto bg-surface-container-lowest p-8 md:p-12 rounded-2xl shadow-xl border border-outline-variant/20">
@@ -176,9 +213,46 @@ export default function ResumeUpload() {
           </p>
         </div>
 
+        {/* Error banner */}
         {status === 'error' && (
           <div className="mb-6 p-4 bg-error-container text-on-error-container rounded-xl font-medium text-sm">
             {errorMsg}
+          </div>
+        )}
+
+        {/* Replace confirmation prompt */}
+        {showReplacePrompt && (
+          <div className="mb-6 p-6 bg-tertiary-container text-on-tertiary-container rounded-2xl border border-on-tertiary-container/20 shadow-md">
+            <div className="flex items-start gap-4">
+              <span className="material-symbols-outlined text-3xl flex-shrink-0 mt-0.5">swap_horiz</span>
+              <div className="flex-1">
+                <h3 className="font-headline font-extrabold text-lg mb-1">Resume Already on File</h3>
+                <p className="text-sm opacity-90 leading-relaxed mb-1">
+                  We found an existing resume submitted by <strong>{existingRecord.full_name}</strong> under this email address.
+                </p>
+                <p className="text-xs opacity-70 mb-4">
+                  Submitted: {new Date(existingRecord.uploaded_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                  {existingRecord.approved ? ' · Currently approved' : ' · Pending approval'}
+                </p>
+                <p className="text-sm font-bold mb-4">
+                  Do you want to replace it with your new upload? Your resume will go back to pending for admin review.
+                </p>
+                <div className="flex gap-3 flex-wrap">
+                  <button
+                    onClick={handleConfirmReplace}
+                    className="bg-on-tertiary-container text-tertiary-container px-6 py-2.5 rounded-full font-bold text-sm hover:opacity-90 transition-all shadow"
+                  >
+                    Yes, Replace My Resume
+                  </button>
+                  <button
+                    onClick={handleCancelReplace}
+                    className="bg-on-tertiary-container/20 text-on-tertiary-container px-6 py-2.5 rounded-full font-bold text-sm hover:bg-on-tertiary-container/30 transition-all"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
@@ -222,7 +296,7 @@ export default function ResumeUpload() {
                 required
                 value={formData.major}
                 onChange={(e) => setFormData({ ...formData, major: e.target.value })}
-                className="w-full px-4 py-3 rounded-xl border border-outline-variant bg-surface-bright focus:outline-none focus:ring-2 focus:ring-primary/50 animate-fade-in"
+                className="w-full px-4 py-3 rounded-xl border border-outline-variant bg-surface-bright focus:outline-none focus:ring-2 focus:ring-primary/50"
               >
                 <option value="" disabled>Select Major</option>
                 {MAJORS.map((m) => (
@@ -305,11 +379,12 @@ export default function ResumeUpload() {
 
           <button
             type="submit"
-            disabled={status === 'uploading'}
+            disabled={status === 'uploading' || status === 'checking' || status === 'confirming'}
             className="w-full bg-primary text-on-primary py-4 rounded-xl font-bold text-lg hover:bg-primary-fixed-dim transition-all shadow-md flex items-center justify-center gap-2 disabled:opacity-70"
           >
-            {status === 'uploading' ? (
-              <><span className="material-symbols-outlined animate-spin">progress_activity</span> Uploading...</>
+            {status === 'uploading' || status === 'checking' ? (
+              <><span className="material-symbols-outlined animate-spin">progress_activity</span>
+              {status === 'checking' ? 'Checking...' : 'Uploading...'}</>
             ) : (
               'Submit Resume'
             )}
