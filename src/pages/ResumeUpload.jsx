@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 
 // ── Constants ───────────────────────────────────────────────────────────────
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
+const MIN_FILE_SIZE_BYTES = 2 * 1024 * 1024; // 2 MB — enforces a real resume, not a blank/corrupt file
 const PDF_MAGIC = [0x25, 0x50, 0x44, 0x46]; // %PDF
 
 // OSU email domains accepted (members + alumni graduate addresses)
@@ -123,6 +124,7 @@ export default function ResumeUpload() {
     e.preventDefault();
 
     if (!file) { setErrorMsg('Please select a PDF file.'); return; }
+    if (file.size < MIN_FILE_SIZE_BYTES) { setErrorMsg('File must be at least 2 MB. Please make sure you are uploading a complete resume PDF.'); return; }
     if (file.size > MAX_FILE_SIZE_BYTES) { setErrorMsg('File must be under 5 MB. Please compress your PDF and try again.'); return; }
     if (!isOSUEmail(formData.email)) { setErrorMsg('Please use your OSU email address (e.g. name.1@osu.edu).'); return; }
     if (formData.major === 'Other' && !customMajor.trim()) { setErrorMsg('Please describe your major.'); return; }
@@ -345,7 +347,7 @@ export default function ResumeUpload() {
 
           <div>
             <label htmlFor="resume-file" className="block text-sm font-bold text-on-surface mb-2">
-              Upload Resume (PDF only, max 5 MB)
+              Upload Resume (PDF only, 2–5 MB)
             </label>
             <div className="border-2 border-dashed border-outline-variant rounded-xl p-8 text-center bg-surface-bright hover:bg-surface-container transition-colors cursor-pointer relative">
               <input
