@@ -97,11 +97,11 @@ const sponsors = {
     { name: 'Accenture', logo: '/photos/sponsors/Accenture.webp' },
   ],
   gold: [
-    { name: 'GM', logo: '/photos/sponsors/GM.svg' },
+    { name: 'Whiting-Turner', logo: '/photos/sponsors/wtLogo.jpg' },
+    { name: 'IBM', logo: '/photos/sponsors/IBMlogo.webp' },
   ],
   bronze: [
     { name: 'Honda', logo: '/photos/sponsors/honda.webp' },
-    { name: 'AEP', logo: '/photos/sponsors/AEP.webp' },
   ],
 };
 
