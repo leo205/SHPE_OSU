@@ -266,7 +266,7 @@ export default function Events() {
               <img src="/photos/events/cakeSHPE.webp" alt="SHPE cake celebration" className="w-full h-full object-cover object-center" width="900" height="1200" />
             </div>
             <div className="absolute bottom-4 left-4 w-96 h-64 rounded-lg overflow-hidden shadow-xl z-30 border-8 border-surface-container-lowest">
-              <img src="/photos/events/pickleBall.webp" alt="SHPE pickleball social event" className="w-full h-full object-cover object-center" width="900" height="645" />
+              <img src="/photos/events/pickleBall.jpg" alt="SHPE pickleball social event" className="w-full h-full object-cover object-center" width="900" height="645" />
             </div>
           </div>
           {/* Mobile: display both images cleanly */}
@@ -275,7 +275,7 @@ export default function Events() {
               <img src="/photos/events/cakeSHPE.webp" alt="SHPE Event" className="w-full h-48 sm:h-56 object-cover object-center" width="900" height="1200" />
             </div>
             <div className="rounded-2xl overflow-hidden shadow-xl border-4 border-surface-container-lowest w-full">
-              <img src="/photos/events/pickleBall.webp" alt="SHPE Event" className="w-full h-48 sm:h-56 object-cover object-center" width="900" height="645" />
+              <img src="/photos/events/pickleBall.jpg" alt="SHPE Event" className="w-full h-48 sm:h-56 object-cover object-center" width="900" height="645" />
             </div>
           </div>
         </div>

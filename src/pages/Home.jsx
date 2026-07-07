@@ -78,7 +78,8 @@ export default function Home() {
             <div className="relative w-full">
               <div className="rounded-2xl overflow-hidden shadow-2xl border-8 border-surface-container-lowest">
                 <img
-                  src="/photos/picsMain/SHPE_convention.webp"
+                  src="/photos/picsMain/SHPE_convention.jpg"
+                  /* Changed file type tp jpg for higher quality*/
                   alt="SHPE Convention"
                   className="w-full h-auto max-h-[400px] object-cover object-center"
                   width="1200"
@@ -273,8 +274,8 @@ export default function Home() {
                   SHPEtinas
                 </h3>
                 <p className="text-on-surface-variant font-medium mb-6">
-                  Empowering and supporting Latinas in STEM. Join our SHPEtinas 
-                  committee for exclusive networking events, professional development 
+                  Empowering and supporting Latinas in STEM. Join our SHPEtinas
+                  committee for exclusive networking events, professional development
                   workshops, and a supportive community dedicated to your success.
                 </p>
               </div>
