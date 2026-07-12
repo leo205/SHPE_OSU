@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import ScrollToTop from './components/ScrollToTop';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
@@ -16,7 +16,6 @@ import ProtectedRoute from './components/ProtectedRoute';
 import ResumeUpload from './pages/ResumeUpload';
 import CompanyLogin from './pages/CompanyLogin';
 import CompanyDashboard from './pages/CompanyDashboard';
-import AdminResumes from './pages/AdminResumes';
 
 export default function App() {
   return (
@@ -61,7 +60,7 @@ export default function App() {
           path="/admin/resumes"
           element={
             <ProtectedRoute>
-              <AdminResumes />
+              <Navigate to="/admin?tab=resume" replace />
             </ProtectedRoute>
           }
         />

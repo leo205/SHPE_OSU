@@ -165,13 +165,13 @@ function EventModal({ event, onClose }) {
   );
 }
 
-/* ── Main Events Page ──────────────────────────────────────── */
 export default function Events() {
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [members, setMembers] = useState([]);
+  const [dbEvents, setDbEvents] = useState([]);
 
   useEffect(() => {
     const fetchMembers = async () => {
@@ -192,7 +192,35 @@ export default function Events() {
         console.error('[Events] Error fetching leaderboard view:', error);
       }
     };
+
+    const fetchDbEvents = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('events')
+          .select('*');
+        if (!error && data) {
+          const mapped = data.map(ev => ({
+            id: ev.id,
+            title: ev.title,
+            date: ev.date,
+            time: ev.time,
+            endTime: ev.end_time || '',
+            location: ev.location,
+            description: ev.description,
+            category: ev.category,
+            featured: ev.featured,
+            rsvpUrl: ev.rsvp_url || '',
+            photo: ev.photo || ''
+          }));
+          setDbEvents(mapped);
+        }
+      } catch (err) {
+        console.error('[Events] Error fetching db events:', err);
+      }
+    };
+
     fetchMembers();
+    fetchDbEvents();
   }, []);
 
   const topMember = members && members.length > 0 ? members[0] : { firstName: "TBD", lastName: "", count: 0 };
@@ -202,15 +230,22 @@ export default function Events() {
     year: 'numeric',
   });
 
+  const allEvents = useMemo(() => {
+    const staticFiltered = events.filter(se => 
+      !dbEvents.some(de => de.title === se.title && de.date === se.date)
+    );
+    return [...dbEvents, ...staticFiltered].sort((a, b) => a.date.localeCompare(b.date));
+  }, [dbEvents]);
+
   // Map date strings → events for fast lookup
   const eventMap = useMemo(() => {
     const map = {};
-    events.forEach((ev) => {
+    allEvents.forEach((ev) => {
       if (!map[ev.date]) map[ev.date] = [];
       map[ev.date].push(ev);
     });
     return map;
-  }, []);
+  }, [allEvents]);
 
   const daysInMonth = getDaysInMonth(year, month);
   const firstDay = getFirstDayOfMonth(year, month);
@@ -233,10 +268,10 @@ export default function Events() {
     }
   };
 
-  const featuredEvents = events.filter((e) => e.featured).slice(0, 3);
+  const featuredEvents = allEvents.filter((e) => e.featured).slice(0, 3);
   // Compare date strings (YYYY-MM-DD) so today's events are always included
   const todayStr = today.toISOString().slice(0, 10);
-  const upcomingEvents = events.filter((e) => e.date >= todayStr).slice(0, 3);
+  const upcomingEvents = allEvents.filter((e) => e.date >= todayStr).slice(0, 3);
 
   const DAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 
