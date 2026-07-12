@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { useNavigate } from 'react-router-dom';
 
 export default function AdminResumes() {
+  const navigate = useNavigate();
   const [resumes, setResumes] = useState([]);
   const [codes, setCodes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -108,6 +110,11 @@ export default function AdminResumes() {
     );
   });
 
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    navigate('/admin/login');
+  };
+
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-surface">
       <div className="flex flex-col items-center gap-4 text-on-surface-variant">
@@ -118,17 +125,38 @@ export default function AdminResumes() {
   );
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-10 space-y-12">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="font-headline text-3xl font-extrabold text-on-surface">Resume Book Admin</h1>
-        <a href="/admin" className="text-primary font-bold hover:underline flex items-center gap-1">
-          <span className="material-symbols-outlined text-base">arrow_back</span>
-          Back to Dashboard
+    <div className="min-h-screen bg-surface">
+      {/* ── Top Bar (matches AdminDashboard) ──────────────────── */}
+      <header className="bg-surface-container-lowest border-b border-outline-variant/20 px-6 py-4 flex items-center justify-between sticky top-0 z-40 shadow-sm">
+        <a href="/" className="flex items-center gap-3 group">
+          <img
+            src="/photos/shpeLogo.png"
+            alt="SHPE OSU Logo"
+            className="h-10 w-auto object-contain group-hover:scale-105 transition-transform"
+          />
+          <span className="font-headline font-black text-lg text-primary italic tracking-tighter group-hover:opacity-80 transition-opacity">
+            Resumes
+          </span>
         </a>
-      </div>
+        <div className="flex items-center gap-4">
+          <a
+            href="/admin"
+            className="flex items-center gap-2 px-4 py-2 bg-tertiary-container text-on-tertiary-container rounded-full text-sm font-bold hover:brightness-95 transition-all shadow-sm"
+          >
+            <span className="material-symbols-outlined text-lg">dashboard</span>
+            Dashboard
+          </a>
+          <button
+            onClick={handleSignOut}
+            className="flex items-center gap-2 text-sm font-bold text-on-surface-variant hover:text-primary transition-colors"
+          >
+            <span className="material-symbols-outlined text-xl">logout</span>
+            Sign Out
+          </button>
+        </div>
+      </header>
 
-      {/* RESUME TABLE SECTION */}
+      <main className="max-w-7xl mx-auto px-6 py-10 space-y-12">
       <section>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <h2 className="text-xl font-bold text-on-surface">Resume Submissions</h2>
@@ -333,6 +361,7 @@ export default function AdminResumes() {
           ))}
         </div>
       </section>
+      </main>
     </div>
   );
 }
