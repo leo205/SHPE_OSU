@@ -268,9 +268,14 @@ export default function Events() {
     }
   };
 
-  const featuredEvents = allEvents.filter((e) => e.featured).slice(0, 3);
-  // Compare date strings (YYYY-MM-DD) so today's events are always included
   const todayStr = today.toISOString().slice(0, 10);
+  
+  const featuredEvents = useMemo(() => {
+    const upcoming = allEvents.filter(e => e.featured && e.date >= todayStr).sort((a, b) => a.date.localeCompare(b.date));
+    const past = allEvents.filter(e => e.featured && e.date < todayStr).sort((a, b) => b.date.localeCompare(a.date));
+    return [...upcoming, ...past].slice(0, 3);
+  }, [allEvents, todayStr]);
+
   const upcomingEvents = allEvents.filter((e) => e.date >= todayStr).slice(0, 3);
 
   const DAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
@@ -569,7 +574,7 @@ export default function Events() {
                       <div className="relative rounded-xl overflow-hidden mb-3 bg-surface-container-lowest h-72 md:h-[420px]">
                         {ev.photo ? (
                           <img
-                            src={ev.photo.replace(/\.(jpg|jpeg|png)$/i, '.webp')}
+                            src={ev.photo}
                             alt={ev.title}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                             loading="lazy"
@@ -616,10 +621,15 @@ export default function Events() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {upcomingEvents.map((ev) => {
             const colors = categoryColors[ev.category] || categoryColors.GBM;
+            const dateObj = new Date(ev.date + 'T12:00:00');
+            const dateLabel = dateObj
+              .toLocaleDateString('en-US', { month: 'short', day: '2-digit' })
+              .toUpperCase();
+
             return (
               <div
                 key={ev.id}
-                className="bg-surface-container-low rounded-lg p-6 hover:-translate-y-2 transition-all cursor-pointer shadow-sm hover:shadow-lg"
+                className="bg-surface-container-low rounded-xl overflow-hidden hover:-translate-y-2 transition-all cursor-pointer shadow-sm hover:shadow-lg group flex flex-col justify-between"
                 role="button"
                 tabIndex={0}
                 aria-label={`View details for ${ev.title}`}
@@ -631,42 +641,51 @@ export default function Events() {
                   }
                 }}
               >
-                <div className={`w-12 h-12 ${colors.bg} rounded-full flex items-center justify-center mb-6`}>
-                  <span className={`material-symbols-outlined ${colors.text}`}>
-                    {ev.category === 'GBM'
-                      ? 'groups'
-                      : ev.category === 'Social'
-                        ? 'celebration'
-                        : ev.category === 'Professional'
-                          ? 'work'
-                          : ev.category === 'Academic'
-                            ? 'school'
-                            : 'volunteer_activism'}
-                  </span>
+                <div className="relative h-48 bg-surface-container-lowest overflow-hidden">
+                  {ev.photo ? (
+                    <img
+                      src={ev.photo}
+                      alt={ev.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <ImagePlaceholder label={`${ev.title} Photo`} className="w-full h-full group-hover:scale-105 transition-transform duration-500" />
+                  )}
+                  <div
+                    className={`absolute top-3 left-3 px-3 py-1 rounded-full text-xs font-bold ${colors.badge}`}
+                  >
+                    {dateLabel}
+                  </div>
                 </div>
-                <span className={`text-xs font-bold uppercase tracking-widest px-2 py-1 rounded-full ${colors.badge}`}>
-                  {ev.category}
-                </span>
-                <h4 className="font-headline font-bold text-xl mt-3 mb-2 text-on-background">
-                  {ev.title}
-                </h4>
-                <p className="text-sm text-on-surface-variant mb-6 leading-relaxed line-clamp-3">
-                  {ev.description}
-                </p>
-                <div className="flex items-center justify-between text-xs font-bold uppercase tracking-widest text-primary">
-                  <span>
-                    {new Date(ev.date + 'T12:00:00').toLocaleDateString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                    })}{' '}
-                    • {ev.time}
-                  </span>
-                  <button className="flex items-center gap-1 hover:gap-2 transition-all">
-                    DETAILS{' '}
-                    <span className="material-symbols-outlined text-sm">
-                      arrow_forward
+                
+                <div className="p-6 flex-grow flex flex-col justify-between">
+                  <div>
+                    <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full ${colors.badge}`}>
+                      {ev.category}
                     </span>
-                  </button>
+                    <h4 className="font-headline font-bold text-xl mt-3 mb-2 text-on-background group-hover:text-primary transition-colors">
+                      {ev.title}
+                    </h4>
+                    <p className="text-sm text-on-surface-variant mb-6 leading-relaxed line-clamp-3">
+                      {ev.description}
+                    </p>
+                  </div>
+                  <div className="flex items-center justify-between text-xs font-bold uppercase tracking-widest text-primary">
+                    <span>
+                      {dateObj.toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                      })}{' '}
+                      • {ev.time}
+                    </span>
+                    <button className="flex items-center gap-1 hover:gap-2 transition-all font-headline">
+                      DETAILS{' '}
+                      <span className="material-symbols-outlined text-sm">
+                        arrow_forward
+                      </span>
+                    </button>
+                  </div>
                 </div>
               </div>
             );
