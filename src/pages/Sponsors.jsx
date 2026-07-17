@@ -407,8 +407,8 @@ export default function Sponsors() {
             <div className="relative z-10 rounded-lg overflow-hidden border-8 border-surface-container-lowest shadow-2xl">
               {/* WCAG 1.1.1: Descriptive alt instead of generic "Partnership Hero" */}
               <img
-                src="/photos/sponsors/eventGM.webp"
-                alt="SHPE OSU members networking with General Motors representatives at a campus event"
+                src="/photos/profDev/shpeNationalGroup.webp"
+                alt="SHPE OSU members attending the national convention together"
                 className="w-full aspect-[4/3] object-cover object-center"
                 width="900"
                 height="675"
