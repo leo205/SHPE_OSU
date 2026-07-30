@@ -97,8 +97,10 @@ JS bundle — while logged out returned:
 | `select * from resumes` | **All rows**, including `full_name`, `email`, `major`, `graduation_year`, `resume_path` |
 | `storage.createSignedUrl(<resume_path>)` | **Granted** — the URL returned HTTP 200, `application/pdf`, a real resume |
 | `select * from company_access` | **All rows, including `access_code`** |
+| `insert into resumes` with `approved = true` | **Permitted** — the INSERT policy's `WITH CHECK` is `true`, so anyone can publish straight into the recruiter-visible book, skipping E-Board review entirely. Paired with the public upload policy on the storage bucket, an outsider can put their own PDF in front of sponsors. §3 of `policies.sql` fixes this with `WITH CHECK (approved = false)`. |
 | `insert into company_access` / `events` | Blocked ✅ |
 | Storage bucket public URL | Blocked ✅ (but irrelevant — signed URLs worked) |
+| `attendance` public SELECT | None ✅ — table is closed, see §5 note below |
 
 So the resume book was fully downloadable with no access code, and the codes
 themselves were readable by the same anonymous request.
@@ -116,20 +118,32 @@ applied**; read its header before running, because section 3 breaks
 `/company/dashboard` until the client is moved onto the RPCs, and section 6
 (storage) needs an Edge Function that SQL alone cannot provide.
 
-**Still unknown:** whether `anon` holds `UPDATE`/`DELETE` policies on
-`attendance`, `resumes`, or `company_access`. This cannot be determined from
-outside — a PostgREST delete matching zero rows returns success whether or not a
-policy permits it. Run section 0 of `policies.sql` against `pg_policies` to find
-out, and treat any `anon`/`public` row with `cmd` of `UPDATE`/`DELETE`/`ALL` as
-a hole.
+**Resolved — there are no anonymous writes beyond INSERT.** This was previously
+listed as unknown, because a PostgREST delete matching zero rows returns success
+whether or not a policy permits it, so it cannot be probed from outside. A
+`pg_policies` query settled it: every `{public}` policy is `INSERT` or `SELECT`.
+No `anon` `UPDATE`, `DELETE`, or `ALL` exists on any table. Nobody can wipe the
+attendance history or rewrite recruiter codes.
 
-**`attendance` public read is an intentional product decision** (the homepage
-leaderboard and Events page render it logged-out). Note the tradeoff: RLS is
-row-level, not column-level, so selecting only `first_name` in the client gives
-no protection — anyone can request `select *` and receive dot numbers, pronouns,
-majors, and the free-text feedback students wrote assuming it was private.
-Section 5 of `policies.sql` keeps the feature while closing that gap by serving
-the leaderboard from a two-column view.
+Re-run that query (§0 of `policies.sql`) after any policy change, and treat any
+new `anon`/`public` row with `cmd` of `UPDATE`/`DELETE`/`ALL` as a hole.
+
+**Correction — `attendance` is NOT publicly readable.** An earlier revision of
+this document said public read on `attendance` was live and intentional. A
+`pg_policies` query against production disproves it: the table has only
+`Allow public inserts` (INSERT, public) and `Admins can read attendance`
+(SELECT, authenticated). It is closed, and should stay closed.
+
+The real leak was the **`leaderboard` view**. A Postgres view runs with its
+owner's privileges by default, so it read straight through that RLS — and it
+exposed `last_name_dotnum` and `dotnum`, which `Events.jsx` rendered onto a
+public page. Every member's OSU dot number was published. Fixed by
+`supabase/leaderboard-view.sql`, which redefines the view as `first_name` and a
+distinct-event `count` only.
+
+Keep in mind what that implies: the view is a standing RLS bypass on
+`attendance`. Any column added to it in future becomes public with no policy
+change and nothing to review. Treat edits to that view as security changes.
 
 ### Frontend Code Safeguards
 1.  **Magic-Byte PDF Verification**:

@@ -162,16 +162,25 @@ GRANT EXECUTE ON FUNCTION public.get_resume_book(text)     TO anon, authenticate
 
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- 5. attendance — public read is an intentional product decision (the homepage
---    leaderboard and the Events page both render it while logged out).
+-- 5. attendance — CORRECTION. An earlier draft of this file said public read on
+--    this table was live and an intentional product decision. That was wrong.
 --
---    Be aware of the tradeoff: RLS is row-level, not column-level, so "the
---    leaderboard only selects first_name" gives no protection — anyone can ask
---    for `select *` and receive dot numbers, pronouns, majors and the free-text
---    feedback students wrote expecting it to be private.
+--    A `pg_policies` query against production (2026-07-30) shows `attendance`
+--    has exactly two policies: `Allow public inserts` (INSERT, public) and
+--    `Admins can read attendance` (SELECT, authenticated). There is no public
+--    SELECT. The table is closed and should stay closed — it holds dot numbers,
+--    pronouns, majors, and free-text feedback students wrote expecting privacy.
 --
---    Recommended: keep the decision, but serve it from a view that exposes only
---    the two columns the leaderboard needs, and close the base table.
+--    The public leaderboard is served by the `leaderboard` view instead, which
+--    exposes only a first name and a distinct-event count. Because a Postgres
+--    view runs with its owner's privileges by default, the view can read the
+--    closed table on an anonymous visitor's behalf. That is the intended design
+--    — but it also means the view is a standing RLS bypass, so any future column
+--    added to it is published with no policy change to review. See
+--    supabase/leaderboard-view.sql.
+--
+--    The policies below are therefore a no-op restatement of what already
+--    exists. They are kept only so this file describes the full intended state.
 -- ─────────────────────────────────────────────────────────────────────────────
 DROP POLICY IF EXISTS "Allow public inserts"          ON public.attendance;
 DROP POLICY IF EXISTS "Admins can read attendance"    ON public.attendance;
@@ -187,28 +196,21 @@ CREATE POLICY "attendance admin all"
   TO authenticated
   USING (true) WITH CHECK (true);
 
--- Leaderboard source: distinct events per member, no PII beyond a first name.
--- security_invoker = off so it can read the closed base table.
-CREATE OR REPLACE VIEW public.leaderboard
-WITH (security_invoker = off) AS
-  SELECT
-    min(a.first_name)                             AS first_name,
-    lower(trim(a.last_name_dotnum))               AS dotnum,
-    count(DISTINCT lower(trim(a.event_name)))     AS count
-  FROM public.attendance a
-  WHERE a.last_name_dotnum IS NOT NULL
-    AND trim(a.last_name_dotnum) <> ''
-  GROUP BY lower(trim(a.last_name_dotnum));
-
-GRANT SELECT ON public.leaderboard TO anon, authenticated;
-
--- Counting DISTINCT events (not raw rows) matches the client-side fix: a member
--- who double-tapped submit at one GBM should not outrank someone who attended
--- more events.
+-- ⚠️  The leaderboard view is deliberately NOT defined in this file.
 --
--- If you adopt the view, ALSO drop any public SELECT policy on the base table
--- and point PublicLeaderboard.jsx at `leaderboard` instead of `attendance`:
---   DROP POLICY IF EXISTS "<name of your public select policy>" ON public.attendance;
+--  An earlier draft of this section defined it inline with a `dotnum` output
+--  column, which would have re-introduced exactly the dot-number leak the view
+--  fix exists to close — invisibly, since the client no longer selects that
+--  column. It was also written as CREATE OR REPLACE, which cannot change an
+--  existing view's column list; run after the real fix and it aborts with
+--  `cannot change data type of view column "count"`, taking the rest of this
+--  script with it and leaving an operator believing the RLS repair ran.
+--
+--  The single canonical definition lives in:
+--
+--      supabase/leaderboard-view.sql
+--
+--  Run that file instead, and only after deploying the matching client change.
 
 
 -- ─────────────────────────────────────────────────────────────────────────────

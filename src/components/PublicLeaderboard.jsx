@@ -14,8 +14,19 @@ import { supabase } from '../lib/supabase';
  *                                   dynamic changes without interrupting the user.
  *  4.1.2  Name, Role, Value       — Icons are aria-hidden; no interactive element lacks a label.
  *
- * Data source: public `attendance` table aggregated client-side.
- * Only first-name and last-name+dot# are read — no PII beyond what the member submitted.
+ * Data source: the public `leaderboard` view, which exposes only a first name
+ * and a distinct-event count.
+ *
+ * This deliberately does NOT read the `attendance` table. That table has no
+ * public SELECT policy — it holds dot numbers, pronouns, majors and free-text
+ * feedback students wrote expecting it to stay private. Reading it here would
+ * have returned zero rows for logged-out visitors anyway (silently, with no
+ * error), so the leaderboard would have looked empty the moment check-ins
+ * started this autumn.
+ *
+ * Aggregation lives in SQL rather than here: the view groups by dot number and
+ * counts DISTINCT events, so a member who double-tapped submit at one GBM can't
+ * outrank someone who genuinely attended more.
  */
 
 const MEDAL = ['🥇', '🥈', '🥉'];
@@ -34,42 +45,26 @@ export default function PublicLeaderboard() {
       setError('');
 
       const { data, error: dbErr } = await supabase
-        .from('attendance')
-        .select('first_name, last_name_dotnum, event_name');
+        .from('leaderboard')
+        .select('first_name, count')
+        .order('count', { ascending: false })
+        // Secondary sort: Postgres gives no ordering guarantee among ties, so
+        // without this a different subset appears in the top 10 each reload.
+        .order('first_name', { ascending: true })
+        .limit(10);
 
       if (cancelled) return;
 
       if (dbErr) {
+        console.error('[PublicLeaderboard] Fetch error:', dbErr);
         setError('Could not load leaderboard data. Please try again later.');
         setLoading(false);
         return;
       }
 
-      // Aggregate by dot-number (case-insensitive), counting DISTINCT events.
-      // Counting raw rows let a member who checked in twice at one GBM — a
-      // double-tap on the submit button, or re-opening the form — outrank
-      // someone who genuinely attended more events.
-      const counts = {};
-      (data || []).forEach((r) => {
-        const key = r.last_name_dotnum?.trim().toLowerCase();
-        if (!key) return;
-        if (!counts[key]) {
-          counts[key] = {
-            firstName: r.first_name,
-            lastDot: r.last_name_dotnum,
-            events: new Set(),
-          };
-        }
-        counts[key].events.add((r.event_name ?? '').trim().toLowerCase());
-      });
-
-      const sorted = Object.values(counts)
-        .map(({ firstName, lastDot, events }) => ({ firstName, lastDot, count: events.size }))
-        // Name tiebreak keeps the order stable across reloads when counts match.
-        .sort((a, b) => b.count - a.count || a.firstName.localeCompare(b.firstName))
-        .slice(0, 10); // Top 10
-
-      setLeaders(sorted);
+      setLeaders(
+        (data ?? []).map((r) => ({ firstName: r.first_name, count: r.count }))
+      );
       setLoading(false);
     }
 
@@ -170,7 +165,9 @@ export default function PublicLeaderboard() {
                   <tbody className="divide-y divide-outline-variant/10">
                     {leaders.map((member, idx) => (
                       <tr
-                        key={member.lastDot}
+                        // Rank is the stable identity here — the view no longer
+                        // returns a dot number to key on, by design.
+                        key={`${idx}-${member.firstName}`}
                         className={`hover:bg-surface-container-low transition-colors ${idx === 0 ? 'bg-tertiary-container/20' : ''}`}
                       >
                         {/* WCAG 1.3.1: scope="row" on the rank cell makes each
@@ -246,7 +243,7 @@ export default function PublicLeaderboard() {
 
                 <div className="relative z-10 mt-auto pt-4 border-t border-on-primary/20">
                   <p className="text-xs opacity-70 leading-relaxed">
-                    Ranking is based on total attendance check-ins logged this semester.
+                    Ranking is based on the number of distinct events attended.
                     Keep showing up — every event counts!
                   </p>
                 </div>
