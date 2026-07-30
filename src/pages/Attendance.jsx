@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { formatMajor } from '../lib/majors';
-import { events } from '../data/events';
+import { fetchEvents, mergeEvents, eventOptionLabel, sortForCheckIn } from '../lib/events';
 
 // ── Whitelisted enum values (C2, M2) ────────────────────────────────────────
 const YEARS = ['1st Year', '2nd Year', '3rd Year', '4th Year', '5th Year', 'Graduate Student', 'Professional'];
@@ -36,21 +36,17 @@ const HOW_HEARD = [
   'Other',
 ];
 
-// Build event list from events.js so it stays in sync automatically
-const EVENT_OPTIONS = events.map((e) => {
-  const dateLabel = new Date(e.date + 'T12:00:00').toLocaleDateString('en-US', {
-    month: 'numeric',
-    day: 'numeric',
-  });
-  return `${dateLabel} - ${e.title}`;
-});
+// Event options are loaded at runtime from lib/events (Supabase `events` table
+// merged with the static fallback), so events added through the Admin Dashboard
+// are immediately checkinable. They used to be built here from the static file
+// only, which meant E-Board additions never reached this dropdown.
 
 // ── Rate-limit constants (H1) ────────────────────────────────────────────────
 const SUBMIT_COOLDOWN_SEC = 30;
 
 // ── Validation helper (C2, M2) ───────────────────────────────────────────────
-function validatePayload(form, isFirst, customMajor) {
-  if (!EVENT_OPTIONS.includes(form.event_name)) return 'Invalid event selection.';
+function validatePayload(form, isFirst, customMajor, eventOptions) {
+  if (!eventOptions.includes(form.event_name)) return 'Invalid event selection.';
   if (!YEARS.includes(form.year)) return 'Invalid year selection.';
   if (!form.first_name.trim()) return 'First name is required.';
   if (!form.last_name_dotnum.trim()) return 'Last Name.## is required.';
@@ -84,6 +80,35 @@ export default function Attendance() {
 
   // Clear the cooldown ticker if the student closes the form mid-countdown.
   useEffect(() => () => clearInterval(cooldownTimer.current), []);
+
+  // Event options: seeded synchronously from the bundled static list, then
+  // upgraded once the database responds.
+  //
+  // This must never start empty. Check-in happens on phones in basement lecture
+  // halls on bad campus wifi, and the Supabase client has no request timeout —
+  // so if options only appeared after a successful round-trip, one stalled
+  // request would leave every student staring at a dead dropdown for the whole
+  // meeting. Seeding first means the worst case is a slightly stale list rather
+  // than a room full of people who cannot check in.
+  const [eventOptions, setEventOptions] = useState(() =>
+    sortForCheckIn(mergeEvents([])).map(eventOptionLabel)
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchEvents()
+      .then((all) => {
+        if (cancelled) return;
+        const labels = sortForCheckIn(all).map(eventOptionLabel);
+        if (labels.length > 0) setEventOptions(labels);
+      })
+      .catch((err) => {
+        // fetchEvents swallows its own errors; this only guards against a throw
+        // inside the .then body silently stranding the list on the static seed.
+        console.error('[Attendance] Event load failed, using bundled list:', err);
+      });
+    return () => { cancelled = true; };
+  }, []);
 
   // Custom major text when "Other" is selected
   const [customMajor, setCustomMajor] = useState('');
@@ -123,6 +148,13 @@ export default function Attendance() {
 
   const handleSection1Submit = (e) => {
     e.preventDefault();
+    // Belt-and-braces alongside `required`: a first-timer who advances to step 2
+    // without an event would otherwise only find out on final submit, via an
+    // error naming a field that step 2 doesn't contain.
+    if (!form.event_name) {
+      setError('Please choose which event you attended.');
+      return;
+    }
     if (isFirst === null) {
       setError('Please answer whether this is your first meeting.');
       return;
@@ -148,7 +180,7 @@ export default function Attendance() {
     }
 
     // C2/M2: Whitelist validation before hitting the DB
-    const validationError = validatePayload(form, isFirst, customMajor);
+    const validationError = validatePayload(form, isFirst, customMajor, eventOptions);
     if (validationError) {
       setError(validationError);
       return;
@@ -278,19 +310,34 @@ export default function Attendance() {
               <label htmlFor="event-name" className="block text-sm font-bold uppercase tracking-wider mb-2 text-on-surface-variant">
                 Which event did you attend? *
               </label>
+              {/* Never `disabled`. A disabled control is skipped by HTML
+                  constraint validation, so `required` would not fire — letting a
+                  first-time attendee advance to step 2 with no event selected and
+                  then fail on submit with an error about a field that isn't on
+                  screen. Options are seeded synchronously, so there is nothing to
+                  wait for anyway. */}
               <select
                 id="event-name"
                 name="event_name"
                 required
+                aria-describedby={eventOptions.length === 0 ? 'event-empty-help' : undefined}
                 value={form.event_name}
                 onChange={handleChange}
                 className="w-full px-4 py-3 rounded-xl border border-outline-variant bg-surface focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
               >
-                <option value="">Select an event…</option>
-                {EVENT_OPTIONS.map((opt) => (
+                <option value="">
+                  {eventOptions.length === 0 ? 'No events available' : 'Select an event…'}
+                </option>
+                {eventOptions.map((opt) => (
                   <option key={opt} value={opt}>{opt}</option>
                 ))}
               </select>
+              {eventOptions.length === 0 && (
+                <p id="event-empty-help" role="alert" className="text-xs text-error font-bold mt-2">
+                  No events are set up yet. Let an E-Board member know — they can add one
+                  from the Admin Dashboard and it will appear here right away.
+                </p>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">

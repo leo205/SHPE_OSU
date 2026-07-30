@@ -22,6 +22,25 @@ function formatFileSize(bytes) {
 // OSU email domains accepted (members + alumni graduate addresses)
 const VALID_EMAIL_DOMAINS = ['@osu.edu', '@alumni.osu.edu', '@buckeyemail.osu.edu'];
 
+/**
+ * Graduation years, derived from the current date rather than hardcoded.
+ *
+ * The previous list was a literal 2024–2029 plus a stray "2029+" that duplicated
+ * 2029, and by 2026 it was offering years that had already passed. Deriving the
+ * range means it stays correct without anyone remembering to edit it at
+ * rollover — one less thing on the semester checklist to forget.
+ *
+ * Spans the current year through +5, which covers a first-year starting now.
+ */
+function buildGraduationYears(now = new Date()) {
+  const current = now.getFullYear();
+  return [
+    ...Array.from({ length: 6 }, (_, i) => String(current + i)),
+    'Alumni',
+  ];
+}
+const GRADUATION_YEARS = buildGraduationYears();
+
 const MAJORS = [
   'Aerospace Engineering',
   'Biomedical Engineering',
@@ -364,14 +383,9 @@ export default function ResumeUpload() {
                 className="w-full px-4 py-3 rounded-xl border border-outline-variant bg-surface-bright focus:outline-none focus:ring-2 focus:ring-primary/50"
               >
                 <option value="" disabled>Select Year</option>
-                <option value="2024">2024</option>
-                <option value="2025">2025</option>
-                <option value="2026">2026</option>
-                <option value="2027">2027</option>
-                <option value="2028">2028</option>
-                <option value="2029">2029</option>
-                <option value="2029+">2029+</option>
-                <option value="Alumni">Alumni</option>
+                {GRADUATION_YEARS.map((y) => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
               </select>
             </div>
           </div>

@@ -1,0 +1,145 @@
+/**
+ * Single source of truth for events.
+ *
+ * There used to be two. `Events.jsx` merged the Supabase `events` table with the
+ * static `src/data/events.js` array, while `Attendance.jsx` read only the static
+ * file — and it validates check-in submissions against that list. So an event
+ * the E-Board added through the Admin Dashboard showed up on the public calendar
+ * but could not be checked into, with no error to explain why. The dashboard
+ * exists precisely so non-coders can add events, which made that split the worst
+ * possible one.
+ *
+ * Both pages now call fetchEvents(). The static array stays as a fallback so the
+ * site still works if Supabase is unreachable, and so historical events survive
+ * without needing to be backfilled into the database.
+ */
+// Explicit .js extension (required by the ESM spec; Vite resolves it the same
+// either way) so these helpers can be imported outside the bundler.
+import { events as staticEvents } from '../data/events.js';
+
+// Note: the Supabase client is imported lazily inside fetchEvents() rather than
+// at the top of this file. Everything else here is pure date/merge logic, and a
+// static import would drag `lib/supabase` — and its `import.meta.env` access,
+// which only exists under Vite — into any context that just wants to reason
+// about events. Keeping the I/O behind a dynamic import lets these helpers be
+// exercised directly, which matters because the bug this module fixes (admin
+// events never reaching check-in) was invisible from the UI.
+
+/**
+ * Local calendar date as "YYYY-MM-DD".
+ *
+ * Do NOT use `toISOString().slice(0, 10)` for this. That returns the *UTC* date,
+ * which rolls over at 8:00 PM EDT / 7:00 PM EST — i.e. in the middle of a 6–8 PM
+ * GBM. Comparing it against an event's local date made tonight's meeting sort
+ * below next week's, precisely during the window students are checking in.
+ */
+export function localDateString(date = new Date()) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+/** Normalizes a Supabase `events` row into the shape the UI uses. */
+export function mapDbEvent(row) {
+  return {
+    id: row.id,
+    title: row.title,
+    date: row.date,
+    time: row.time,
+    endTime: row.end_time || '',
+    location: row.location,
+    description: row.description,
+    category: row.category,
+    featured: row.featured,
+    rsvpUrl: row.rsvp_url || '',
+    photo: row.photo || '',
+    source: 'db',
+  };
+}
+
+/**
+ * Combines database and static events, preferring the database when the same
+ * event exists in both (same title + date), and sorts by date ascending.
+ */
+export function mergeEvents(dbEvents = [], fallback = staticEvents) {
+  const seen = new Set(dbEvents.map((e) => `${e.title}|${e.date}`));
+  const extras = fallback
+    .filter((e) => !seen.has(`${e.title}|${e.date}`))
+    .map((e) => ({ ...e, source: 'static' }));
+  return (
+    [...dbEvents, ...extras]
+      // A row with a null date would otherwise throw inside the comparator,
+      // and because fetchEvents() catches, the whole calendar and check-in
+      // dropdown would silently fall back to the static file — the admin who
+      // added the event would just watch it vanish.
+      .filter((e) => typeof e?.date === 'string' && e.date)
+      .sort((a, b) => a.date.localeCompare(b.date))
+  );
+}
+
+/**
+ * Fetches every event the site knows about.
+ * Never rejects — on failure it returns the static list so check-in and the
+ * calendar keep working rather than going blank.
+ */
+export async function fetchEvents() {
+  try {
+    const { supabase } = await import('./supabase');
+    const { data, error } = await supabase.from('events').select('*');
+    if (error) {
+      console.warn('[events] DB fetch failed, using static fallback:', error.message);
+      return mergeEvents([], staticEvents);
+    }
+    return mergeEvents((data ?? []).map(mapDbEvent), staticEvents);
+  } catch (err) {
+    console.warn('[events] DB fetch threw, using static fallback:', err);
+    return mergeEvents([], staticEvents);
+  }
+}
+
+/**
+ * The check-in dropdown label, and also the exact string stored in
+ * `attendance.event_name`.
+ *
+ * Do not change this format. Historical rows were written with it and the admin
+ * dashboard groups attendance by this string, so a change would split every
+ * event's history into "before" and "after" buckets.
+ */
+export function eventOptionLabel(event) {
+  const dateLabel = new Date(event.date + 'T12:00:00').toLocaleDateString('en-US', {
+    month: 'numeric',
+    day: 'numeric',
+  });
+  return `${dateLabel} - ${event.title}`;
+}
+
+/**
+ * Orders events for the check-in dropdown: soonest upcoming first, then the most
+ * recent past ones. A student checking in wants tonight's GBM at the top, not
+ * whatever happens to sort first by date.
+ *
+ * `withinPastDays` keeps the list short without ever emptying it — if every event
+ * is in the past (as happens over the summer), recent ones still appear so
+ * check-in degrades gracefully instead of breaking.
+ */
+export function sortForCheckIn(events, { withinPastDays = 30, today = new Date() } = {}) {
+  const todayStr = localDateString(today);
+  const cutoff = localDateString(
+    new Date(today.getTime() - withinPastDays * 86400000)
+  );
+
+  const upcoming = events
+    .filter((e) => e.date >= todayStr)
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  const past = events
+    .filter((e) => e.date < todayStr)
+    .sort((a, b) => b.date.localeCompare(a.date));
+
+  const recentPast = past.filter((e) => e.date >= cutoff);
+
+  // Never return nothing: fall back to the 5 most recent if the window is empty.
+  const trailing = recentPast.length > 0 ? recentPast : past.slice(0, 5);
+  return [...upcoming, ...trailing];
+}

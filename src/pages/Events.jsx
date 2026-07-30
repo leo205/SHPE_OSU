@@ -1,8 +1,9 @@
 import { useState, useMemo, useEffect } from 'react';
-import { events, categoryColors } from '../data/events';
+import { categoryColors } from '../data/events';
 import ImagePlaceholder from '../components/ImagePlaceholder';
 import { supabase } from '../lib/supabase';
 import { buildGoogleCalendarUrl, downloadICS } from '../lib/calendar';
+import { fetchEvents, mergeEvents, localDateString } from '../lib/events';
 
 /* ── Calendar helpers ──────────────────────────────────────── */
 function getDaysInMonth(year, month) {
@@ -129,56 +130,41 @@ export default function Events() {
   const [month, setMonth] = useState(today.getMonth());
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [members, setMembers] = useState([]);
-  const [dbEvents, setDbEvents] = useState([]);
+  // Seeded from the bundled static list so the calendar, Featured and Upcoming
+  // sections render on first paint; the DB fetch upgrades it. Starting empty
+  // meant every visitor saw a blank calendar until the round-trip completed,
+  // and forever if it hung.
+  const [dbEvents, setDbEvents] = useState(() => mergeEvents([]));
 
   useEffect(() => {
     const fetchMembers = async () => {
+      // Only first_name and count — the view no longer exposes dot numbers,
+      // which were publicly readable through it even though the underlying
+      // `attendance` table is locked down.
       const { data, error } = await supabase
         .from('leaderboard')
-        .select('first_name, last_name_dotnum, dotnum, count')
-        .order('count', { ascending: false });
+        .select('first_name, count')
+        .order('count', { ascending: false })
+        // Secondary sort: Postgres gives no ordering guarantee among ties, so
+        // without this the top 10 reshuffles on every reload.
+        .order('first_name', { ascending: true });
 
       if (!error && data) {
-        const sortedMembers = data.map(r => ({
-          firstName: r.first_name,
-          lastName: r.last_name_dotnum,
-          dotnum: r.dotnum,
-          count: r.count
-        }));
-        setMembers(sortedMembers);
+        setMembers(data.map(r => ({ firstName: r.first_name, count: r.count })));
       } else if (error) {
         console.error('[Events] Error fetching leaderboard view:', error);
       }
     };
 
-    const fetchDbEvents = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('events')
-          .select('*');
-        if (!error && data) {
-          const mapped = data.map(ev => ({
-            id: ev.id,
-            title: ev.title,
-            date: ev.date,
-            time: ev.time,
-            endTime: ev.end_time || '',
-            location: ev.location,
-            description: ev.description,
-            category: ev.category,
-            featured: ev.featured,
-            rsvpUrl: ev.rsvp_url || '',
-            photo: ev.photo || ''
-          }));
-          setDbEvents(mapped);
-        }
-      } catch (err) {
-        console.error('[Events] Error fetching db events:', err);
-      }
+    const loadEvents = async () => {
+      // Shared with Attendance.jsx via lib/events so the calendar and the
+      // check-in dropdown can never disagree about what events exist.
+      const all = await fetchEvents();
+      setDbEvents(all);
     };
 
     fetchMembers();
-    fetchDbEvents();
+    loadEvents();
   }, []);
 
 
@@ -187,12 +173,8 @@ export default function Events() {
     year: 'numeric',
   });
 
-  const allEvents = useMemo(() => {
-    const staticFiltered = events.filter(se => 
-      !dbEvents.some(de => de.title === se.title && de.date === se.date)
-    );
-    return [...dbEvents, ...staticFiltered].sort((a, b) => a.date.localeCompare(b.date));
-  }, [dbEvents]);
+  // Already merged (DB + static fallback) and date-sorted by fetchEvents().
+  const allEvents = dbEvents;
 
   // Map date strings → events for fast lookup
   const eventMap = useMemo(() => {
@@ -225,7 +207,7 @@ export default function Events() {
     }
   };
 
-  const todayStr = today.toISOString().slice(0, 10);
+  const todayStr = localDateString(today);
   
   const featuredEvents = useMemo(() => {
     const upcoming = allEvents.filter(e => e.featured && e.date >= todayStr).sort((a, b) => a.date.localeCompare(b.date));
@@ -423,16 +405,19 @@ export default function Events() {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b-2 border-[#f26534]/20 sticky top-0 z-10">
-                      <th className="text-left text-[#302E2B] font-bold p-4 text-xl bg-[#F6F0E9]">Name.#</th>
+                      <th className="text-left text-[#302E2B] font-bold p-4 text-xl bg-[#F6F0E9]">Name</th>
                       <th className="text-right text-[#302E2B] font-bold p-4 text-xl bg-[#F6F0E9]">Events Attended</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {members?.map((m, index) => (
-                      <tr key={m.dotnum} className="hover:bg-white/40 transition-colors">
+                      <tr key={`${index}-${m.firstName}`} className="hover:bg-white/40 transition-colors">
                         <td className="p-4 text-gray-800 font-medium whitespace-nowrap">
                           <span className="mr-3 text-gray-400">{index + 1}.</span>
-                          {m.firstName} {m.lastName}
+                          {/* First name only — this table used to print
+                              last_name_dotnum, publishing every member's OSU
+                              dot number on a public page. */}
+                          {m.firstName}
                         </td>
                         <td className="p-4 text-right font-mono text-[#f26534] font-bold text-lg">
                           {m.count}
