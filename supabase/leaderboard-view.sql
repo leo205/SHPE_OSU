@@ -1,8 +1,18 @@
 -- ============================================================================
 --  Fix the public `leaderboard` view
 -- ============================================================================
---  RUN THIS *AFTER* deploying the matching client change. Ordering is safe in
---  that direction and unsafe in the other:
+--  STATUS: APPLIED to production 2026-07-30, after the matching client deploy.
+--  Verified from an anonymous client afterwards: `dotnum` and `last_name_dotnum`
+--  both return 42703 (column does not exist), and the anon SELECT grant survived
+--  the DROP. Re-running this file is harmless (DROP IF EXISTS + CREATE), but it
+--  is not needed unless the view is changed again.
+--
+--  Kept in the repo as the canonical definition of the view — do not edit the
+--  view through the Supabase UI without updating this file, or the next person
+--  will have no way to know what it is supposed to contain.
+--
+--  ORIGINAL DEPLOY NOTE (historical): run AFTER deploying the matching client
+--  change. Ordering is safe in that direction and unsafe in the other:
 --
 --    client first  -> new client selects (first_name, count), which both the
 --                     old and new view provide. Nothing breaks.
