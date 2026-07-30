@@ -242,7 +242,14 @@ export default function AdminDashboard() {
   const handleViewResume = async (path) => {
     // Opened synchronously so the click's user-gesture context survives the
     // await — otherwise popup blockers swallow the new tab. See CompanyDashboard.
-    const tab = window.open('', '_blank', 'noopener,noreferrer');
+    // NOTE: no 'noopener' here. Per spec, window.open() returns NULL when
+    // noopener is passed — the whole point is to sever the handle. That made
+    // `tab` null, so the code fell through to the popup-blocked fallback and
+    // navigated the CURRENT tab to the PDF, while the blank tab it had just
+    // opened sat there empty. Opener is severed below instead, which keeps the
+    // handle and still prevents reverse tabnabbing.
+    const tab = window.open('', '_blank');
+    if (tab) tab.opener = null;
     const { data, error } = await supabase.storage.from('resumes').createSignedUrl(path, 60);
 
     if (error || !data?.signedUrl) {

@@ -72,7 +72,14 @@ export default function CompanyDashboard() {
     // The tab must be opened synchronously inside the click handler. Opening it
     // after awaiting the signed URL loses the user-gesture context, so browsers
     // treat it as an unsolicited popup and silently block it.
-    const tab = window.open('', '_blank', 'noopener,noreferrer');
+    // NOTE: no 'noopener' here. Per spec, window.open() returns NULL when
+    // noopener is passed — the whole point is to sever the handle. That made
+    // `tab` null, so the code fell through to the popup-blocked fallback and
+    // navigated the CURRENT tab to the PDF, while the blank tab it had just
+    // opened sat there empty. Opener is severed below instead, which keeps the
+    // handle and still prevents reverse tabnabbing.
+    const tab = window.open('', '_blank');
+    if (tab) tab.opener = null;
 
     const options = isDownload ? { download: `${fullName.replace(/\s+/g, '_')}_Resume.pdf` } : {};
     const { data, error } = await supabase.storage
