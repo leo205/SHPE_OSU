@@ -9,6 +9,7 @@ export default function CompanyDashboard() {
   const [search, setSearch] = useState('');
   const [filterYear, setFilterYear] = useState('All');
   const [companyName, setCompanyName] = useState('');
+  const [loadError, setLoadError] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -40,14 +41,24 @@ export default function CompanyDashboard() {
 
   const fetchResumes = async () => {
     setLoading(true);
+    setLoadError('');
     const { data, error } = await supabase
       .from('resumes')
       .select('*')
       .eq('approved', true)
       .order('uploaded_at', { ascending: false });
 
-    if (!error && data) {
-      setResumes(data);
+    if (error) {
+      // Previously this failed silently and rendered "No resumes match your
+      // criteria" — so an unconfirmed account or an expired token looked
+      // identical to an empty resume book. The recruiter reports the book is
+      // empty, the E-Board sees a full table, and nobody can reproduce it.
+      console.error('[CompanyDashboard] Resume fetch failed:', error);
+      setLoadError(
+        'We could not load the resume book. Your account may not be fully set up yet — please contact SHPE OSU.'
+      );
+    } else {
+      setResumes(data ?? []);
     }
     setLoading(false);
   };
@@ -139,6 +150,12 @@ export default function CompanyDashboard() {
             </select>
           </div>
         </div>
+
+        {loadError && (
+          <div role="alert" className="mb-6 p-4 bg-error-container text-on-error-container rounded-xl font-bold text-sm">
+            {loadError}
+          </div>
+        )}
 
         {loading ? (
           <div className="flex justify-center py-20">

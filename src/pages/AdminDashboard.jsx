@@ -118,9 +118,6 @@ export default function AdminDashboard() {
     photo: '',
   });
 
-  // Form States
-  const [newCompany, setNewCompany] = useState('');
-
   // Inline Major Editing States
   const [editingId, setEditingId] = useState(null);
   const [editMajorVal, setEditMajorVal] = useState('');
@@ -260,53 +257,12 @@ export default function AdminDashboard() {
   };
 
   // ── Recruiter Access Codes ────────────────────────────────────────────
-  /**
-   * Generates an 8-character access code with a full 40 bits of entropy.
-   *
-   * The previous implementation did `byte.toString(36).padStart(2, '0')` per
-   * byte, which always yields two characters, so slicing to 8 silently threw
-   * away the 5th byte. Worse, base36 of 0–255 tops out at "73", so the first
-   * character of every pair could only ever be 0–7 — a heavily skewed alphabet.
-   * Indexing into an explicit alphabet keeps the distribution uniform.
-   *
-   * Ambiguous glyphs (0/O, 1/I) are excluded so codes read cleanly aloud and
-   * over email.
-   */
-  const generateAccessCode = () => {
-    const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // 32 chars = 5 bits each
-    const bytes = crypto.getRandomValues(new Uint8Array(8));
-    return Array.from(bytes, (b) => ALPHABET[b % ALPHABET.length]).join('');
-  };
-
-  const handleGenerateCode = async (e) => {
-    e.preventDefault();
-    if (!newCompany.trim()) return;
-
-    const { error, data } = await supabase.from('company_access').insert([{
-      company_name: newCompany.trim(),
-      access_code: generateAccessCode()
-    }]).select();
-
-    if (error) {
-      console.error('[AdminDashboard] Code generation failed:', error);
-      // access_code carries a UNIQUE constraint; a collision is astronomically
-      // unlikely but would otherwise fail with no feedback at all.
-      alert(
-        error.code === '23505'
-          ? 'That code collided with an existing one. Please click Generate again.'
-          : `Could not generate a code: ${error.message}`
-      );
-      return;
-    }
-
-    setNewCompany('');
-    if (data?.length) {
-      setCodes(prev => [data[0], ...prev]);
-    } else {
-      const cData = await supabase.from('company_access').select('*').order('created_at', { ascending: false });
-      if (cData.data) setCodes(cData.data);
-    }
-  };
+  // Code generation was removed with the move to Supabase Auth logins. It is
+  // not commented out on purpose: leaving a working "Generate Code" button in
+  // the admin UI meant an E-Board member could still hand a recruiter a
+  // credential that nothing accepts, and only find out days later when the
+  // recruiter could not sign in. Revoking old codes is still useful, so
+  // handleDeleteCode stays.
 
   const handleDeleteCode = async (id) => {
     if (!window.confirm('Revoke access code?')) return;
@@ -937,32 +893,33 @@ export default function AdminDashboard() {
           <div className="space-y-6 max-w-4xl">
             <div>
               <h1 className="text-3xl font-black font-headline text-on-surface">Recruiter Codes</h1>
-              <p className="text-sm text-on-surface-variant mt-1">Manage unique access codes for sponsor companies to access the Resume Book.</p>
+              <p className="text-sm text-on-surface-variant mt-1">Sponsors sign in with a real account. The codes below are historical and grant nothing — delete them once every sponsor has a login.</p>
             </div>
 
-            {/* Create Code Card */}
+            {/* Sponsor onboarding — access codes are gone */}
             <div className="bg-surface-container-lowest border border-outline-variant/20 rounded-lg p-6 shadow-sm">
-              <h3 className="font-bold font-headline text-on-surface mb-4">Generate Code</h3>
-              <form onSubmit={handleGenerateCode} className="flex gap-4">
-                <input
-                  type="text"
-                  required
-                  value={newCompany}
-                  onChange={e => setNewCompany(e.target.value)}
-                  placeholder="e.g. Lockheed Martin, Honda, Microsoft"
-                  className="px-4 py-3 rounded-lg border border-outline-variant/30 bg-surface-container-lowest text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 flex-1 max-w-md shadow-sm"
-                />
-                <button
-                  type="submit"
-                  className="bg-primary text-on-primary px-6 py-3 rounded-lg font-bold text-sm hover:bg-primary-fixed-dim transition shadow-sm flex items-center gap-2 font-headline"
-                >
-                  <Plus className="h-4 w-4" />
-                  Generate Code
-                </button>
-              </form>
+              <h3 className="font-bold font-headline text-on-surface mb-2">Give a sponsor access</h3>
+              <p className="text-sm text-on-surface-variant mb-4">
+                Access codes are no longer used — they were readable by anyone, so they
+                protected nothing. Sponsors now sign in with a real account.
+              </p>
+              <ol className="text-sm text-on-surface-variant list-decimal ml-5 space-y-1.5">
+                <li>Supabase Dashboard → <strong>Authentication → Users → Add user</strong></li>
+                <li>Enter the recruiter&apos;s work email and generate a password. Turn <strong>Auto-confirm</strong> ON.</li>
+                <li>Grant them the sponsor role by running, in the SQL Editor:
+                  <pre className="mt-1.5 p-2.5 bg-surface-container rounded-md font-mono text-[11px] overflow-x-auto select-all">{`UPDATE auth.users
+SET raw_app_meta_data = coalesce(raw_app_meta_data,'{}'::jsonb) || '{"role":"sponsor"}'::jsonb
+WHERE email = 'recruiter@company.com';`}</pre>
+                </li>
+                <li>Send them the email and password. They sign in at <strong>/company</strong>.</li>
+              </ol>
+              <p className="text-xs text-on-surface-variant mt-4 opacity-80">
+                To revoke access, delete the user in Supabase. An account with no role
+                reaches nothing, so a half-finished setup is safe.
+              </p>
             </div>
 
-            {/* Codes List */}
+            {/* Historical codes — these no longer grant access to anything. */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 font-body">
               {codes.map(c => (
                 <div key={c.id} className="p-5 rounded-lg border border-outline-variant/20 bg-surface-container-lowest flex justify-between items-center shadow-sm hover:border-outline-variant transition-all">

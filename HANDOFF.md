@@ -276,9 +276,12 @@ public calendar but **cannot be checked into**. Unify these before the next
 semester — one source of truth, read by both.
 
 ### 2.5 `leaderboard` (view)
-Read by `Events.jsx`. `supabase/leaderboard-view.sql` (applied) redefines it to expose
-only `first_name`, `dotnum`, and a **distinct-event** count, so the public
-leaderboard no longer requires public read on the whole `attendance` table.
+Read by `Events.jsx` and `PublicLeaderboard.jsx`. `supabase/leaderboard-view.sql`
+(applied 2026-07-30) redefines it to expose exactly two columns — `first_name`
+and a **distinct-event** `count`. It previously also returned `last_name_dotnum`
+and `dotnum`, which were rendered onto a public page. Do not add columns: the
+view runs with owner privileges and bypasses RLS on `attendance`, so anything
+added here is published with no policy change to review.
 
 ---
 

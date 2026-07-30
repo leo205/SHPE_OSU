@@ -49,18 +49,64 @@ WHERE email = 'REPLACE_WITH_ADMIN_EMAIL@osu.edu';
 
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- 2. Role helper
+-- 1b. Make sure RLS is actually on. A table with RLS disabled ignores every
+--     policy below without raising anything. These are idempotent.
 -- ─────────────────────────────────────────────────────────────────────────────
+ALTER TABLE public.attendance     ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.resumes        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.company_access ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.events         ENABLE ROW LEVEL SECURITY;
+
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 2. Role helpers
+-- ─────────────────────────────────────────────────────────────────────────────
+--  ⚠️  Do NOT gate access on `authenticated` alone.
+--
+--  Public signup is enabled on this project (verified 2026-07-30:
+--  /auth/v1/settings returns disable_signup = false). That means anyone can
+--  create an account with any email address and immediately hold the
+--  `authenticated` role. A policy written `TO authenticated USING (true)` would
+--  therefore hand the resume book to the entire internet behind nothing but a
+--  signup form — replacing one open door with a slightly narrower one.
+--
+--  So access requires an EXPLICIT role that only an admin can grant. A
+--  self-registered account has no role and reaches nothing. Disabling public
+--  signup (see §7) is still worth doing, but it is defence in depth, not the
+--  control — a dashboard toggle someone flips back must not silently reopen
+--  the resume book.
+
 CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS boolean
 LANGUAGE sql
 STABLE
-SET search_path = public
+SET search_path = ''
 AS $$
   SELECT coalesce((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin', false);
 $$;
 
-GRANT EXECUTE ON FUNCTION public.is_admin() TO anon, authenticated;
+CREATE OR REPLACE FUNCTION public.is_sponsor()
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SET search_path = ''
+AS $$
+  SELECT coalesce((auth.jwt() -> 'app_metadata' ->> 'role') = 'sponsor', false);
+$$;
+
+-- Anyone permitted to see the resume book at all.
+CREATE OR REPLACE FUNCTION public.has_book_access()
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SET search_path = ''
+AS $$
+  SELECT public.is_admin() OR public.is_sponsor();
+$$;
+
+GRANT EXECUTE ON FUNCTION public.is_admin()        TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.is_sponsor()      TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.has_book_access() TO anon, authenticated;
 
 
 -- ─────────────────────────────────────────────────────────────────────────────
@@ -83,7 +129,7 @@ CREATE POLICY "resumes public insert"
 CREATE POLICY "resumes read"
   ON public.resumes FOR SELECT
   TO authenticated
-  USING (approved = true OR public.is_admin());
+  USING (public.is_admin() OR (approved = true AND public.is_sponsor()));
 
 CREATE POLICY "resumes admin write"
   ON public.resumes FOR UPDATE
@@ -145,10 +191,13 @@ CREATE POLICY "resumes bucket read"
     bucket_id = 'resumes'
     AND (
       public.is_admin()
-      OR EXISTS (
-        SELECT 1 FROM public.resumes r
-        WHERE r.resume_path = storage.objects.name
-          AND r.approved = true
+      OR (
+        public.is_sponsor()
+        AND EXISTS (
+          SELECT 1 FROM public.resumes r
+          WHERE r.resume_path = storage.objects.name
+            AND r.approved = true
+        )
       )
     )
   );
@@ -179,6 +228,47 @@ CREATE POLICY "attendance admin write"
 
 
 -- ─────────────────────────────────────────────────────────────────────────────
+-- 6b. events — MUST be re-scoped, for the same reason as everything above
+-- ─────────────────────────────────────────────────────────────────────────────
+--  The live policy is:
+--    "Allow admin full access events" | {authenticated} | ALL | USING (true)
+--
+--  That was safe while `authenticated` meant "E-Board member". It stops being
+--  safe the moment sponsors get logins: a recruiter could delete or rewrite
+--  every event on the public calendar. Not PII, but it is defacement of the
+--  public site, and the /admin route guard is client-side so it does not stop a
+--  direct PostgREST call.
+--
+--  Easy to miss because nothing in the resume-book work touches this table.
+DROP POLICY IF EXISTS "Allow admin full access events" ON public.events;
+DROP POLICY IF EXISTS "Allow public read events"       ON public.events;
+
+CREATE POLICY "events public read"
+  ON public.events FOR SELECT
+  TO anon, authenticated
+  USING (true);
+
+CREATE POLICY "events admin all"
+  ON public.events FOR ALL
+  TO authenticated
+  USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+-- Same for the events storage bucket, which has the same shape.
+DROP POLICY IF EXISTS "Allow admin upload to events"   ON storage.objects;
+DROP POLICY IF EXISTS "Allow admin delete from events" ON storage.objects;
+
+CREATE POLICY "events bucket admin upload"
+  ON storage.objects FOR INSERT
+  TO authenticated
+  WITH CHECK (bucket_id = 'events' AND public.is_admin());
+
+CREATE POLICY "events bucket admin delete"
+  ON storage.objects FOR DELETE
+  TO authenticated
+  USING (bucket_id = 'events' AND public.is_admin());
+
+
+-- ─────────────────────────────────────────────────────────────────────────────
 -- 7. Creating a sponsor account
 -- ─────────────────────────────────────────────────────────────────────────────
 --  Supabase Dashboard → Authentication → Users → Add user
@@ -186,8 +276,22 @@ CREATE POLICY "attendance admin write"
 --    - password: generate one, send it to them
 --    - Auto-confirm: ON  (they will not receive a confirmation email otherwise)
 --
---  Do NOT set a role on sponsor accounts. Absence of the admin tag is what
---  makes them a sponsor. Revoking access is deleting the user.
+--  Then grant the sponsor role — an account with NO role reaches nothing, which
+--  is deliberate: it means a self-registered account is harmless.
+--
+--    UPDATE auth.users
+--    SET raw_app_meta_data =
+--          coalesce(raw_app_meta_data, '{}'::jsonb) || '{"role":"sponsor"}'::jsonb
+--    WHERE email = 'recruiter@company.com';
+--
+--  Revoking access is deleting the user, or clearing the role.
+--
+--  ALSO: turn off public signup.
+--    Dashboard → Authentication → Providers → Email → uncheck
+--    "Allow new users to sign up".
+--  Verified 2026-07-30 that it is currently ON, meaning anyone can register.
+--  The role gate above already makes a self-registered account useless, so this
+--  is defence in depth — but leaving signup open lets strangers fill auth.users.
 
 
 -- ─────────────────────────────────────────────────────────────────────────────

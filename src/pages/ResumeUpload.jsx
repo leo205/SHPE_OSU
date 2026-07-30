@@ -232,8 +232,11 @@ export default function ResumeUpload() {
           </p>
         </div>
 
-        {/* Error banner */}
-        {status === 'error' && (
+        {/* Error banner — gated on errorMsg, not status. Every validation
+            early-return sets errorMsg and returns without touching status, so
+            keying this off status meant a student picking an oversized file or a
+            non-OSU email saw absolutely nothing happen when they hit Submit. */}
+        {errorMsg && (
           <div className="mb-6 p-4 bg-error-container text-on-error-container rounded-xl font-medium text-sm">
             {errorMsg}
           </div>
@@ -333,6 +336,7 @@ export default function ResumeUpload() {
                 accept=".pdf,application/pdf"
                 onChange={(e) => {
                   setErrorMsg('');
+                  if (status === 'error') setStatus('idle');
                   setFile(e.target.files[0] || null);
                 }}
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"

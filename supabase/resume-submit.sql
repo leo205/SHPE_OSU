@@ -35,8 +35,9 @@
 --     to PostgREST directly; this one is not.
 --   * `resume_path` is constrained to the submissions/ prefix so a caller cannot
 --     point a row at an arbitrary object elsewhere in the bucket.
---   * It returns only an action word and the previous file path. No names, no
---     emails, no data belonging to anyone else.
+--   * It returns ONLY an action word — 'created' or 'replaced'. Nothing about
+--     any other row, and in particular not the previous storage path, which
+--     belongs to whoever submitted it.
 --
 --  RESIDUAL RISK (accepted, see HANDOFF.md)
 --  ----------------------------------------
@@ -57,7 +58,7 @@ CREATE OR REPLACE FUNCTION public.submit_resume(
   p_graduation_year text,
   p_resume_path     text
 )
-RETURNS TABLE (action text, previous_path text)
+RETURNS TABLE (action text)
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
@@ -69,6 +70,15 @@ DECLARE
   v_existing public.resumes%ROWTYPE;
 BEGIN
   -- ── Validation (this runs with elevated privileges; trust nothing) ────────
+  -- Every guard below is a negative test, and in plpgsql `IF <null> THEN` does
+  -- not fire — so a NULL argument would skip validation entirely. The NOT NULL
+  -- columns currently backstop that, but relying on a table constraint to
+  -- enforce a function's contract is exactly how it breaks silently later.
+  IF v_name IS NULL OR v_email IS NULL OR v_major IS NULL
+     OR p_graduation_year IS NULL OR p_resume_path IS NULL THEN
+    RAISE EXCEPTION 'missing_field' USING ERRCODE = '22023';
+  END IF;
+
   IF v_name = '' OR length(v_name) > 200 THEN
     RAISE EXCEPTION 'invalid_name' USING ERRCODE = '22023';
   END IF;
@@ -94,9 +104,17 @@ BEGIN
   -- ── Upsert on email ──────────────────────────────────────────────────────
   -- Runs as the function owner, so it sees pending rows too — the anon lookup
   -- this replaces could only ever see approved ones.
+  -- ORDER BY, not a bare LIMIT 1. `email` carries no unique constraint and the
+  -- broken client flow this replaces created duplicates, so rows may already be
+  -- doubled up. Without an explicit order the planner picks arbitrarily — it
+  -- could update a stale pending row and leave an old APPROVED one visible in
+  -- the recruiter book. A student replacing their resume to remove a phone
+  -- number or home address would see "Upload Successful" while the old PDF
+  -- stayed on display.
   SELECT * INTO v_existing
   FROM public.resumes
   WHERE lower(email) = v_email
+  ORDER BY approved DESC, uploaded_at DESC NULLS LAST
   LIMIT 1;
 
   IF FOUND THEN
@@ -104,6 +122,11 @@ BEGIN
     IF v_existing.uploaded_at > now() - interval '30 seconds' THEN
       RAISE EXCEPTION 'too_soon' USING ERRCODE = '22023';
     END IF;
+
+    -- Collapse EVERY row for this address, not just the one selected above, so
+    -- pre-existing duplicates cannot leave a stale approved entry behind.
+    DELETE FROM public.resumes
+    WHERE lower(email) = v_email AND id <> v_existing.id;
 
     UPDATE public.resumes
     SET full_name       = v_name,
@@ -114,14 +137,19 @@ BEGIN
         approved        = false   -- replacements always re-enter review
     WHERE id = v_existing.id;
 
-    RETURN QUERY SELECT 'replaced'::text, v_existing.resume_path;
+    -- Returns the action only. An earlier draft also returned the previous
+    -- storage path, which is another student's data: paths are unguessable
+    -- (submissions/<epoch>_<uuid>.pdf), so handing one to an anonymous caller
+    -- disclosed something they could not otherwise obtain. The client only ever
+    -- used `action`.
+    RETURN QUERY SELECT 'replaced'::text;
   ELSE
     INSERT INTO public.resumes
       (full_name, email, major, graduation_year, resume_path, uploaded_at, approved)
     VALUES
       (v_name, v_email, v_major, p_graduation_year, p_resume_path, now(), false);
 
-    RETURN QUERY SELECT 'created'::text, NULL::text;
+    RETURN QUERY SELECT 'created'::text;
   END IF;
 END;
 $$;

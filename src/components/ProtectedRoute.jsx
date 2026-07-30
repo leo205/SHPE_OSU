@@ -45,10 +45,15 @@ export default function ProtectedRoute({ children, requireAdmin = false }) {
     return <Navigate to={requireAdmin ? '/admin/login' : '/company'} replace />;
   }
 
-  // Signed in, but as the wrong kind of user. Send sponsors to their own
-  // portal rather than bouncing them to a login they cannot satisfy.
+  // Signed in, but without the admin claim. The overwhelmingly likely cause is
+  // a stale JWT: the role is baked in at sign-in, so an E-Board member who was
+  // already logged in when their account was tagged still carries a role-less
+  // token. Silently redirecting them to a working-looking sponsor dashboard
+  // gives no clue that "sign out and back in" is the fix, so sign them out and
+  // send them to the admin login, which explains it.
   if (requireAdmin && !isAdmin(session)) {
-    return <Navigate to="/company/dashboard" replace />;
+    supabase.auth.signOut();
+    return <Navigate to="/admin/login" replace />;
   }
 
   return children;
