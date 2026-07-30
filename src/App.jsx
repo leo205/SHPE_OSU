@@ -46,12 +46,19 @@ export default function App() {
         <Route path="/attendance" element={<Attendance />} />
         <Route path="/resume-upload" element={<ResumeUpload />} />
         <Route path="/company" element={<CompanyLogin />} />
-        <Route path="/company/dashboard" element={<CompanyDashboard />} />
+        <Route
+          path="/company/dashboard"
+          element={
+            <ProtectedRoute>
+              <CompanyDashboard />
+            </ProtectedRoute>
+          }
+        />
         <Route path="/admin/login" element={<AdminLogin />} />
         <Route
           path="/admin"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute requireAdmin>
               <AdminDashboard />
             </ProtectedRoute>
           }
@@ -59,7 +66,7 @@ export default function App() {
         <Route
           path="/admin/resumes"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute requireAdmin>
               <Navigate to="/admin?tab=resume" replace />
             </ProtectedRoute>
           }
