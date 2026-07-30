@@ -1,5 +1,6 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { formatMajor } from '../lib/majors';
 import { events } from '../data/events';
 
 // ── Whitelisted enum values (C2, M2) ────────────────────────────────────────
@@ -81,6 +82,9 @@ export default function Attendance() {
   // H1: Double-submit guard
   const isSubmittingRef = useRef(false);
 
+  // Clear the cooldown ticker if the student closes the form mid-countdown.
+  useEffect(() => () => clearInterval(cooldownTimer.current), []);
+
   // Custom major text when "Other" is selected
   const [customMajor, setCustomMajor] = useState('');
 
@@ -154,12 +158,9 @@ export default function Attendance() {
     setSubmitting(true);
     setError('');
 
-    // If major is "Other", store "Other – [custom text]" so admins can see the real major
-    const resolvedMajor = isFirst
-      ? (form.major === 'Other' && customMajor.trim()
-          ? `Other – ${customMajor.trim()}`
-          : form.major)
-      : null;
+    // If major is "Other", store "Other – [custom text]" so admins can see the
+    // real major. Shared with ResumeUpload via lib/majors so the two can't drift.
+    const resolvedMajor = isFirst ? formatMajor(form.major, customMajor) : null;
 
     const payload = {
       event_name: form.event_name,
@@ -221,7 +222,7 @@ export default function Attendance() {
               </div>
             </a>
             <a
-              href="http://eepurl.com/drG0Or"
+              href="https://eepurl.com/drG0Or"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-3 bg-surface-container-lowest p-4 rounded-xl hover:bg-surface-container-high border border-outline-variant/20 transition-all"

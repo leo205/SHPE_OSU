@@ -142,34 +142,95 @@ function SponsorCard({ sponsor, size = 'lg' }) {
 }
 
 /* ── Sponsorship Contact Form ──────────────────────────────── */
+// Draft is kept in sessionStorage, not localStorage: recruiters often fill this
+// out on shared/conference machines, and the draft holds their name and email.
+// sessionStorage dies with the tab; localStorage persisted it indefinitely.
+const DRAFT_KEY = 'sponsorFormDraft';
+const EMPTY_FORM = {
+  company_name: '',
+  contact_name: '',
+  reply_to: '',
+  tier: 'Buckeye ($500)',
+  message: '',
+};
+
+// Field caps — the EmailJS public key ships in the bundle, so anyone can post
+// to our template. Bounding input size limits how much a scripted abuser can
+// push through our monthly quota in one request.
+const MAX_LEN = { company_name: 150, contact_name: 120, reply_to: 254, message: 2000 };
+const RESEND_COOLDOWN_MS = 60 * 1000;
+
 function ContactForm() {
   const formRef = useRef(null);
   const [status, setStatus] = useState('idle'); // idle | sending | success | error
+  const [errorMsg, setErrorMsg] = useState('');
   const [formData, setFormData] = useState(() => {
-    const saved = localStorage.getItem('sponsorFormData');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) { }
+    try {
+      const saved = sessionStorage.getItem(DRAFT_KEY);
+      if (saved) return { ...EMPTY_FORM, ...JSON.parse(saved) };
+    } catch {
+      // Corrupt draft — drop it rather than leaving it to fail on every load.
+      sessionStorage.removeItem(DRAFT_KEY);
     }
-    return {
-      company_name: '',
-      contact_name: '',
-      reply_to: '',
-      tier: 'Buckeye ($500)',
-      message: '',
-    };
+    return EMPTY_FORM;
   });
 
+  // Guards against double-submit (fast double-click) and rapid resubmission.
+  const sendingRef = useRef(false);
+  const lastSentAtRef = useRef(0);
+
   useEffect(() => {
-    localStorage.setItem('sponsorFormData', JSON.stringify(formData));
+    try {
+      sessionStorage.setItem(DRAFT_KEY, JSON.stringify(formData));
+    } catch {
+      // Private-browsing quota errors shouldn't break typing.
+    }
   }, [formData]);
 
   const handleChange = (e) => {
-    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    const { name, value } = e.target;
+    const cap = MAX_LEN[name];
+    setFormData((prev) => ({ ...prev, [name]: cap ? value.slice(0, cap) : value }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (sendingRef.current) return;
+
+    // Honeypot: a real user never sees this field, so a filled value means a bot.
+    // Report success so the bot doesn't learn it was filtered.
+    if (formRef.current?.elements?.company_website?.value) {
+      setStatus('success');
+      return;
+    }
+
+    const company = formData.company_name.trim();
+    const contact = formData.contact_name.trim();
+    const email = formData.reply_to.trim();
+
+    if (!company || !contact || !email) {
+      setStatus('error');
+      setErrorMsg('Please fill in your company name, contact name, and email address.');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+      setStatus('error');
+      setErrorMsg('That email address doesn’t look right. Please double-check it.');
+      return;
+    }
+
+    const sinceLast = Date.now() - lastSentAtRef.current;
+    if (lastSentAtRef.current && sinceLast < RESEND_COOLDOWN_MS) {
+      setStatus('error');
+      setErrorMsg(
+        `We already received your inquiry. Please wait ${Math.ceil((RESEND_COOLDOWN_MS - sinceLast) / 1000)}s before sending another.`
+      );
+      return;
+    }
+
+    sendingRef.current = true;
     setStatus('sending');
+    setErrorMsg('');
 
     try {
       await emailjs.sendForm(
@@ -178,13 +239,21 @@ function ContactForm() {
         formRef.current,
         { publicKey: EMAILJS_PUBLIC_KEY }
       );
+      lastSentAtRef.current = Date.now();
       setStatus('success');
-      formRef.current.reset();
-      localStorage.removeItem('sponsorFormData');
-      setFormData({ company_name: '', contact_name: '', reply_to: '', tier: 'Buckeye ($500)', message: '' });
+      sessionStorage.removeItem(DRAFT_KEY);
+      setFormData(EMPTY_FORM);
     } catch (err) {
-      console.error('EmailJS error:', err);
+      // EmailJS rejects with { status, text } rather than an Error instance.
+      console.error('[Sponsors] EmailJS error:', err);
       setStatus('error');
+      setErrorMsg(
+        err?.status === 0 || err?.name === 'TypeError'
+          ? 'We couldn’t reach our email service — this is usually a network or ad-blocker issue.'
+          : 'Something went wrong while sending your inquiry.'
+      );
+    } finally {
+      sendingRef.current = false;
     }
   };
 
@@ -211,18 +280,35 @@ function ContactForm() {
           </div>
         )}
         {status === 'error' && (
-          <div className="mb-8 p-5 bg-error-container text-on-error-container rounded-xl font-bold text-center">
-            Something went wrong. Please email us directly at{' '}
-            <a
-              href="mailto:santosmartinez.2@osu.edu"
-              className="underline"
-            >
-              santosmartinez.2@osu.edu
-            </a>
+          <div role="alert" className="mb-8 p-5 bg-error-container text-on-error-container rounded-xl font-bold text-center">
+            {errorMsg || 'Something went wrong.'}
+            <div className="mt-1 font-medium">
+              You can also email us directly at{' '}
+              <a
+                href="mailto:santosmartinez.2@osu.edu"
+                className="underline"
+              >
+                santosmartinez.2@osu.edu
+              </a>
+            </div>
           </div>
         )}
 
         <form ref={formRef} className="space-y-6" onSubmit={handleSubmit}>
+          {/* Honeypot — hidden from humans, irresistible to bots. Not `display:none`,
+              which some bots detect and skip. Never remove the aria-hidden/tabIndex. */}
+          <div aria-hidden="true" className="absolute w-px h-px -left-[9999px] overflow-hidden">
+            <label htmlFor="company_website">Company website (leave blank)</label>
+            <input
+              id="company_website"
+              name="company_website"
+              type="text"
+              tabIndex={-1}
+              autoComplete="off"
+              defaultValue=""
+            />
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label
@@ -234,6 +320,7 @@ function ContactForm() {
               <input
                 id="company_name"
                 name="company_name"
+                maxLength={150}
                 required
                 type="text"
                 value={formData.company_name}
@@ -252,6 +339,7 @@ function ContactForm() {
               <input
                 id="contact_name"
                 name="contact_name"
+                maxLength={120}
                 required
                 type="text"
                 value={formData.contact_name}
@@ -272,6 +360,7 @@ function ContactForm() {
             <input
               id="reply_to"
               name="reply_to"
+              maxLength={254}
               required
               type="email"
               value={formData.reply_to}
@@ -313,6 +402,7 @@ function ContactForm() {
             <textarea
               id="message"
               name="message"
+              maxLength={2000}
               value={formData.message}
               onChange={handleChange}
               rows={4}

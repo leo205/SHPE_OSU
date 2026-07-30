@@ -27,7 +27,7 @@ graph TD
 
 ## 2. Database Schema (PostgreSQL)
 
-The application utilizes three tables and one storage bucket in Supabase.
+The application utilizes five tables/views and one storage bucket in Supabase. (`events` and `leaderboard` were added after the original draft of this document — see §2.4 and §2.5.)
 
 ### 1. `attendance`
 Stores all student check-in records.
@@ -76,6 +76,8 @@ CREATE TABLE company_access (
 
 ### Supabase Storage Bucket: `resumes`
 *   Contains a folder called `submissions/` where all resume files are stored.
+*   Uploads accept PDFs from **10 KB to 250 KB**. (A previous 2 MB *minimum* rejected essentially every legitimate resume, and the 5 MB ceiling let image-heavy exports eat the free-tier bucket.)
+*   The 250 KB ceiling was chosen against the resumes actually on file (n=9: median 168 KB, max 305 KB). Expect it to reject roughly 1 in 5 submissions — mostly Canva/InDesign exports with an embedded photo. The upload form tells students their file's size and how to shrink it, and offers an E-Board fallback. If rejections become a support burden, raise `MAX_FILE_SIZE_BYTES` in `src/pages/ResumeUpload.jsx`; 300 KB would have accepted 8 of the 9.
 *   All file permissions are private. Downloads/reads require generating a **Signed URL** with a 60-second TTL.
 
 ---
@@ -84,19 +86,50 @@ CREATE TABLE company_access (
 
 The website contains several critical client-side and database-level security mechanisms.
 
-### Row-Level Security (RLS) Policies
-Do not modify or disable these policies without a clear security strategy.
+### ⚠️ Row-Level Security (RLS) — OPEN ISSUE, ACTION REQUIRED
 
-| Table / Bucket | Policy Name | Role | Operations | Check/Condition |
-|---|---|---|---|---|
-| `attendance` | `Allow public inserts` | `public` | `INSERT` | `true` |
-| `attendance` | `Admins can read attendance` | `authenticated` | `SELECT` | `auth.role() = 'authenticated'` |
-| `attendance` | `Admins can update attendance` | `authenticated` | `UPDATE` | `auth.role() = 'authenticated'` |
-| `resumes` | `Allow public inserts` | `public` | `INSERT` | `true` |
-| `resumes` | `Authenticated select/update` | `authenticated` | `SELECT, UPDATE, DELETE` | `auth.role() = 'authenticated'` |
-| `resumes` | `Recruiter code select` | `public` | `SELECT` | Allowed if recruiter has a valid `company_access` session (validated client-side, protected by signed URLs) |
-| `company_access` | `Admins full access` | `authenticated` | `ALL` | `auth.role() = 'authenticated'` |
-| `company_access` | `Public read code` | `public` | `SELECT` | `true` (restricted to query by code lookup) |
+**The table below described the intended model, not the live one.** Probing the
+production project with only the public anon key — the same key embedded in our
+JS bundle — while logged out returned:
+
+| Probe (anonymous, logged out) | Result |
+|---|---|
+| `select * from resumes` | **All rows**, including `full_name`, `email`, `major`, `graduation_year`, `resume_path` |
+| `storage.createSignedUrl(<resume_path>)` | **Granted** — the URL returned HTTP 200, `application/pdf`, a real resume |
+| `select * from company_access` | **All rows, including `access_code`** |
+| `insert into company_access` / `events` | Blocked ✅ |
+| Storage bucket public URL | Blocked ✅ (but irrelevant — signed URLs worked) |
+
+So the resume book was fully downloadable with no access code, and the codes
+themselves were readable by the same anonymous request.
+
+The root cause is a category error worth internalising: the old policy
+`Recruiter code select` was documented as *"allowed if recruiter has a valid
+session (validated client-side)"*. **RLS runs per-row inside Postgres and cannot
+see client-side JavaScript.** A policy of `USING (true)` is public, full stop.
+No amount of `sessionStorage` checking in `CompanyDashboard.jsx` changes it —
+anyone can call PostgREST directly with the anon key and skip the UI entirely.
+
+**Fix:** `supabase/policies.sql` contains the repair — locked-down tables plus
+`SECURITY DEFINER` functions that validate the code *in SQL*. It has **not been
+applied**; read its header before running, because section 3 breaks
+`/company/dashboard` until the client is moved onto the RPCs, and section 6
+(storage) needs an Edge Function that SQL alone cannot provide.
+
+**Still unknown:** whether `anon` holds `UPDATE`/`DELETE` policies on
+`attendance`, `resumes`, or `company_access`. This cannot be determined from
+outside — a PostgREST delete matching zero rows returns success whether or not a
+policy permits it. Run section 0 of `policies.sql` against `pg_policies` to find
+out, and treat any `anon`/`public` row with `cmd` of `UPDATE`/`DELETE`/`ALL` as
+a hole.
+
+**`attendance` public read is an intentional product decision** (the homepage
+leaderboard and Events page render it logged-out). Note the tradeoff: RLS is
+row-level, not column-level, so selecting only `first_name` in the client gives
+no protection — anyone can request `select *` and receive dot numbers, pronouns,
+majors, and the free-text feedback students wrote assuming it was private.
+Section 5 of `policies.sql` keeps the feature while closing that gap by serving
+the leaderboard from a two-column view.
 
 ### Frontend Code Safeguards
 1.  **Magic-Byte PDF Verification**:
@@ -108,8 +141,15 @@ Do not modify or disable these policies without a clear security strategy.
       return PDF_MAGIC.every((b, i) => bytes[i] === b);
     }
     ```
-2.  **Expiring Recruiter Sessions (TTL)**:
-    Recruiter login tokens are saved in `sessionStorage` with a strict **8-hour Time-to-Live (TTL)** expiration window. The application uses a window visibility listener (`visibilitychange`) so if a recruiter focuses back on the browser tab after the TTL expires, they are immediately logged out:
+2.  **Expiring Recruiter Sessions (TTL)** — *convenience, NOT a security control*:
+    This is the misconception that produced the RLS hole above, so it is worth
+    stating plainly: **anything enforced in the browser is not enforced.** A
+    recruiter can edit `sessionStorage` in devtools, or skip the UI entirely and
+    query PostgREST with the anon key. The TTL below is a courtesy logout on a
+    shared machine, nothing more. Real enforcement lives in
+    `supabase/policies.sql`. (Helpers now live in `src/lib/companySession.js`.)
+
+    Recruiter login tokens are saved in `sessionStorage` with an **8-hour Time-to-Live (TTL)** expiration window. The application uses a window visibility listener (`visibilitychange`) so if a recruiter focuses back on the browser tab after the TTL expires, they are immediately logged out:
     ```javascript
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
@@ -122,7 +162,7 @@ Do not modify or disable these policies without a clear security strategy.
     };
     ```
 3.  **Cryptographically Secure Access Codes**:
-    Codes generated for companies in `AdminResumes.jsx` use `crypto.getRandomValues()` instead of `Math.random()` to prevent code guessing attacks.
+    Codes generated for companies in `AdminDashboard.jsx` use `crypto.getRandomValues()` indexed into an explicit 32-character alphabet (8 chars = 40 bits). The earlier version did `byte.toString(36).padStart(2,'0')` per byte and then sliced to 8, which silently discarded a byte and could only ever emit 0–7 as the first character of each pair.
 4.  **CSV Injection Prevention**:
     When exporting check-in tables, cells starting with formula triggers (`=`, `+`, `-`, `@`, tab, or carriage returns) are automatically prefixed with a single-quote `'` to mitigate spreadsheet software hijack attacks.
 5.  **Safe Upload Filenames**:
@@ -196,3 +236,48 @@ npm run lint
 *   Create a branch: `git checkout -b feature/your-feature-name`.
 *   Verify the build locally (`npm run build`) before pushing your branch.
 *   Merge branch into `main` via a GitHub Pull Request to trigger the Vercel production deployment pipeline.
+
+---
+
+## 6. Addendum — tables added after the original draft
+
+### 2.4 `events`
+Dynamic calendar events created from the Admin Dashboard's **Events** tab.
+
+```sql
+CREATE TABLE events (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  created_at timestamptz DEFAULT now(),
+  title text NOT NULL, date text NOT NULL, time text NOT NULL,
+  end_time text, location text NOT NULL, description text NOT NULL,
+  category text NOT NULL, featured boolean DEFAULT false NOT NULL,
+  rsvp_url text DEFAULT '', photo text DEFAULT ''
+);
+```
+
+**Known gap:** `Events.jsx` merges this table with the static `src/data/events.js`
+array, but `Attendance.jsx` builds its check-in dropdown from the static file
+**only**. An event added through the Admin Dashboard therefore appears on the
+public calendar but **cannot be checked into**. Unify these before the next
+semester — one source of truth, read by both.
+
+### 2.5 `leaderboard` (view)
+Read by `Events.jsx`. Section 5 of `supabase/policies.sql` redefines it to expose
+only `first_name`, `dotnum`, and a **distinct-event** count, so the public
+leaderboard no longer requires public read on the whole `attendance` table.
+
+---
+
+## 7. Local verification before pushing
+
+```bash
+npm run lint     # must be clean — it is now a real gate (was 93 errors)
+npm run build
+npm run preview  # serves dist/ WITH the production headers from vercel.json
+```
+
+`vite.config.js` reads `vercel.json` and applies the same security headers to
+the preview server. This exists because a missing `connect-src` entry silently
+broke the sponsor contact form in production and was invisible locally — CSP
+headers only applied on Vercel. Open the browser console on `npm run preview`
+and confirm there are no CSP violations before deploying.

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { getCompanySession, clearCompanySession } from './CompanyLogin';
+import { getCompanySession, clearCompanySession } from '../lib/companySession';
 
 export default function CompanyDashboard() {
   const [resumes, setResumes] = useState([]);
@@ -55,15 +55,29 @@ export default function CompanyDashboard() {
   };
 
   const handleAction = async (path, fullName, isDownload) => {
+    // The tab must be opened synchronously inside the click handler. Opening it
+    // after awaiting the signed URL loses the user-gesture context, so browsers
+    // treat it as an unsolicited popup and silently block it.
+    const tab = window.open('', '_blank', 'noopener,noreferrer');
+
     const options = isDownload ? { download: `${fullName.replace(/\s+/g, '_')}_Resume.pdf` } : {};
     const { data, error } = await supabase.storage
       .from('resumes')
       .createSignedUrl(path, 60, options);
 
-    if (error) {
+    if (error || !data?.signedUrl) {
+      console.error('[CompanyDashboard] Signed URL error:', error);
+      tab?.close();
       alert('Error accessing resume. It may have been removed.');
+      return;
+    }
+
+    if (tab) {
+      tab.location = data.signedUrl;
     } else {
-      window.open(data.signedUrl, '_blank');
+      // Popup blocker still won despite the synchronous open — fall back to
+      // navigating this tab rather than leaving the click doing nothing.
+      window.location.assign(data.signedUrl);
     }
   };
 

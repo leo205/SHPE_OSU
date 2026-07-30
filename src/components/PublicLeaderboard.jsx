@@ -35,7 +35,7 @@ export default function PublicLeaderboard() {
 
       const { data, error: dbErr } = await supabase
         .from('attendance')
-        .select('first_name, last_name_dotnum');
+        .select('first_name, last_name_dotnum, event_name');
 
       if (cancelled) return;
 
@@ -45,19 +45,28 @@ export default function PublicLeaderboard() {
         return;
       }
 
-      // Aggregate by dot-number (case-insensitive) — count events attended
+      // Aggregate by dot-number (case-insensitive), counting DISTINCT events.
+      // Counting raw rows let a member who checked in twice at one GBM — a
+      // double-tap on the submit button, or re-opening the form — outrank
+      // someone who genuinely attended more events.
       const counts = {};
       (data || []).forEach((r) => {
         const key = r.last_name_dotnum?.trim().toLowerCase();
         if (!key) return;
         if (!counts[key]) {
-          counts[key] = { firstName: r.first_name, lastDot: r.last_name_dotnum, count: 0 };
+          counts[key] = {
+            firstName: r.first_name,
+            lastDot: r.last_name_dotnum,
+            events: new Set(),
+          };
         }
-        counts[key].count++;
+        counts[key].events.add((r.event_name ?? '').trim().toLowerCase());
       });
 
       const sorted = Object.values(counts)
-        .sort((a, b) => b.count - a.count)
+        .map(({ firstName, lastDot, events }) => ({ firstName, lastDot, count: events.size }))
+        // Name tiebreak keeps the order stable across reloads when counts match.
+        .sort((a, b) => b.count - a.count || a.firstName.localeCompare(b.firstName))
         .slice(0, 10); // Top 10
 
       setLeaders(sorted);

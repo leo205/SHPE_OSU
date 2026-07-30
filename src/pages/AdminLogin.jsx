@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
 
@@ -19,6 +19,10 @@ export default function AdminLogin() {
   const lockoutTimer = useRef(null);
 
   const navigate = useNavigate();
+
+  // Stop the countdown if the user navigates away mid-lockout — otherwise the
+  // interval keeps firing setState on an unmounted component.
+  useEffect(() => () => clearInterval(lockoutTimer.current), []);
 
   // ── Lockout countdown ticker ─────────────────────────────────────────────
   const startLockout = (until) => {

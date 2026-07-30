@@ -1,41 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-
-// ── Session constants (C3, L2) ───────────────────────────────────────────────
-// NOTE: The JS guard here is UX-only. Real security lives in Supabase RLS:
-// the `resumes` table must have policies that restrict SELECT to authenticated
-// sessions or service-role tokens — not just an anon key check.
-// See HANDOFF.md Security section for details.
-const SESSION_KEY = 'shpe_company_session';
-const SESSION_TTL_MS = 8 * 60 * 60 * 1000; // 8 hours
-
-export function saveCompanySession(companyName) {
-  sessionStorage.setItem(
-    SESSION_KEY,
-    JSON.stringify({ company: companyName, expiresAt: Date.now() + SESSION_TTL_MS })
-  );
-}
-
-export function getCompanySession() {
-  try {
-    const raw = sessionStorage.getItem(SESSION_KEY);
-    if (!raw) return null;
-    const session = JSON.parse(raw);
-    if (!session?.expiresAt || Date.now() > session.expiresAt) {
-      sessionStorage.removeItem(SESSION_KEY);
-      return null;
-    }
-    return session;
-  } catch {
-    sessionStorage.removeItem(SESSION_KEY);
-    return null;
-  }
-}
-
-export function clearCompanySession() {
-  sessionStorage.removeItem(SESSION_KEY);
-}
+import { saveCompanySession } from '../lib/companySession';
 
 export default function CompanyLogin() {
   const [accessCode, setAccessCode] = useState('');

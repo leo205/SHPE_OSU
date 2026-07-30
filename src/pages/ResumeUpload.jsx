@@ -1,10 +1,23 @@
 import { useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { formatMajor } from '../lib/majors';
 
 // ── Constants ───────────────────────────────────────────────────────────────
-const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
-const MIN_FILE_SIZE_BYTES = 2 * 1024 * 1024; // 2 MB — enforces a real resume, not a blank/corrupt file
+// Ceiling keeps the free-tier storage bucket sustainable. Measured against the
+// resumes already on file (n=9): median 168 KB, max 305 KB — so 250 KB accepts
+// the clear majority while still rejecting image-heavy exports. 200 KB was
+// considered and rejects exactly the same files, so 250 KB is the safer pick.
+const MAX_FILE_SIZE_BYTES = 250 * 1024; // 250 KB
+// Floor only rules out truncated/empty files.
+const MIN_FILE_SIZE_BYTES = 10 * 1024; // 10 KB
 const PDF_MAGIC = [0x25, 0x50, 0x44, 0x46]; // %PDF
+
+/** Human-readable file size — resumes are KB-scale, so MB reads as "0.13 MB". */
+function formatFileSize(bytes) {
+  return bytes >= 1024 * 1024
+    ? `${(bytes / 1024 / 1024).toFixed(1)} MB`
+    : `${Math.round(bytes / 1024)} KB`;
+}
 
 // OSU email domains accepted (members + alumni graduate addresses)
 const VALID_EMAIL_DOMAINS = ['@osu.edu', '@alumni.osu.edu', '@buckeyemail.osu.edu'];
@@ -65,50 +78,59 @@ export default function ResumeUpload() {
     setStatus('uploading');
     setErrorMsg('');
 
+    // Build a safe, user-independent filename — never trust file.name (C4)
+    const filePath = `submissions/${Date.now()}_${crypto.randomUUID()}.pdf`;
+
+    const record = {
+      full_name: formData.full_name.trim(),
+      email: formData.email.trim().toLowerCase(),
+      major: formatMajor(formData.major, customMajor),
+      graduation_year: formData.graduation_year,
+      resume_path: filePath,
+      uploaded_at: new Date().toISOString(),
+      approved: false, // replacements go back to pending for re-review
+    };
+
     try {
-      // If replacing, delete the old storage file first
-      if (replaceRecord) {
-        const { error: removeErr } = await supabase.storage
-          .from('resumes')
-          .remove([replaceRecord.resume_path]);
-        if (removeErr) throw removeErr;
-
-        // Delete the old DB record
-        const { error: deleteErr } = await supabase
-          .from('resumes')
-          .delete()
-          .eq('id', replaceRecord.id);
-        if (deleteErr) throw deleteErr;
-      }
-
-      // Build a safe, user-independent filename — never trust file.name (C4)
-      const safeFileName = `${Date.now()}_${crypto.randomUUID()}.pdf`;
-      const filePath = `submissions/${safeFileName}`;
-
+      // ── Order matters ──────────────────────────────────────────────────
+      // 1. Upload the new file FIRST. Nothing the student already has is
+      //    touched until this succeeds, so a failed upload can never leave
+      //    them with no resume on file. (The previous order deleted the old
+      //    file and row up front, so any later failure lost their data.)
       const { error: uploadError } = await supabase.storage
         .from('resumes')
         .upload(filePath, file, { contentType: 'application/pdf' });
 
       if (uploadError) throw uploadError;
 
-      // Resolve major name
-      const resolvedMajor = formData.major === 'Other'
-        ? `Other - ${customMajor.trim()}`
-        : formData.major;
+      // 2. Point the database at the new file. Replacing updates the existing
+      //    row in place rather than delete-then-insert, so there is never a
+      //    window where the student has no record at all.
+      const { error: dbError } = replaceRecord
+        ? await supabase.from('resumes').update(record).eq('id', replaceRecord.id)
+        : await supabase.from('resumes').insert([record]);
 
-      // Insert new metadata row — always starts as pending (requires re-approval)
-      const { error: dbError } = await supabase.from('resumes').insert([
-        {
-          full_name: formData.full_name.trim(),
-          email: formData.email.trim().toLowerCase(),
-          major: resolvedMajor,
-          graduation_year: formData.graduation_year,
-          resume_path: filePath,
-          approved: false,
-        },
-      ]);
+      if (dbError) {
+        // Roll back the now-orphaned upload so storage doesn't accumulate junk.
+        await supabase.storage.from('resumes').remove([filePath]);
+        throw dbError;
+      }
 
-      if (dbError) throw dbError;
+      // 3. Only now is the old file unreachable, so it's safe to delete. A
+      //    failure here leaves an orphaned blob — a janitorial problem, not a
+      //    data-loss one — so it must not fail an otherwise good submission.
+      if (replaceRecord?.resume_path) {
+        const { error: cleanupErr } = await supabase.storage
+          .from('resumes')
+          .remove([replaceRecord.resume_path]);
+        if (cleanupErr) {
+          console.warn(
+            '[ResumeUpload] Could not remove replaced file (orphaned):',
+            replaceRecord.resume_path,
+            cleanupErr
+          );
+        }
+      }
 
       setStatus('success');
     } catch (err) {
@@ -124,8 +146,17 @@ export default function ResumeUpload() {
     e.preventDefault();
 
     if (!file) { setErrorMsg('Please select a PDF file.'); return; }
-    if (file.size < MIN_FILE_SIZE_BYTES) { setErrorMsg('File must be at least 2 MB. Please make sure you are uploading a complete resume PDF.'); return; }
-    if (file.size > MAX_FILE_SIZE_BYTES) { setErrorMsg('File must be under 5 MB. Please compress your PDF and try again.'); return; }
+    if (file.size < MIN_FILE_SIZE_BYTES) { setErrorMsg('That file looks empty or incomplete. Please upload your full resume PDF.'); return; }
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      // Say the actual size and a concrete next step — a student with a
+      // 300 KB Canva export otherwise has no idea what to do about it.
+      setErrorMsg(
+        `Your file is ${formatFileSize(file.size)}, and resumes must be under ${formatFileSize(MAX_FILE_SIZE_BYTES)}. ` +
+        'Large files are usually caused by embedded images or a photo — try re-exporting as a text-based PDF, ' +
+        'or run it through a free PDF compressor. Still stuck? Send it to an E-Board member and we\'ll upload it for you.'
+      );
+      return;
+    }
     if (!isOSUEmail(formData.email)) { setErrorMsg('Please use your OSU email address (e.g. name.1@osu.edu).'); return; }
     if (formData.major === 'Other' && !customMajor.trim()) { setErrorMsg('Please describe your major.'); return; }
     if (formData.major === 'Other' && customMajor.trim().length > 150) { setErrorMsg('Major description is too long.'); return; }
@@ -347,7 +378,7 @@ export default function ResumeUpload() {
 
           <div>
             <label htmlFor="resume-file" className="block text-sm font-bold text-on-surface mb-2">
-              Upload Resume (PDF only, 2–5 MB)
+              Upload Resume (PDF only, up to 250 KB)
             </label>
             <div className="border-2 border-dashed border-outline-variant rounded-xl p-8 text-center bg-surface-bright hover:bg-surface-container transition-colors cursor-pointer relative">
               <input
@@ -367,8 +398,9 @@ export default function ResumeUpload() {
               {file ? (
                 <div>
                   <p className="font-bold text-primary">{file.name}</p>
-                  <p className="text-xs text-on-surface-variant mt-1">
-                    {(file.size / 1024 / 1024).toFixed(2)} MB
+                  <p className={`text-xs mt-1 ${file.size > MAX_FILE_SIZE_BYTES ? 'text-error font-bold' : 'text-on-surface-variant'}`}>
+                    {formatFileSize(file.size)}
+                    {file.size > MAX_FILE_SIZE_BYTES && ` — over the ${formatFileSize(MAX_FILE_SIZE_BYTES)} limit`}
                   </p>
                 </div>
               ) : (
