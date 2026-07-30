@@ -76,6 +76,21 @@ function isOSUEmail(email) {
   return VALID_EMAIL_DOMAINS.some((domain) => lower.endsWith(domain));
 }
 
+/**
+ * Maps errors from submit_resume() to something a student can act on.
+ * The function raises these deliberately; anything else is unexpected and gets
+ * the generic message so internals never leak into the UI.
+ */
+function friendlyError(err) {
+  const msg = String(err?.message ?? '');
+  if (msg.includes('invalid_email')) return 'Please use your OSU email address (e.g. name.1@osu.edu).';
+  if (msg.includes('invalid_name')) return 'Please enter your full name.';
+  if (msg.includes('invalid_major')) return 'Please select or describe your major.';
+  if (msg.includes('invalid_year')) return 'Please select your graduation year.';
+  if (msg.includes('too_soon')) return 'We just received a submission for this email. Please wait a moment before uploading again.';
+  return 'Something went wrong. Please try again or contact an E-Board member.';
+}
+
 // ── Component ────────────────────────────────────────────────────────────────
 export default function ResumeUpload() {
   const [formData, setFormData] = useState({
@@ -86,76 +101,60 @@ export default function ResumeUpload() {
   });
   const [customMajor, setCustomMajor] = useState('');
   const [file, setFile] = useState(null);
-  const [status, setStatus] = useState('idle'); // idle | checking | confirming | uploading | success | error
+  const [status, setStatus] = useState('idle'); // idle | uploading | success | error
   const [errorMsg, setErrorMsg] = useState('');
 
-  // Holds the existing DB record when a duplicate email is detected
-  const [existingRecord, setExistingRecord] = useState(null);
+  // Set after a successful submit when the server replaced an existing entry.
+  const [replacedExisting, setReplacedExisting] = useState(false);
 
-  // ── Core upload logic (shared by first-time and replace flows) ─────────────
-  const doUpload = async (replaceRecord = null) => {
+  // ── Core upload logic ──────────────────────────────────────────────────────
+  const doUpload = async () => {
     setStatus('uploading');
     setErrorMsg('');
 
-    // Build a safe, user-independent filename — never trust file.name (C4)
+    // Build a safe, user-independent filename — never trust file.name (C4).
+    // The pattern is also enforced server-side by submit_resume().
     const filePath = `submissions/${Date.now()}_${crypto.randomUUID()}.pdf`;
 
-    const record = {
-      full_name: formData.full_name.trim(),
-      email: formData.email.trim().toLowerCase(),
-      major: formatMajor(formData.major, customMajor),
-      graduation_year: formData.graduation_year,
-      resume_path: filePath,
-      uploaded_at: new Date().toISOString(),
-      approved: false, // replacements go back to pending for re-review
-    };
-
     try {
-      // ── Order matters ──────────────────────────────────────────────────
-      // 1. Upload the new file FIRST. Nothing the student already has is
-      //    touched until this succeeds, so a failed upload can never leave
-      //    them with no resume on file. (The previous order deleted the old
-      //    file and row up front, so any later failure lost their data.)
+      // 1. Upload the file FIRST. Nothing the student already has is touched
+      //    until this succeeds, so a failed upload can never cost them the
+      //    resume they already had on file.
       const { error: uploadError } = await supabase.storage
         .from('resumes')
         .upload(filePath, file, { contentType: 'application/pdf' });
 
       if (uploadError) throw uploadError;
 
-      // 2. Point the database at the new file. Replacing updates the existing
-      //    row in place rather than delete-then-insert, so there is never a
-      //    window where the student has no record at all.
-      const { error: dbError } = replaceRecord
-        ? await supabase.from('resumes').update(record).eq('id', replaceRecord.id)
-        : await supabase.from('resumes').insert([record]);
+      // 2. Hand off to the database, which does the lookup-and-upsert itself.
+      //
+      //    This used to be a client-side "SELECT by email, then UPDATE or
+      //    INSERT". Both halves were broken: the SELECT only saw approved rows
+      //    (so pending resumes produced duplicates), and anon has no UPDATE
+      //    policy, so replacements silently affected zero rows while still
+      //    reporting success. The function runs with the privileges the
+      //    operation actually needs and validates its own input.
+      const { data, error: rpcError } = await supabase.rpc('submit_resume', {
+        p_full_name: formData.full_name.trim(),
+        p_email: formData.email.trim().toLowerCase(),
+        p_major: formatMajor(formData.major, customMajor),
+        p_graduation_year: formData.graduation_year,
+        p_resume_path: filePath,
+      });
 
-      if (dbError) {
+      if (rpcError) {
         // Roll back the now-orphaned upload so storage doesn't accumulate junk.
         await supabase.storage.from('resumes').remove([filePath]);
-        throw dbError;
+        throw rpcError;
       }
 
-      // 3. Only now is the old file unreachable, so it's safe to delete. A
-      //    failure here leaves an orphaned blob — a janitorial problem, not a
-      //    data-loss one — so it must not fail an otherwise good submission.
-      if (replaceRecord?.resume_path) {
-        const { error: cleanupErr } = await supabase.storage
-          .from('resumes')
-          .remove([replaceRecord.resume_path]);
-        if (cleanupErr) {
-          console.warn(
-            '[ResumeUpload] Could not remove replaced file (orphaned):',
-            replaceRecord.resume_path,
-            cleanupErr
-          );
-        }
-      }
-
+      // The previous file is intentionally left in storage so a bad replacement
+      // stays recoverable by an admin; see supabase/resume-submit.sql.
+      setReplacedExisting(data?.[0]?.action === 'replaced');
       setStatus('success');
     } catch (err) {
-      // M4: Log raw error for devs — never surface internal messages to users
       console.error('[ResumeUpload] Upload error:', err);
-      setErrorMsg('Something went wrong. Please try again or contact an E-Board member.');
+      setErrorMsg(friendlyError(err));
       setStatus('error');
     }
   };
@@ -183,42 +182,10 @@ export default function ResumeUpload() {
     const pdfValid = await isValidPDF(file);
     if (!pdfValid) { setErrorMsg('The selected file does not appear to be a valid PDF. Only PDF files are accepted.'); return; }
 
-    setStatus('checking');
-    setErrorMsg('');
-
-    // Check if this email already has a resume on file
-    const { data: existing, error: lookupErr } = await supabase
-      .from('resumes')
-      .select('id, full_name, resume_path, approved, uploaded_at')
-      .eq('email', formData.email.trim().toLowerCase())
-      .maybeSingle();
-
-    if (lookupErr) {
-      console.error('[ResumeUpload] Lookup error:', lookupErr);
-      setErrorMsg('Something went wrong while checking your email. Please try again.');
-      setStatus('error');
-      return;
-    }
-
-    if (existing) {
-      // Duplicate found — pause and show confirmation prompt
-      setExistingRecord(existing);
-      setStatus('confirming');
-    } else {
-      // No duplicate — proceed directly
-      await doUpload(null);
-    }
-  };
-
-  // ── Confirmation handlers ──────────────────────────────────────────────────
-  const handleConfirmReplace = async () => {
-    await doUpload(existingRecord);
-    setExistingRecord(null);
-  };
-
-  const handleCancelReplace = () => {
-    setExistingRecord(null);
-    setStatus('idle');
+    // No client-side duplicate lookup any more. It could only see approved
+    // rows, so a pending resume produced a duplicate instead of a replacement.
+    // submit_resume() does the lookup server-side where it can see everything.
+    await doUpload();
   };
 
   // ── Success screen ─────────────────────────────────────────────────────────
@@ -231,11 +198,14 @@ export default function ResumeUpload() {
           </div>
           <h2 className="font-headline text-3xl font-bold mb-4 text-on-surface">Upload Successful</h2>
           <p className="text-on-surface-variant mb-8">
-            Your resume has been submitted to the E-Board for review. Once approved, it will be visible in the Corporate Resume Book.
+            {replacedExisting
+              ? 'We replaced the resume previously submitted under this email. It goes back to the E-Board for review, then appears in the Corporate Resume Book.'
+              : 'Your resume has been submitted to the E-Board for review. Once approved, it will be visible in the Corporate Resume Book.'}
           </p>
           <button
             onClick={() => {
               setStatus('idle');
+              setReplacedExisting(false);
               setFile(null);
               setCustomMajor('');
               setFormData({ full_name: '', email: '', major: '', graduation_year: '' });
@@ -248,9 +218,6 @@ export default function ResumeUpload() {
       </div>
     );
   }
-
-  // ── Replace confirmation modal ─────────────────────────────────────────────
-  const showReplacePrompt = status === 'confirming' && existingRecord;
 
   return (
     <div className="min-h-screen bg-surface py-24 px-4">
@@ -269,42 +236,6 @@ export default function ResumeUpload() {
         {status === 'error' && (
           <div className="mb-6 p-4 bg-error-container text-on-error-container rounded-xl font-medium text-sm">
             {errorMsg}
-          </div>
-        )}
-
-        {/* Replace confirmation prompt */}
-        {showReplacePrompt && (
-          <div className="mb-6 p-6 bg-tertiary-container text-on-tertiary-container rounded-2xl border border-on-tertiary-container/20 shadow-md">
-            <div className="flex items-start gap-4">
-              <span className="material-symbols-outlined text-3xl flex-shrink-0 mt-0.5">swap_horiz</span>
-              <div className="flex-1">
-                <h3 className="font-headline font-extrabold text-lg mb-1">Resume Already on File</h3>
-                <p className="text-sm opacity-90 leading-relaxed mb-1">
-                  We found an existing resume submitted by <strong>{existingRecord.full_name}</strong> under this email address.
-                </p>
-                <p className="text-xs opacity-70 mb-4">
-                  Submitted: {new Date(existingRecord.uploaded_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-                  {existingRecord.approved ? ' · Currently approved' : ' · Pending approval'}
-                </p>
-                <p className="text-sm font-bold mb-4">
-                  Do you want to replace it with your new upload? Your resume will go back to pending for admin review.
-                </p>
-                <div className="flex gap-3 flex-wrap">
-                  <button
-                    onClick={handleConfirmReplace}
-                    className="bg-on-tertiary-container text-tertiary-container px-6 py-2.5 rounded-full font-bold text-sm hover:opacity-90 transition-all shadow"
-                  >
-                    Yes, Replace My Resume
-                  </button>
-                  <button
-                    onClick={handleCancelReplace}
-                    className="bg-on-tertiary-container/20 text-on-tertiary-container px-6 py-2.5 rounded-full font-bold text-sm hover:bg-on-tertiary-container/30 transition-all"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            </div>
           </div>
         )}
 
@@ -427,12 +358,12 @@ export default function ResumeUpload() {
 
           <button
             type="submit"
-            disabled={status === 'uploading' || status === 'checking' || status === 'confirming'}
+            disabled={status === 'uploading'}
             className="w-full bg-primary text-on-primary py-4 rounded-xl font-bold text-lg hover:bg-primary-fixed-dim transition-all shadow-md flex items-center justify-center gap-2 disabled:opacity-70"
           >
-            {status === 'uploading' || status === 'checking' ? (
+            {status === 'uploading' ? (
               <><span className="material-symbols-outlined animate-spin">progress_activity</span>
-              {status === 'checking' ? 'Checking...' : 'Uploading...'}</>
+              Uploading...</>
             ) : (
               'Submit Resume'
             )}
