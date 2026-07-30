@@ -49,8 +49,8 @@ there isn't one, that is a finding regardless of how convincing the UI looks.
 
 Prove things; do not infer them from reading code. The highest-value move
 available to you is running a real probe with the project's own anon key from
-`.env`, exactly as an anonymous visitor would. `supabase/policies.sql` documents
-the current known state and the intended fix.
+`.env`, exactly as an anonymous visitor would. `supabase/README.md` documents the
+current security model, which files are applied, and how to check live state.
 
 **Probes must be read-only and must never touch real rows.**
 
@@ -64,7 +64,7 @@ the current known state and the intended fix.
   success for a statement that matches zero rows whether or not a policy permits
   it, so a "successful" delete against a fake UUID proves nothing. Do not claim
   otherwise. Say it is undetermined and tell the user to run the `pg_policies`
-  query in section 0 of `supabase/policies.sql`.
+  `pg_policies` query in `supabase/README.md`.
 - Never run a probe that could modify or delete a real row to "confirm" a
   finding. Report the risk instead and let a human decide.
 

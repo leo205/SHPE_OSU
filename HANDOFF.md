@@ -97,7 +97,7 @@ JS bundle — while logged out returned:
 | `select * from resumes` | **All rows**, including `full_name`, `email`, `major`, `graduation_year`, `resume_path` |
 | `storage.createSignedUrl(<resume_path>)` | **Granted** — the URL returned HTTP 200, `application/pdf`, a real resume |
 | `select * from company_access` | **All rows, including `access_code`** |
-| `insert into resumes` with `approved = true` | **Permitted** — the INSERT policy's `WITH CHECK` is `true`, so anyone can publish straight into the recruiter-visible book, skipping E-Board review entirely. Paired with the public upload policy on the storage bucket, an outsider can put their own PDF in front of sponsors. §3 of `policies.sql` fixes this with `WITH CHECK (approved = false)`. |
+| `insert into resumes` with `approved = true` | **Permitted** — the INSERT policy's `WITH CHECK` is `true`, so anyone can publish straight into the recruiter-visible book, skipping E-Board review entirely. Paired with the public upload policy on the storage bucket, an outsider can put their own PDF in front of sponsors. Fixed by `supabase/sponsor-auth.sql` and `supabase/resume-submit.sql`, which route every submission through a validated `submit_resume()` function. |
 | `insert into company_access` / `events` | Blocked ✅ |
 | Storage bucket public URL | Blocked ✅ (but irrelevant — signed URLs worked) |
 | `attendance` public SELECT | None ✅ — table is closed, see §5 note below |
@@ -112,11 +112,10 @@ see client-side JavaScript.** A policy of `USING (true)` is public, full stop.
 No amount of `sessionStorage` checking in `CompanyDashboard.jsx` changes it —
 anyone can call PostgREST directly with the anon key and skip the UI entirely.
 
-**Fix:** `supabase/policies.sql` contains the repair — locked-down tables plus
-`SECURITY DEFINER` functions that validate the code *in SQL*. It has **not been
-applied**; read its header before running, because section 3 breaks
-`/company/dashboard` until the client is moved onto the RPCs, and section 6
-(storage) needs an Edge Function that SQL alone cannot provide.
+**Fix:** access codes are gone. Sponsors are now real Supabase Auth users, so
+Postgres enforces access rather than JavaScript. See `supabase/README.md` for the
+model and run order — `sponsor-auth.sql` then `resume-submit.sql`, alongside the
+matching client deploy. Neither has been applied yet.
 
 **Resolved — there are no anonymous writes beyond INSERT.** This was previously
 listed as unknown, because a PostgREST delete matching zero rows returns success
@@ -125,7 +124,7 @@ whether or not a policy permits it, so it cannot be probed from outside. A
 No `anon` `UPDATE`, `DELETE`, or `ALL` exists on any table. Nobody can wipe the
 attendance history or rewrite recruiter codes.
 
-Re-run that query (§0 of `policies.sql`) after any policy change, and treat any
+Re-run the `pg_policies` query in `supabase/README.md` after any policy change, and treat any
 new `anon`/`public` row with `cmd` of `UPDATE`/`DELETE`/`ALL` as a hole.
 
 **Correction — `attendance` is NOT publicly readable.** An earlier revision of
@@ -161,7 +160,8 @@ change and nothing to review. Treat edits to that view as security changes.
     recruiter can edit `sessionStorage` in devtools, or skip the UI entirely and
     query PostgREST with the anon key. The TTL below is a courtesy logout on a
     shared machine, nothing more. Real enforcement lives in
-    `supabase/policies.sql`. (Helpers now live in `src/lib/companySession.js`.)
+    the database policies. This whole section is now historical: access codes
+    were replaced by Supabase Auth logins, and `companySession.js` was deleted.
 
     Recruiter login tokens are saved in `sessionStorage` with an **8-hour Time-to-Live (TTL)** expiration window. The application uses a window visibility listener (`visibilitychange`) so if a recruiter focuses back on the browser tab after the TTL expires, they are immediately logged out:
     ```javascript
@@ -276,7 +276,7 @@ public calendar but **cannot be checked into**. Unify these before the next
 semester — one source of truth, read by both.
 
 ### 2.5 `leaderboard` (view)
-Read by `Events.jsx`. Section 5 of `supabase/policies.sql` redefines it to expose
+Read by `Events.jsx`. `supabase/leaderboard-view.sql` (applied) redefines it to expose
 only `first_name`, `dotnum`, and a **distinct-event** count, so the public
 leaderboard no longer requires public read on the whole `attendance` table.
 
