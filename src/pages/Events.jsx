@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { events, categoryColors } from '../data/events';
 import ImagePlaceholder from '../components/ImagePlaceholder';
 import { supabase } from '../lib/supabase';
+import { buildGoogleCalendarUrl, downloadICS } from '../lib/calendar';
 
 /* ── Calendar helpers ──────────────────────────────────────── */
 function getDaysInMonth(year, month) {
@@ -12,49 +13,6 @@ function getFirstDayOfMonth(year, month) {
 }
 function formatDateKey(year, month, day) {
   return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-}
-
-/* ── Google Calendar URL builder ──────────────────────────── */
-function buildGoogleCalendarUrl(event) {
-  const start = event.date.replace(/-/g, '');
-  const base = 'https://calendar.google.com/calendar/render?action=TEMPLATE';
-  const params = new URLSearchParams({
-    text: event.title,
-    dates: `${start}T${event.time.replace(/[: ]/g, '')}00/${start}T${(
-      event.endTime || event.time
-    ).replace(/[: ]/g, '')}00`,
-    details: event.description,
-    location: event.location,
-  });
-  return `${base}&${params.toString()}`;
-}
-
-/* ── .ics (Apple / Outlook) builder ──────────────────────── */
-function downloadICS(event) {
-  const dateStr = event.date.replace(/-/g, '');
-  const content = [
-    'BEGIN:VCALENDAR',
-    'VERSION:2.0',
-    'PRODID:-//SHPE OSU//EN',
-    'BEGIN:VEVENT',
-    `SUMMARY:${event.title}`,
-    `DTSTART:${dateStr}T060000Z`,
-    `DTEND:${dateStr}T080000Z`,
-    `DESCRIPTION:${event.description}`,
-    `LOCATION:${event.location}`,
-    'END:VEVENT',
-    'END:VCALENDAR',
-  ].join('\r\n');
-
-  const blob = new Blob([content], { type: 'text/calendar' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${event.title.replace(/\s+/g, '_')}.ics`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
 }
 
 /* ── Event Detail Modal ────────────────────────────────────── */
@@ -223,7 +181,6 @@ export default function Events() {
     fetchDbEvents();
   }, []);
 
-  const topMember = members && members.length > 0 ? members[0] : { firstName: "TBD", lastName: "", count: 0 };
 
   const monthName = new Date(year, month).toLocaleString('en-US', {
     month: 'long',

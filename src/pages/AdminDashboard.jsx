@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import {
@@ -20,8 +20,6 @@ import {
   Check,
   X,
   ExternalLink,
-  ChevronDown,
-  Info,
   ShieldCheck,
   Edit2
 } from 'lucide-react';
@@ -183,6 +181,7 @@ export default function AdminDashboard() {
       setEditingId(null);
     } else {
       console.error('[AdminDashboard] Update error:', error);
+      alert(`Could not save that major: ${error.message}`);
     }
     setSavingId(null);
   };
@@ -202,6 +201,7 @@ export default function AdminDashboard() {
       setEditingId(null);
     } else {
       console.error('[AdminDashboard] Resume update error:', error);
+      alert(`Could not save that major: ${error.message}`);
     }
     setSavingId(null);
   };
@@ -209,57 +209,114 @@ export default function AdminDashboard() {
   // ── Resumes Toggle Approval ───────────────────────────────────────────
   const handleToggleResumeApproval = async (id, currentStatus) => {
     const { error } = await supabase.from('resumes').update({ approved: !currentStatus }).eq('id', id);
-    if (!error) {
-      setResumes((prev) =>
-        prev.map((r) => (r.id === id ? { ...r, approved: !currentStatus } : r))
-      );
+    if (error) {
+      // Silent failure here is dangerous in both directions: an admin thinks
+      // they published a resume that stayed hidden, or revoked one still live.
+      console.error('[AdminDashboard] Approval toggle failed:', error);
+      alert(`Could not ${currentStatus ? 'revoke' : 'approve'} this resume: ${error.message}`);
+      return;
     }
+    setResumes((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, approved: !currentStatus } : r))
+    );
   };
 
   // ── Resumes Delete ────────────────────────────────────────────────────
   const handleDeleteResume = async (id, path) => {
     if (!window.confirm('Delete this resume? This cannot be undone.')) return;
-    await supabase.storage.from('resumes').remove([path]);
-    await supabase.from('resumes').delete().eq('id', id);
+
+    // Delete the row first: an orphaned storage blob is harmless, but a row
+    // pointing at a deleted file shows recruiters a resume that 404s.
+    const { error: dbError } = await supabase.from('resumes').delete().eq('id', id);
+    if (dbError) {
+      console.error('[AdminDashboard] Resume delete failed:', dbError);
+      alert(`Could not delete this resume: ${dbError.message}`);
+      return;
+    }
+
+    const { error: storageError } = await supabase.storage.from('resumes').remove([path]);
+    if (storageError) {
+      console.warn('[AdminDashboard] Orphaned resume file left in storage:', path, storageError);
+    }
+
     setResumes((prev) => prev.filter((r) => r.id !== id));
   };
 
   const handleViewResume = async (path) => {
-    const { data } = await supabase.storage.from('resumes').createSignedUrl(path, 60);
-    if (data) window.open(data.signedUrl, '_blank');
+    // Opened synchronously so the click's user-gesture context survives the
+    // await — otherwise popup blockers swallow the new tab. See CompanyDashboard.
+    const tab = window.open('', '_blank', 'noopener,noreferrer');
+    const { data, error } = await supabase.storage.from('resumes').createSignedUrl(path, 60);
+
+    if (error || !data?.signedUrl) {
+      console.error('[AdminDashboard] Signed URL error:', error);
+      tab?.close();
+      alert('Could not open this resume. The file may have been removed.');
+      return;
+    }
+
+    if (tab) tab.location = data.signedUrl;
+    else window.location.assign(data.signedUrl);
   };
 
   // ── Recruiter Access Codes ────────────────────────────────────────────
+  /**
+   * Generates an 8-character access code with a full 40 bits of entropy.
+   *
+   * The previous implementation did `byte.toString(36).padStart(2, '0')` per
+   * byte, which always yields two characters, so slicing to 8 silently threw
+   * away the 5th byte. Worse, base36 of 0–255 tops out at "73", so the first
+   * character of every pair could only ever be 0–7 — a heavily skewed alphabet.
+   * Indexing into an explicit alphabet keeps the distribution uniform.
+   *
+   * Ambiguous glyphs (0/O, 1/I) are excluded so codes read cleanly aloud and
+   * over email.
+   */
+  const generateAccessCode = () => {
+    const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // 32 chars = 5 bits each
+    const bytes = crypto.getRandomValues(new Uint8Array(8));
+    return Array.from(bytes, (b) => ALPHABET[b % ALPHABET.length]).join('');
+  };
+
   const handleGenerateCode = async (e) => {
     e.preventDefault();
-    if (!newCompany) return;
-    const bytes = crypto.getRandomValues(new Uint8Array(5));
-    const randomCode = Array.from(bytes)
-      .map(b => b.toString(36).padStart(2, '0'))
-      .join('')
-      .toUpperCase()
-      .slice(0, 8);
+    if (!newCompany.trim()) return;
+
     const { error, data } = await supabase.from('company_access').insert([{
       company_name: newCompany.trim(),
-      access_code: randomCode
+      access_code: generateAccessCode()
     }]).select();
-    if (!error) {
-      setNewCompany('');
-      if (data) {
-        setCodes(prev => [data[0], ...prev]);
-      } else {
-        const cData = await supabase.from('company_access').select('*').order('created_at', { ascending: false });
-        if (cData.data) setCodes(cData.data);
-      }
+
+    if (error) {
+      console.error('[AdminDashboard] Code generation failed:', error);
+      // access_code carries a UNIQUE constraint; a collision is astronomically
+      // unlikely but would otherwise fail with no feedback at all.
+      alert(
+        error.code === '23505'
+          ? 'That code collided with an existing one. Please click Generate again.'
+          : `Could not generate a code: ${error.message}`
+      );
+      return;
+    }
+
+    setNewCompany('');
+    if (data?.length) {
+      setCodes(prev => [data[0], ...prev]);
+    } else {
+      const cData = await supabase.from('company_access').select('*').order('created_at', { ascending: false });
+      if (cData.data) setCodes(cData.data);
     }
   };
 
   const handleDeleteCode = async (id) => {
     if (!window.confirm('Revoke access code?')) return;
     const { error } = await supabase.from('company_access').delete().eq('id', id);
-    if (!error) {
-      setCodes(prev => prev.filter(c => c.id !== id));
+    if (error) {
+      console.error('[AdminDashboard] Code revoke failed:', error);
+      alert(`Could not revoke that code: ${error.message}`);
+      return;
     }
+    setCodes(prev => prev.filter(c => c.id !== id));
   };
 
   // ── Calendar Events Management ─────────────────────────────────────────
@@ -348,6 +405,7 @@ export default function AdminDashboard() {
       setDbEvents(prev => prev.filter(ev => ev.id !== id));
     } else {
       console.error('Error deleting calendar event:', error);
+      alert(`Could not delete that event: ${error.message}`);
     }
   };
 
@@ -366,19 +424,23 @@ export default function AdminDashboard() {
   // ── Derived Analytics ────────────────────────────────────────────────
   const totalSubmissions = attendance.length;
   const uniqueEvents = [...new Set(attendance.map((r) => r.event_name))];
-  const firstTimers = attendance.filter((r) => r.is_first_meeting).length;
   const uniqueMembers = [...new Set(attendance.map((r) => r.last_name_dotnum.toLowerCase()))].length;
 
+  // "Most Active" is labelled in events, so count DISTINCT events rather than
+  // raw rows — otherwise a duplicate check-in at one GBM inflates the ranking.
+  // (totalSubmissions above is deliberately still raw rows: it reports check-ins.)
   const memberAttendance = {};
   attendance.forEach(r => {
     const dotnum = r.last_name_dotnum?.toLowerCase();
     if (!dotnum) return;
     if (!memberAttendance[dotnum]) {
-      memberAttendance[dotnum] = { count: 0, firstName: r.first_name, lastName: r.last_name_dotnum, dotnum };
+      memberAttendance[dotnum] = { events: new Set(), firstName: r.first_name, lastName: r.last_name_dotnum, dotnum };
     }
-    memberAttendance[dotnum].count++;
+    memberAttendance[dotnum].events.add((r.event_name ?? '').trim().toLowerCase());
   });
-  const topMembers = Object.values(memberAttendance).sort((a, b) => b.count - a.count);
+  const topMembers = Object.values(memberAttendance)
+    .map(({ events, ...rest }) => ({ ...rest, count: events.size }))
+    .sort((a, b) => b.count - a.count || a.firstName.localeCompare(b.firstName));
 
   const getEventType = (name) => {
     const n = name.toLowerCase();
@@ -978,8 +1040,9 @@ CREATE POLICY "Allow admin full access events" ON events FOR ALL TO authenticate
                 <form onSubmit={handleAddEvent} className="space-y-4 font-body text-sm">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="md:col-span-2">
-                      <label className="block text-xs font-bold text-on-surface-variant uppercase mb-1.5">Event Title</label>
+                      <label htmlFor="ev-title" className="block text-xs font-bold text-on-surface-variant uppercase mb-1.5">Event Title</label>
                       <input
+                        id="ev-title"
                         type="text"
                         required
                         value={eventForm.title}
@@ -989,8 +1052,9 @@ CREATE POLICY "Allow admin full access events" ON events FOR ALL TO authenticate
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-on-surface-variant uppercase mb-1.5">Category</label>
+                      <label htmlFor="ev-category" className="block text-xs font-bold text-on-surface-variant uppercase mb-1.5">Category</label>
                       <select
+                        id="ev-category"
                         value={eventForm.category}
                         onChange={e => setEventForm(prev => ({ ...prev, category: e.target.value }))}
                         className="w-full px-4 py-2.5 rounded-lg border border-outline-variant/30 bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/50"
@@ -1007,8 +1071,9 @@ CREATE POLICY "Allow admin full access events" ON events FOR ALL TO authenticate
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
-                      <label className="block text-xs font-bold text-on-surface-variant uppercase mb-1.5">Date</label>
+                      <label htmlFor="ev-date" className="block text-xs font-bold text-on-surface-variant uppercase mb-1.5">Date</label>
                       <input
+                        id="ev-date"
                         type="date"
                         required
                         value={eventForm.date}
@@ -1017,8 +1082,9 @@ CREATE POLICY "Allow admin full access events" ON events FOR ALL TO authenticate
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-on-surface-variant uppercase mb-1.5">Start Time</label>
+                      <label htmlFor="ev-time" className="block text-xs font-bold text-on-surface-variant uppercase mb-1.5">Start Time</label>
                       <input
+                        id="ev-time"
                         type="text"
                         required
                         value={eventForm.time}
@@ -1028,8 +1094,9 @@ CREATE POLICY "Allow admin full access events" ON events FOR ALL TO authenticate
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-on-surface-variant uppercase mb-1.5">End Time (Optional)</label>
+                      <label htmlFor="ev-end-time" className="block text-xs font-bold text-on-surface-variant uppercase mb-1.5">End Time (Optional)</label>
                       <input
+                        id="ev-end-time"
                         type="text"
                         value={eventForm.endTime}
                         onChange={e => setEventForm(prev => ({ ...prev, endTime: e.target.value }))}
@@ -1041,8 +1108,9 @@ CREATE POLICY "Allow admin full access events" ON events FOR ALL TO authenticate
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-bold text-on-surface-variant uppercase mb-1.5">Location</label>
+                      <label htmlFor="ev-location" className="block text-xs font-bold text-on-surface-variant uppercase mb-1.5">Location</label>
                       <input
+                        id="ev-location"
                         type="text"
                         required
                         value={eventForm.location}
@@ -1052,8 +1120,9 @@ CREATE POLICY "Allow admin full access events" ON events FOR ALL TO authenticate
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-on-surface-variant uppercase mb-1.5">RSVP Form URL (Optional)</label>
+                      <label htmlFor="ev-rsvp" className="block text-xs font-bold text-on-surface-variant uppercase mb-1.5">RSVP Form URL (Optional)</label>
                       <input
+                        id="ev-rsvp"
                         type="url"
                         value={eventForm.rsvpUrl}
                         onChange={e => setEventForm(prev => ({ ...prev, rsvpUrl: e.target.value }))}
@@ -1065,7 +1134,7 @@ CREATE POLICY "Allow admin full access events" ON events FOR ALL TO authenticate
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                     <div className="md:col-span-2">
-                      <label className="block text-xs font-bold text-on-surface-variant uppercase mb-1.5">Event Image (Max 500 KB)</label>
+                      <label htmlFor="event-image-input" className="block text-xs font-bold text-on-surface-variant uppercase mb-1.5">Event Image (Max 500 KB)</label>
                       <input
                         type="file"
                         id="event-image-input"
@@ -1089,8 +1158,9 @@ CREATE POLICY "Allow admin full access events" ON events FOR ALL TO authenticate
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-on-surface-variant uppercase mb-1.5">Event Description</label>
+                    <label htmlFor="ev-description" className="block text-xs font-bold text-on-surface-variant uppercase mb-1.5">Event Description</label>
                     <textarea
+                      id="ev-description"
                       required
                       rows={3}
                       value={eventForm.description}

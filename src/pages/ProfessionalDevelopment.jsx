@@ -33,6 +33,12 @@ const internshipStats = [
   { value: '3x', label: 'More Offers w/ SHPE Network', icon: 'diversity_3' },
 ];
 
+// STAGED CONTENT — written but never rendered. This page has no section that
+// maps over profDevEvents, so none of the six workshops below appear on the
+// live site. Kept rather than deleted because the copy is finished and someone
+// clearly meant to ship it; wire it into a section (or delete it) when the
+// E-Board decides. Remove the eslint-disable at the same time.
+// eslint-disable-next-line no-unused-vars
 const profDevEvents = [
   {
     id: 1,

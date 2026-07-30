@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
-import ImagePlaceholder from '../components/ImagePlaceholder';
 
 /* ── Animated counter ──────────────────────────────────────── */
 function Counter({ target, suffix = '', duration = 1800 }) {
@@ -9,17 +8,23 @@ function Counter({ target, suffix = '', duration = 1800 }) {
   const started = useRef(false);
 
   useEffect(() => {
+    // Held outside the observer callback so cleanup can reach it —
+    // observer.disconnect() alone left this interval running after unmount,
+    // ticking setState on a dead component until it reached the target.
+    let timer = null;
+
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting && !started.current) {
           started.current = true;
           let start = 0;
           const step = Math.ceil(target / (duration / 16));
-          const timer = setInterval(() => {
+          timer = setInterval(() => {
             start += step;
             if (start >= target) {
               setCount(target);
               clearInterval(timer);
+              timer = null;
             } else {
               setCount(start);
             }
@@ -29,7 +34,11 @@ function Counter({ target, suffix = '', duration = 1800 }) {
       { threshold: 0.5 }
     );
     if (ref.current) observer.observe(ref.current);
-    return () => observer.disconnect();
+
+    return () => {
+      observer.disconnect();
+      if (timer) clearInterval(timer);
+    };
   }, [target, duration]);
 
   return (
