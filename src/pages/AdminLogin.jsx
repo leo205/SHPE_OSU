@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
+import { isAdmin } from '../lib/auth';
 
 // ── Brute-force constants (H2) ───────────────────────────────────────────────
 const MAX_ATTEMPTS = 5;
@@ -76,6 +77,23 @@ export default function AdminLogin() {
     } else {
       setFailCount(0);
       clearInterval(lockoutTimer.current);
+
+      // Sponsors are Supabase Auth users too, so valid credentials alone no
+      // longer imply admin. Without this check an untagged account would sign in
+      // successfully and then be bounced to the sponsor portal by ProtectedRoute
+      // with no explanation — which is also exactly what an admin sees if
+      // section 1 of supabase/sponsor-auth.sql was never run for their account.
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!isAdmin(session)) {
+        await supabase.auth.signOut();
+        setStatus('error');
+        setErrorMsg(
+          'That account is not an E-Board admin. If it should be, an existing ' +
+          'admin needs to grant it the admin role in Supabase.'
+        );
+        return;
+      }
+
       navigate('/admin');
     }
   };

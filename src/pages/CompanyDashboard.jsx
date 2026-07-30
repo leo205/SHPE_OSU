@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { getCompanySession, clearCompanySession } from '../lib/companySession';
+
 
 export default function CompanyDashboard() {
   const [resumes, setResumes] = useState([]);
@@ -12,27 +12,30 @@ export default function CompanyDashboard() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // C3/L2: Validate session from sessionStorage with TTL check
-    const session = getCompanySession();
-    if (!session) {
-      navigate('/company');
-      return;
-    }
-    setCompanyName(session.company);
-    fetchResumes();
+    // Session comes from Supabase Auth now, not a hand-rolled sessionStorage
+    // token. That token was trivially forgeable, and the TTL/visibilitychange
+    // dance it needed is handled by the auth client for free.
+    let active = true;
 
-    // L2: Auto-logout when tab regains focus and TTL has expired
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        const current = getCompanySession();
-        if (!current) {
-          clearCompanySession();
-          navigate('/company');
-        }
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!active) return;
+      if (!session) {
+        navigate('/company');
+        return;
       }
+      setCompanyName(session.user.email);
+      fetchResumes();
+    });
+
+    // Covers sign-out in another tab and expired-refresh-token evictions.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session) navigate('/company');
+    });
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
     };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [navigate]);
 
   const fetchResumes = async () => {
@@ -49,8 +52,8 @@ export default function CompanyDashboard() {
     setLoading(false);
   };
 
-  const handleSignOut = () => {
-    clearCompanySession();
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
     navigate('/company');
   };
 

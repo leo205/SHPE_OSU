@@ -1,8 +1,21 @@
 import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { isAdmin, isSignedIn } from '../lib/auth';
 
-export default function ProtectedRoute({ children }) {
+/**
+ * Route guard for the admin and sponsor portals.
+ *
+ * `requireAdmin` matters now that sponsors are real Supabase Auth users too.
+ * Before, this only checked that *a* session existed — which was fine when the
+ * only accounts were E-Board admins, but would have let any recruiter walk into
+ * /admin the moment sponsor logins existed.
+ *
+ * The database is the real boundary (see supabase/sponsor-auth.sql); a sponsor
+ * who reached the admin UI would find empty tables. This guard exists so they
+ * get an honest redirect instead of a broken-looking dashboard.
+ */
+export default function ProtectedRoute({ children, requireAdmin = false }) {
   const [session, setSession] = useState(undefined); // undefined = still checking
 
   useEffect(() => {
@@ -28,9 +41,14 @@ export default function ProtectedRoute({ children }) {
     );
   }
 
-  // Not logged in → redirect to login
-  if (!session) {
-    return <Navigate to="/admin/login" replace />;
+  if (!isSignedIn(session)) {
+    return <Navigate to={requireAdmin ? '/admin/login' : '/company'} replace />;
+  }
+
+  // Signed in, but as the wrong kind of user. Send sponsors to their own
+  // portal rather than bouncing them to a login they cannot satisfy.
+  if (requireAdmin && !isAdmin(session)) {
+    return <Navigate to="/company/dashboard" replace />;
   }
 
   return children;

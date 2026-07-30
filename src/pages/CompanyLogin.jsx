@@ -1,10 +1,22 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { saveCompanySession } from '../lib/companySession';
 
+/**
+ * Corporate portal sign-in.
+ *
+ * This replaced an 8-character access code checked against a `company_access`
+ * table that was itself publicly readable — meaning anyone could list every
+ * code, and the gate protected nothing. The session was then kept in
+ * sessionStorage, which a recruiter could simply write by hand.
+ *
+ * Sponsors are now ordinary Supabase Auth users, so authentication is enforced
+ * by Postgres RLS rather than by this component. E-Board members create one
+ * account per company in the Supabase dashboard; see supabase/sponsor-auth.sql.
+ */
 export default function CompanyLogin() {
-  const [accessCode, setAccessCode] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
@@ -14,35 +26,22 @@ export default function CompanyLogin() {
     setLoading(true);
     setError('');
 
-    try {
-      const { data, error: fetchError } = await supabase
-        .from('company_access')
-        .select('*')
-        .eq('access_code', accessCode.trim().toUpperCase())
-        .single();
+    const { error: authError } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
 
-      if (fetchError || !data) {
-        throw new Error('Invalid access code.');
-      }
+    setLoading(false);
 
-      // Check expiry
-      if (data.expires_at && new Date(data.expires_at) < new Date()) {
-        throw new Error('This access code has expired. Please contact SHPE OSU for a new code.');
-      }
-
-      // C3/L2: sessionStorage + TTL instead of localStorage
-      saveCompanySession(data.company_name);
-      navigate('/company/dashboard');
-    } catch (err) {
-      console.error('[CompanyLogin] Auth error:', err);
-      setError(
-        err.message === 'Invalid access code.' || err.message.includes('expired')
-          ? err.message
-          : 'Something went wrong. Please try again.'
-      );
-    } finally {
-      setLoading(false);
+    if (authError) {
+      // Deliberately generic: distinguishing "no such account" from "wrong
+      // password" tells an attacker which sponsor emails are registered.
+      console.error('[CompanyLogin] Auth error:', authError);
+      setError('Incorrect email or password.');
+      return;
     }
+
+    navigate('/company/dashboard');
   };
 
   return (
@@ -53,31 +52,52 @@ export default function CompanyLogin() {
           Corporate Portal
         </h1>
         <p className="text-on-surface-variant mb-8 text-sm">
-          Enter your company access code to view the SHPE OSU Resume Book.
+          Sign in to view the SHPE OSU Resume Book.
         </p>
 
         {error && (
-          <div className="mb-6 p-3 bg-error-container text-on-error-container rounded-lg text-sm font-bold">
+          <div role="alert" className="mb-6 p-3 bg-error-container text-on-error-container rounded-lg text-sm font-bold">
             {error}
           </div>
         )}
 
-        <form onSubmit={handleLogin} className="space-y-6">
+        <form onSubmit={handleLogin} className="space-y-4 text-left">
           <div>
+            <label htmlFor="company-email" className="block text-sm font-bold text-on-surface mb-2">
+              Email
+            </label>
             <input
-              type="text"
+              id="company-email"
+              type="email"
               required
-              value={accessCode}
-              onChange={(e) => setAccessCode(e.target.value)}
-              placeholder="Enter Access Code"
-              maxLength={10}
-              className="w-full px-4 py-3 rounded-xl border border-outline-variant bg-surface-bright focus:outline-none focus:ring-2 focus:ring-primary/50 text-center font-mono tracking-widest uppercase"
+              autoComplete="username"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="recruiter@company.com"
+              className="w-full px-4 py-3 rounded-xl border border-outline-variant bg-surface-bright focus:outline-none focus:ring-2 focus:ring-primary/50"
             />
           </div>
+
+          <div>
+            <label htmlFor="company-password" className="block text-sm font-bold text-on-surface mb-2">
+              Password
+            </label>
+            <input
+              id="company-password"
+              type="password"
+              required
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              className="w-full px-4 py-3 rounded-xl border border-outline-variant bg-surface-bright focus:outline-none focus:ring-2 focus:ring-primary/50"
+            />
+          </div>
+
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-primary text-on-primary py-3 rounded-xl font-bold hover:bg-primary-fixed-dim transition-all flex items-center justify-center gap-2"
+            className="w-full bg-primary text-on-primary py-3 rounded-xl font-bold hover:bg-primary-fixed-dim transition-all flex items-center justify-center gap-2 disabled:opacity-70"
           >
             {loading ? (
               <span className="material-symbols-outlined animate-spin">progress_activity</span>
@@ -86,6 +106,10 @@ export default function CompanyLogin() {
             )}
           </button>
         </form>
+
+        <p className="text-xs text-on-surface-variant mt-6 opacity-70">
+          Need access? Contact SHPE OSU and we&apos;ll set up an account for your team.
+        </p>
       </div>
     </div>
   );
