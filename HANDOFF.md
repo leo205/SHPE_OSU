@@ -1,8 +1,46 @@
 # SHPE OSU Website — Engineering Handoff
 
-_Last updated: 2026-06-21_
+_Last updated: 2026-08-03_
 
-This document serves as the developer documentation and handoff reference for the Digital Operations Chair and developers of the SHPE chapter at The Ohio State University. It covers system architecture, database design, security measures, maintenance protocols, and deployment details.
+Developer documentation for the Digital Operations Chair and anyone maintaining
+the SHPE chapter website at The Ohio State University. Covers architecture,
+database design, the security model, maintenance protocols, and deployment.
+
+---
+
+## 0. Where the site stands today
+
+**Live at https://www.shpeosu.com, deployed from `main` via Vercel.**
+
+The site is in good working order. A security review in July–August 2026 found
+and closed a set of real problems; the notes below are deliberately blunt about
+what was wrong, because the same mistakes are easy to repeat.
+
+### What was fixed, and why it matters
+
+| Area | What was wrong | State |
+|---|---|---|
+| **Resume book** | Approved resumes (names + OSU emails), recruiter access codes, and the resume PDFs themselves were readable by **anyone**, with no login and no code. Verified by downloading a real 130 KB resume anonymously. | ✅ Closed. Sponsors now sign in; access is enforced by Postgres. |
+| **Sponsor contact form** | Every inquiry had been silently failing. The Content-Security-Policy omitted `api.emailjs.com`, so the browser blocked the request — invisible locally, because those headers only apply on Vercel. | ✅ Fixed and verified in production. |
+| **Resume replacement** | Never worked. The client issued an `UPDATE` no policy permitted, which under RLS affects zero rows and *returns success* — students saw "Upload Successful" while nothing changed. | ✅ Moved into the database. |
+| **Leaderboard** | The public `leaderboard` view exposed every member's OSU dot number, and the Events page printed them on a public page. Views bypass RLS, so this read straight through the protection on `attendance`. | ✅ View reduced to first name + count. |
+| **Check-in** | Events added through the Admin Dashboard appeared on the calendar but could not be checked into — the check-in form read a different source. | ✅ One shared source. |
+| **Upload size** | A 2 MB *minimum* rejected essentially every real resume (a normal one is 50–250 KB). | ✅ Now 10 KB–250 KB. |
+| **Calendar exports** | `.ics` files were hardcoded to 06:00 UTC (2 AM Eastern) and the Google Calendar links produced unparseable dates. | ✅ Real times with an explicit timezone. |
+| **`npm run lint`** | 93 errors, so nobody ran it and it caught nothing. | ✅ Clean, and a real gate. |
+
+### What is still open
+
+*   **Autumn events.** `src/data/events.js` contains only past events. Someone
+    must add real dates before the first GBM or the check-in dropdown has
+    nothing current to select. See §4.
+*   **Sponsor accounts.** No recruiter accounts exist yet — the old codes are
+    dead. Nobody can use the corporate portal until accounts are created (§3).
+*   **Resume ownership.** Submissions are keyed on email with no proof of
+    ownership. Bounded, not solved — see the residual-risk note in §3.
+*   **`PublicLeaderboard.jsx`** is committed but imported nowhere. Delete it or
+    mount it; leaving it invites drift.
+*   **Bundle size.** One ~950 KB chunk. Code-splitting `/admin` would help.
 
 ---
 
@@ -21,7 +59,8 @@ graph TD
 ### Architectural Principles
 *   **Zero-Cost Hosting**: Vercel handles static frontend hosting on their free tier, while Supabase handles Database, Auth, and Storage on their free tier.
 *   **Serverless Data Direct Access**: The client communicates directly with Supabase via `@supabase/supabase-js`. Database records and storage assets are secured entirely via **Row-Level Security (RLS)** rules.
-*   **Static Configuration**: Fast updates (like adding events) are controlled by editing centralized JavaScript data structures instead of database queries.
+*   **Non-Coders Can Update Content**: Events are added through the Admin Dashboard into the Supabase `events` table — no code, no deploy. `src/data/events.js` remains as a bundled fallback so the calendar and check-in still work if Supabase is unreachable. Both readers go through `src/lib/events.js`; keep it that way.
+*   **Roles, Not Just Logins**: Admins and sponsors are both Supabase Auth users, so "signed in" is not a permission. Every policy checks an explicit role claim.
 
 ---
 
@@ -62,8 +101,12 @@ CREATE TABLE resumes (
 );
 ```
 
-### 3. `company_access`
-Stores access codes distributed to corporate recruiters.
+### 3. `company_access` — **vestigial**
+Formerly stored access codes distributed to recruiters. That system was removed:
+the table was publicly readable, so anyone could list every code, and the resume
+book behind it was readable without a code anyway. Sponsors now use Supabase Auth
+accounts. The table is kept only so historical rows are not lost — nothing reads
+it for access. Drop it once you are confident no one is looking for an old code.
 ```sql
 CREATE TABLE company_access (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -86,63 +129,71 @@ CREATE TABLE company_access (
 
 The website contains several critical client-side and database-level security mechanisms.
 
-### ⚠️ Row-Level Security (RLS) — OPEN ISSUE, ACTION REQUIRED
+### Row-Level Security (RLS) — resolved 2026-08-03
 
-**The table below described the intended model, not the live one.** Probing the
-production project with only the public anon key — the same key embedded in our
-JS bundle — while logged out returned:
+`supabase/README.md` is the authoritative description. Summary here.
 
-| Probe (anonymous, logged out) | Result |
-|---|---|
-| `select * from resumes` | **All rows**, including `full_name`, `email`, `major`, `graduation_year`, `resume_path` |
-| `storage.createSignedUrl(<resume_path>)` | **Granted** — the URL returned HTTP 200, `application/pdf`, a real resume |
-| `select * from company_access` | **All rows, including `access_code`** |
-| `insert into resumes` with `approved = true` | **Permitted** — the INSERT policy's `WITH CHECK` is `true`, so anyone can publish straight into the recruiter-visible book, skipping E-Board review entirely. Paired with the public upload policy on the storage bucket, an outsider can put their own PDF in front of sponsors. Fixed by `supabase/sponsor-auth.sql` and `supabase/resume-submit.sql`, which route every submission through a validated `submit_resume()` function. |
-| `insert into company_access` / `events` | Blocked ✅ |
-| Storage bucket public URL | Blocked ✅ (but irrelevant — signed URLs worked) |
-| `attendance` public SELECT | None ✅ — table is closed, see §5 note below |
+**The rule that matters:** the client cannot enforce access. The anon key ships
+inside the public JS bundle, so anyone can call PostgREST directly and skip the
+interface. A check in a React component decides what is *rendered*, never what is
+*reachable*.
 
-So the resume book was fully downloadable with no access code, and the codes
-themselves were readable by the same anonymous request.
+That is not an abstract warning. The old policy on `resumes` was documented as
+*"allowed if the recruiter has a valid session (validated client-side)"* — but
+RLS runs per-row inside Postgres and cannot see browser JavaScript, so the policy
+was effectively `USING (true)`. Public. The `sessionStorage` token in
+`CompanyDashboard.jsx` protected nothing.
 
-The root cause is a category error worth internalising: the old policy
-`Recruiter code select` was documented as *"allowed if recruiter has a valid
-session (validated client-side)"*. **RLS runs per-row inside Postgres and cannot
-see client-side JavaScript.** A policy of `USING (true)` is public, full stop.
-No amount of `sessionStorage` checking in `CompanyDashboard.jsx` changes it —
-anyone can call PostgREST directly with the anon key and skip the UI entirely.
+**What is enforced now**
 
-**Fix:** access codes are gone. Sponsors are now real Supabase Auth users, so
-Postgres enforces access rather than JavaScript. See `supabase/README.md` for the
-model and run order — `sponsor-auth.sql` then `resume-submit.sql`, alongside the
-matching client deploy. Neither has been applied yet.
+| Table / bucket | anon | sponsor | admin |
+|---|---|---|---|
+| `attendance` | INSERT only (check-in) | — | full |
+| `resumes` | via `submit_resume()` only | approved rows | full |
+| `company_access` | — | — | full |
+| `events` | SELECT | SELECT | full |
+| storage `resumes` | INSERT to `submissions/` | approved files only | full |
+| `leaderboard` view | SELECT (first name + count) | SELECT | SELECT |
 
-**Resolved — there are no anonymous writes beyond INSERT.** This was previously
-listed as unknown, because a PostgREST delete matching zero rows returns success
-whether or not a policy permits it, so it cannot be probed from outside. A
-`pg_policies` query settled it: every `{public}` policy is `INSERT` or `SELECT`.
-No `anon` `UPDATE`, `DELETE`, or `ALL` exists on any table. Nobody can wipe the
-attendance history or rewrite recruiter codes.
+Access is gated on an **explicit role claim**, not on merely being signed in.
+This matters because public signup is enabled: without a role check, anyone could
+register an account and thereby become `authenticated`. A self-registered account
+holds no role and reaches nothing.
 
-Re-run the `pg_policies` query in `supabase/README.md` after any policy change, and treat any
-new `anon`/`public` row with `cmd` of `UPDATE`/`DELETE`/`ALL` as a hole.
+**Roles live in `app_metadata`, never `user_metadata`.** A signed-in user can
+rewrite their own `user_metadata` via `supabase.auth.updateUser()`, so a role
+stored there would be self-grantable — any sponsor could promote themselves to
+admin from the browser console.
 
-**Correction — `attendance` is NOT publicly readable.** An earlier revision of
-this document said public read on `attendance` was live and intentional. A
-`pg_policies` query against production disproves it: the table has only
-`Allow public inserts` (INSERT, public) and `Admins can read attendance`
-(SELECT, authenticated). It is closed, and should stay closed.
+The role is baked into the JWT at sign-in, so **anyone whose role changes must
+sign out and back in.** An admin who suddenly lands on the login page has almost
+certainly hit this.
 
-The real leak was the **`leaderboard` view**. A Postgres view runs with its
-owner's privileges by default, so it read straight through that RLS — and it
-exposed `last_name_dotnum` and `dotnum`, which `Events.jsx` rendered onto a
-public page. Every member's OSU dot number was published. Fixed by
-`supabase/leaderboard-view.sql`, which redefines the view as `first_name` and a
-distinct-event `count` only.
+**Views bypass RLS.** `public.leaderboard` runs with its owner's privileges on
+purpose — that is what lets an anonymous visitor see the leaderboard without
+opening `attendance`, which holds dot numbers, pronouns, majors, and free-text
+feedback students wrote expecting privacy. The consequence: **any column added to
+that view is published with no policy change and nothing to review.** Treat edits
+to it as security changes.
 
-Keep in mind what that implies: the view is a standing RLS bypass on
-`attendance`. Any column added to it in future becomes public with no policy
-change and nothing to review. Treat edits to that view as security changes.
+**Checking live state.** Documentation in this repo has been wrong before, so
+verify rather than trust:
+
+```sql
+SELECT schemaname, tablename, policyname, roles, cmd, qual, with_check
+FROM pg_policies WHERE schemaname IN ('public','storage')
+ORDER BY tablename, cmd;
+```
+
+Any `{public}`/`{anon}` row with `cmd` of `UPDATE`, `DELETE`, or `ALL` is a hole.
+Note this query is the *only* honest way to check writes — PostgREST returns
+success for a statement matching zero rows whether or not a policy permits it, so
+write access cannot be probed from outside.
+
+**⚠️ Two saved queries in the Supabase SQL Editor will silently undo all of this
+if re-run:** "Attendance Submission Table" (contains the original public-read
+policies) and "Leaderboard Attendance Aggregates" (the old dot-number view).
+Rename them `⚠️ OLD — DO NOT RUN`.
 
 ### Frontend Code Safeguards
 1.  **Magic-Byte PDF Verification**:
@@ -154,29 +205,21 @@ change and nothing to review. Treat edits to that view as security changes.
       return PDF_MAGIC.every((b, i) => bytes[i] === b);
     }
     ```
-2.  **Expiring Recruiter Sessions (TTL)** — *convenience, NOT a security control*:
-    This is the misconception that produced the RLS hole above, so it is worth
-    stating plainly: **anything enforced in the browser is not enforced.** A
-    recruiter can edit `sessionStorage` in devtools, or skip the UI entirely and
-    query PostgREST with the anon key. The TTL below is a courtesy logout on a
-    shared machine, nothing more. Real enforcement lives in
-    the database policies. This whole section is now historical: access codes
-    were replaced by Supabase Auth logins, and `companySession.js` was deleted.
+2.  **Sponsor Access — Supabase Auth**:
+    Recruiters sign in with an email and password and are granted a `sponsor`
+    role. This replaced an 8-character code checked in the browser against a
+    publicly-readable table, with the session held in `sessionStorage` — which a
+    recruiter could simply write by hand. All of that machinery is deleted;
+    `src/lib/companySession.js` no longer exists. Enforcement is in the database.
 
-    Recruiter login tokens are saved in `sessionStorage` with an **8-hour Time-to-Live (TTL)** expiration window. The application uses a window visibility listener (`visibilitychange`) so if a recruiter focuses back on the browser tab after the TTL expires, they are immediately logged out:
-    ```javascript
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        const current = getCompanySession();
-        if (!current) {
-          clearCompanySession();
-          navigate('/company');
-        }
-      }
-    };
-    ```
-3.  **Cryptographically Secure Access Codes**:
-    Codes generated for companies in `AdminDashboard.jsx` use `crypto.getRandomValues()` indexed into an explicit 32-character alphabet (8 chars = 40 bits). The earlier version did `byte.toString(36).padStart(2,'0')` per byte and then sliced to 8, which silently discarded a byte and could only ever emit 0–7 as the first character of each pair.
+3.  **Server-Side Resume Submission**:
+    `submit_resume()` is the only way a resume reaches the database. It runs as
+    `SECURITY DEFINER`, validates every field itself, enforces the OSU email
+    domain (the browser check is bypassable; this one is not), pins `approved` to
+    `false` so nothing can publish itself past review, constrains the storage path
+    to `submissions/`, and upserts on email so a re-upload replaces rather than
+    duplicates.
+
 4.  **CSV Injection Prevention**:
     When exporting check-in tables, cells starting with formula triggers (`=`, `+`, `-`, `@`, tab, or carriage returns) are automatically prefixed with a single-quote `'` to mitigate spreadsheet software hijack attacks.
 5.  **Safe Upload Filenames**:
@@ -200,11 +243,43 @@ change and nothing to review. Treat edits to that view as security changes.
     ```
     Vercel will auto-deploy in under 60 seconds.
 
+### Onboarding a Corporate Sponsor
+
+1.  Supabase Dashboard → **Authentication → Users → Add user**
+    *   Email: the recruiter's work address
+    *   Password: generate one and send it to them
+    *   **Auto-confirm: ON** — without it they never receive a usable login
+2.  Grant the sponsor role in the SQL Editor:
+    ```sql
+    UPDATE auth.users
+    SET raw_app_meta_data =
+          coalesce(raw_app_meta_data,'{}'::jsonb) || '{"role":"sponsor"}'::jsonb
+    WHERE email = 'recruiter@company.com';
+    ```
+    **This step is the one people forget.** Without it they sign in successfully
+    and see an empty resume book. The dashboard now says so explicitly rather
+    than showing "no resumes match your criteria", but it still wastes everyone's
+    time.
+3.  Send them the credentials. They sign in at `/company`.
+
+Revoking access is deleting the user, or clearing the role. The same steps are
+shown in the Admin Dashboard's Companies tab.
+
+### Adding an E-Board Admin
+
+Same as above, but with `"role":"admin"`. Admins see the pending resume queue and
+attendance data; sponsors see neither. Anyone whose role changes must sign out
+and back in.
+
 ### Semester Rollover Protocols
 At the start of a new semester (Autumn/Spring):
-1.  **Clear/Archive Calendar**:
-    *   Open `src/data/events.js` and move last semester's events to an archive file if desired, or clear the array, keeping only upcoming events.
-    *   *Note: The attendance check-in form (`/attendance`) dynamically pulls event options from this array. Clearing old events keeps the check-in dropdown clean.*
+1.  **Add the new semester's events** — do this **before the first GBM**, or the
+    check-in form has nothing current to select and nobody can check in.
+    *   Preferred: Admin Dashboard → **Events** tab. Goes into Supabase, appears
+        on the calendar and in the check-in dropdown immediately, no deploy.
+    *   `src/data/events.js` is only the offline fallback. Old entries there are
+        harmless — the check-in dropdown shows upcoming events first and falls
+        back to recent ones, so stale entries do not crowd out real ones.
 2.  **E-Board Roster Update**:
     *   Collect new E-board member headshots, convert them to `.webp`, and place them in `public/photos/eboard/`.
     *   Open `src/pages/Eboard.jsx`. Update the `eboardMembers` array with names, majors, graduation years, and roles.
@@ -212,7 +287,12 @@ At the start of a new semester (Autumn/Spring):
 3.  **Database Attendance Rollover**:
     *   Go to the Supabase Dashboard → SQL Editor.
     *   It is recommended to run a query to back up the current semester's check-ins before truncation, or export the full history to CSV from the Admin Dashboard.
-4.  **Rotate Environment variables / Anon Keys**:
+4.  **Review accounts**: graduating E-Board members should have their Supabase
+    Auth accounts deleted, and expired sponsors likewise. Check with:
+    ```sql
+    SELECT email, raw_app_meta_data ->> 'role' AS role FROM auth.users;
+    ```
+5.  **Rotate Environment variables / Anon Keys**:
     *   If E-Board credentials leak, go to Supabase Dashboard → Project Settings → API.
     *   Click **Roll Project API Keys** for the `anon` key.
     *   Instantly update `VITE_SUPABASE_ANON_KEY` in the `.env` file and on Vercel Dashboard → Settings → Environment Variables.
@@ -269,11 +349,15 @@ CREATE TABLE events (
 );
 ```
 
-**Known gap:** `Events.jsx` merges this table with the static `src/data/events.js`
-array, but `Attendance.jsx` builds its check-in dropdown from the static file
-**only**. An event added through the Admin Dashboard therefore appears on the
-public calendar but **cannot be checked into**. Unify these before the next
-semester — one source of truth, read by both.
+Both the public calendar and the attendance check-in dropdown read this table
+through `src/lib/events.js`, which merges it with the bundled fallback in
+`src/data/events.js`. An event added in the Admin Dashboard is therefore
+immediately checkinable.
+
+This was previously a real trap: `Attendance.jsx` read only the static file, so a
+dashboard-added event showed on the calendar but could not be checked into, with
+no error explaining why. Keep both readers going through `lib/events.js` — that
+split is exactly the kind that produces a silent failure at a live meeting.
 
 ### 2.5 `leaderboard` (view)
 Read by `Events.jsx` and `PublicLeaderboard.jsx`. `supabase/leaderboard-view.sql`
@@ -298,3 +382,25 @@ the preview server. This exists because a missing `connect-src` entry silently
 broke the sponsor contact form in production and was invisible locally — CSP
 headers only applied on Vercel. Open the browser console on `npm run preview`
 and confirm there are no CSP violations before deploying.
+
+**Lint and build do not catch everything.** Both passed while the sponsor form
+was completely broken in production, while calendar exports emitted 2 AM events,
+and while a "View PDF" button opened a blank tab and hijacked the current one.
+Click the thing you changed.
+
+### Project subagents
+
+`.claude/agents/` holds three read-only reviewers preloaded with this codebase's
+actual failure modes:
+
+| Agent | Use it |
+|---|---|
+| `security-auditor` | After touching Supabase, before a release |
+| `code-reviewer` | Before committing |
+| `deploy-preflight` | Before pushing to `main`, and at semester rollover |
+
+Invoke them by name in Claude Code, e.g. *"Use the security-auditor agent to
+check the current RLS posture."* They found the role-gating hole described in §3,
+a check-in bug that would have stranded an entire GBM, and a timezone error that
+only misfired during meeting hours — all in work that had already been reviewed
+by hand and passed both gates.

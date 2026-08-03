@@ -10,7 +10,7 @@ This project is built with React 18, Vite, Tailwind CSS, and Supabase to provide
 
 ### 🌟 Public-Facing Platform (With Navigation)
 *   **Modern Home Page (`/`)**: Features our mission, dynamic chapter metrics, a spotlight section for our SHPEtinas program, and an interactive look at the chapter.
-*   **Events Calendar (`/events`)**: Automatically parses events from a central JS data file to populate an interactive calendar. Members can filter events by month and category (GBM, Social, Professional, Academic, Outreach, Fundraiser) and directly export them to Google Calendar or Apple Calendar (`.ics` files).
+*   **Events Calendar (`/events`)**: Merges events from the Supabase `events` table (added by the E-Board through the Admin Dashboard) with a bundled fallback list, so the calendar still renders if the database is unreachable. Members can filter events by month and category (GBM, Social, Professional, Academic, Outreach, Fundraiser) and directly export them to Google Calendar or Apple Calendar (`.ics` files).
 *   **Professional Development Hub (`/professional-development`)** *[NEW]*:
     *   **Animated Counter Banner**: Displays internship placement statistics and salary metrics that animate sequentially when scrolled into view.
     *   **Member Spotlight Carousel**: An interactive selector showing student internship experiences at top employers like GM, Ford, and Lincoln Electric.
@@ -26,30 +26,37 @@ This project is built with React 18, Vite, Tailwind CSS, and Supabase to provide
 These pages are not listed in the Navbar to maintain security and avoid clutter. They are accessed via QR codes, direct URLs, or distributed credentials.
 
 #### 1. Student Check-In (`/attendance`)
-*   **Mobile-First Check-In**: Quick check-in page for chapter events. Dropdown options stay synced with `src/data/events.js`.
+*   **Mobile-First Check-In**: Quick check-in page for chapter events. Options come from the same shared source as the public calendar (`src/lib/events.js`), so an event added in the Admin Dashboard is immediately checkinable. The list is seeded from the bundled fallback at first paint, so a slow or failed network can never leave students staring at an empty dropdown mid-meeting.
 *   **First-Time Meeting Logic**: Prompts first-time attendees for pronouns, how they heard about SHPE, and their major.
-*   **Custom Major Entry**: If a student selects "Other" as their major, a text input appears allowing them to type their exact major (limited to 150 characters, saved in the database as `Other - [custom text]`).
+*   **Custom Major Entry**: If a student selects "Other" as their major, a text input appears allowing them to type their exact major (limited to 150 characters, saved in the database as `Other – [custom text]`, formatted by the shared helper in `src/lib/majors.js` so the check-in form and the resume portal cannot drift apart).
 *   **Spam Prevention**: Implements a 30-second submit cooldown to prevent accidental double-submits or database flooding.
 
 #### 2. Student Resume Upload (`/resume-upload`)
 *   **Secure Student Uploads**: Members can upload a PDF copy of their resume to be compiled into the official resume book.
 *   **MIME-Type Spoofing Check**: Utilizes a magic-byte checker (verifying the file starts with the PDF signature `0x25, 0x50, 0x44, 0x46` before upload) to prevent malicious files from being uploaded as `.pdf`.
-*   **OSU Email Domain Lock**: Restricts uploads strictly to `@osu.edu`, `@alumni.osu.edu`, and `@buckeyemail.osu.edu` addresses.
+*   **OSU Email Domain Lock**: Restricts uploads to `@osu.edu` and its subdomains. Enforced **inside the database** by `submit_resume()`, not only in the browser — the client-side check is bypassable by anyone posting to the API directly.
+*   **Server-Side Submission**: Uploads go through a single `SECURITY DEFINER` function that validates every field, pins `approved` to `false` so nothing can publish itself past E-Board review, and upserts on email so re-uploading replaces a student's entry instead of creating a duplicate.
+*   **File Size Ceiling**: PDFs must be between 10 KB and 250 KB. The form shows the file's size the moment it is picked and explains how to shrink an oversized one.
 *   **Custom Major Integration**: Prompts students selecting 'Other' to specify their major in detail.
 *   **Safe File Naming**: Re-encrypts filenames on upload to `submissions/${Date.now()}_${crypto.randomUUID()}.pdf` to avoid directory traversal and filename collision vulnerabilities.
 
 #### 3. Recruiter Portal (`/company` & `/company/dashboard`)
-*   **Access Control**: Recruiters enter a unique access code distributed by the E-Board.
-*   **Expiring Sessions**: Session keys are stored in `sessionStorage` with an 8-hour Time-to-Live (TTL) expiration window.
-*   **Visibility-Change Auto-Logout**: Monitors tab visibility; if a recruiter leaves the tab and returns after the TTL has expired, the application instantly auto-logs them out to secure student resumes on shared terminals.
-*   **Resume Book Browser**: Recruiters can filter student resumes by name, major, and graduation year.
-*   **Temporary Signed URLs**: Recruiter actions to View/Download resumes are served via Supabase Storage signed URLs that expire after 60 seconds.
+*   **Real Accounts**: Recruiters sign in with an email and password. Accounts are created by the E-Board in the Supabase dashboard and granted a `sponsor` role; an account without that role can reach nothing, so a half-finished setup fails closed.
+*   **Database-Enforced Access**: What a recruiter can see is decided by Postgres Row-Level Security, not by JavaScript. Sponsors see approved resumes only — never the pending queue, attendance records, or anything else.
+*   **Resume Book Browser**: Filter student resumes by name, major, and graduation year.
+*   **Temporary Signed URLs**: View/Download actions are served via Supabase Storage signed URLs that expire after 60 seconds, and are only issued for resumes that are actually approved.
+*   **Revocation**: Deleting the user, or clearing their role, removes access immediately.
+
+> **Note:** this replaced a shared 8-character access-code system. The codes were
+> stored in a table that was publicly readable, so anyone could list every code —
+> and the resume book behind them was readable without a code at all. See
+> `supabase/README.md`.
 
 #### 4. Secure Admin Panel (`/admin` & `/admin/resumes`)
 *   **Admin Authentication**: Protected behind Supabase Email/Password authentication. Redirect guards secure the paths.
 *   **Interactive Attendance Analytics**:
     *   **Overview Cards**: Displays overall unique members, total check-ins, and number of events.
-    *   **Most Active Members Leaderboard**: Lists the top members with the highest event check-in frequencies in a scrollable list.
+    *   **Most Active Members Leaderboard**: Ranks members by the number of **distinct events** attended, so a duplicate check-in at one meeting cannot inflate a ranking.
     *   **Stacked Bar Charts**: Compares First-Timers vs. Returning members per event.
     *   **Pie Charts**: Tracks attendance distribution by event category (GBMs, Professional, Socials, Study Sessions, etc.).
     *   **Retention Trends**: Line charts visualizing attendance growth over the semester.
@@ -57,7 +64,7 @@ These pages are not listed in the Navbar to maintain security and avoid clutter.
 *   **Secure CSV Export**: Allows downloading attendance records. Implements **CSV Injection mitigation** by sanitizing cells starting with formulas (`=`, `+`, `-`, `@`, tab, carriage return) with a single-quote prefix.
 *   **Resume Book Admin Dashboard (`/admin/resumes`)**:
     *   **Review Pipeline**: Admins can view, approve, revoke, or delete pending resume submissions.
-    *   **Access Code Generator**: Generates cryptographically secure access codes (using `crypto.getRandomValues`) for partner companies.
+    *   **Sponsor Onboarding**: Step-by-step instructions for creating a recruiter account and granting the `sponsor` role.
     *   **Inline Major Editing**: Admins can modify a student's major directly in the resume book table to fix spelling errors.
 
 ---
@@ -133,11 +140,20 @@ shpe-osu/
 │   ├── data/
 │   │   └── events.js     # Centralized source of truth for the Events Calendar
 │   ├── lib/
-│   │   └── supabase.js   # Supabase client initialization (loads credentials from env)
+│   │   ├── supabase.js   # Supabase client initialization (loads credentials from env)
+│   │   ├── auth.js       # isAdmin/isSponsor role checks (reads app_metadata)
+│   │   ├── events.js     # Single source of truth for events: DB + bundled fallback
+│   │   ├── calendar.js   # Google Calendar / .ics export builders (unit-tested)
+│   │   └── majors.js     # Shared "Other – major" formatting
 │   ├── pages/            # Core page components (Home, Events, Eboard, Sponsors, Resources, etc.)
 │   ├── App.jsx           # Client-side router declarations
 │   ├── index.css         # Tailwind utility styling
 │   └── main.jsx          # Entry point
+├── supabase/             # Database security model — READ supabase/README.md FIRST
+│   ├── README.md         # Security model, run order, and how to check live state
+│   ├── leaderboard-view.sql   # (applied) public leaderboard view
+│   ├── sponsor-auth.sql       # (applied) sponsor logins + RLS lockdown
+│   └── resume-submit.sql      # (applied) server-side resume submission
 ├── tailwind.config.js    # Customized color system (SHPE branding palette)
 ├── vercel.json           # Vercel deployment headers & Content Security Policy (CSP)
 └── package.json          # Node dependencies
@@ -147,14 +163,59 @@ shpe-osu/
 
 ## 🛡 Security Implementations
 
-*   **Row-Level Security (RLS)**: Database tables enforce RLS policies:
-    *   `attendance`: Public inserts allowed (to role `public`), Select restricted to `authenticated` users (E-Board).
-    *   `resumes`: Public inserts allowed. Select, Update, Delete restricted. Signed URL download generation restricted to authenticated admins and validated recruiter access codes.
-    *   `company_access`: Restricts modifications to authenticated admin accounts only.
-*   **Vercel CSP Configuration**: Set up strict security headers in `vercel.json` (e.g. `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, and a strict `Content-Security-Policy` bounding script, connection, and frame loading scopes).
-*   **Expiring Recruiter Tokens**: Recruiter sessions automatically lock after 8 hours of inactivity, checked on tab focus via `visibilitychange` window hooks.
-*   **File Authentication Safeguards**:
-    *   Rejecting files over 5MB.
-    *   Validating PDF magic headers (`%PDF`) directly from byte buffers.
-    *   Generating safe random file hashes upon upload to prevent directory traversals.
-    *   Enforcing temporary 60-second read limits on generated PDF signed URLs.
+> **The one rule:** the client cannot enforce access. The Supabase anon key ships
+> inside the public JavaScript bundle, so anyone can call the database API
+> directly and skip the interface entirely. A check written in a React component
+> decides what gets *rendered*, never what is *reachable*. Every vulnerability
+> found in this project has been a variation of forgetting that.
+>
+> `supabase/README.md` is the authoritative description of what is enforced.
+
+*   **Row-Level Security (RLS)**: Every table is closed by default and opened
+    deliberately. Access is gated on an explicit role claim (`is_admin()` /
+    `is_sponsor()`) rather than on merely being signed in — public signup means
+    "authenticated" is not by itself a meaningful permission.
+    *   `attendance`: public INSERT (check-in) only. Reads are admin-only; the
+        public leaderboard is served by a two-column view instead.
+    *   `resumes`: no public read. Sponsors see approved rows; admins see all.
+        Writes go through `submit_resume()`.
+    *   `company_access`, `events`: admin-only writes; `events` is publicly
+        readable so the calendar works logged out.
+    *   Storage: resume PDFs are readable only by an admin, or by a sponsor when
+        the corresponding row is approved.
+*   **Roles in `app_metadata`, never `user_metadata`**: a signed-in user can
+    rewrite their own `user_metadata` from the browser console, so a role stored
+    there would be self-grantable. `app_metadata` is writable only by the service
+    role and the Supabase dashboard.
+*   **Vercel CSP Configuration**: Strict security headers in `vercel.json`
+    (`X-Frame-Options: DENY`, `nosniff`, and a `Content-Security-Policy` with no
+    `unsafe-inline` in `script-src`). `vite.config.js` mirrors these onto
+    `npm run preview`, because a missing `connect-src` entry once broke the
+    sponsor contact form in production while everything looked fine locally.
+*   **File Safeguards**:
+    *   PDFs between 10 KB and 250 KB.
+    *   Magic-byte validation (`%PDF`) read from the byte buffer.
+    *   Filenames replaced with `submissions/<timestamp>_<uuid>.pdf`; the path is
+        also pinned server-side so a caller cannot point a row at another object.
+    *   Signed URLs expire after 60 seconds.
+*   **CSV Injection Mitigation**: exported cells beginning with `=`, `+`, `-`,
+    `@`, tab, or carriage return are prefixed with a single quote.
+
+### Known residual risk
+
+Resume submissions are keyed on email with no proof of ownership, so someone who
+knows a classmate's OSU address could overwrite their entry. A replacement always
+returns to `approved = false`, so it drops *out* of the recruiter book pending
+review rather than showing sponsors false content, and the previous PDF is
+retained so an admin can restore it. Closing this properly needs emailed
+confirmation links.
+
+---
+
+## 🤖 Project Subagents
+
+`.claude/agents/` contains three reviewers preloaded with this codebase's actual
+failure modes — `security-auditor`, `code-reviewer`, and `deploy-preflight`. They
+are read-only and report rather than edit. Between them they have caught a
+role-gating hole, a check-in bug that would have broken a live GBM, and a
+timezone error that only misfired during meeting hours.

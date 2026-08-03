@@ -14,11 +14,17 @@ that.
 | File | Status | What it does |
 |---|---|---|
 | `leaderboard-view.sql` | **Applied** 2026-07-30 | Redefines the public `leaderboard` view as `first_name` + distinct-event `count`. It previously exposed OSU dot numbers. |
-| `sponsor-auth.sql` | Pending | Replaces recruiter access codes with Supabase Auth logins; closes public read on `resumes`, `company_access`, and the storage bucket. |
-| `resume-submit.sql` | Pending | Moves resume submission into `submit_resume()` so replacement actually works and the OSU email check is enforced server-side. Run **after** `sponsor-auth.sql`. |
+| `sponsor-auth.sql` | **Applied** 2026-08-03 | Replaced recruiter access codes with Supabase Auth logins; closed public read on `resumes`, `company_access`, and the storage bucket; re-scoped `events` so sponsors cannot edit the calendar. |
+| `resume-submit.sql` | **Applied** 2026-08-03 | Moved resume submission into `submit_resume()` so replacement actually works and the OSU email check is enforced server-side. Must run **after** `sponsor-auth.sql`. |
 
-Deploy the matching client change alongside the two pending files — they close
-reads the currently-deployed client depends on.
+All three are applied. They are kept as the canonical definition of the current
+state — if you change a policy through the Supabase UI, update the matching file
+or the next person has no way to know what the database is supposed to contain.
+
+Verified from an anonymous client after applying: `resumes`, `company_access` and
+the storage bucket all return nothing; `createSignedUrl` is denied; direct
+`INSERT` into `resumes` is refused (42501); and `submit_resume()` rejects both a
+non-OSU email and a path-traversal attempt.
 
 ## ⚠️ Saved queries in the Supabase SQL Editor
 
