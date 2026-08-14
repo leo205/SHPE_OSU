@@ -98,7 +98,6 @@ const sponsors = {
   ],
   gold: [
     { name: 'Whiting-Turner', logo: '/photos/sponsors/wtLogo.jpg' },
-    { name: 'IBM', logo: '/photos/sponsors/IBMlogo.webp' },
   ],
   bronze: [
     { name: 'Honda', logo: '/photos/sponsors/honda.webp' },
