@@ -2,43 +2,39 @@ import { useLayoutEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 
 /**
- * Sends every route change to the top of the page, instantly.
+ * Every route change starts at the top of the page.
  *
- * Two things made this visibly wrong before:
+ * In a single-page app the document never actually reloads, so the scroll
+ * position simply carries over from the previous page — click a nav tab from the
+ * bottom of a long page and the new one renders already scrolled down. That is
+ * what this corrects.
  *
- * 1. `index.css` sets `html { scroll-behavior: smooth }`, which is what makes
- *    the in-page anchor links (#become-a-sponsor, #spotlight-heading) glide
- *    nicely. But it also applied to `window.scrollTo(0, 0)` — so navigating
- *    from the bottom of one page ANIMATED all the way up and you watched the
- *    new page scroll past you.
+ * Two details make it behave like a real page load rather than a visible jump:
  *
- * 2. `useEffect` runs *after* the browser paints, giving one frame of the new
- *    page rendered at the old scroll offset — the "loads at the bottom" flash.
- *    `useLayoutEffect` runs before paint, so the page is never shown scrolled.
+ *  - `useLayoutEffect`, not `useEffect`. Layout effects run before the browser
+ *    paints, so the page is never shown at the old offset. With `useEffect` you
+ *    get one frame of the new page scrolled down before the correction lands —
+ *    the "starts at the bottom" flash.
  *
- * The fix for (1) is deliberately NOT `scrollTo({ behavior: 'instant' })`.
- * `ScrollBehavior` is a WebIDL enum, and an invalid member throws a TypeError
- * rather than being ignored — `'instant'` only shipped in Chrome/Firefox 97 and
- * Safari 15.4 (early 2022), while this build targets Vite's default floor of
- * chrome87 / firefox78 / safari14. On anything older the call would throw
- * during the commit phase, and with no error boundary in the tree React would
- * unmount the entire root: a blank white page on every route. That is an
- * unacceptable risk for a site handed out by QR code to students on whatever
- * device they happen to own.
+ *  - No `scroll-behavior: smooth` in the stylesheet any more (see index.css).
+ *    While that rule was global it applied here too, so this scroll ANIMATED
+ *    from the old position to the top and you watched the whole page slide by.
+ *    Suppressing it from JS around the call was unreliable, because setting and
+ *    reverting an inline style in one synchronous block may never trigger a
+ *    style recalculation. Removing the rule is what actually fixed it; in-page
+ *    anchors now opt into smooth via lib/scroll.js instead.
  *
- * Suppressing the CSS property around the jump achieves the same thing with no
- * enum involved, so it behaves identically on every browser.
+ * Deliberately NOT using `scrollTo({ behavior: 'instant' })`: ScrollBehavior is
+ * a WebIDL enum, an unrecognised member throws a TypeError rather than being
+ * ignored, and 'instant' only shipped in Safari 15.4 / Chrome 97. This build
+ * targets Vite's default floor (safari14), and with no error boundary in the
+ * tree a throw here would unmount the entire app — a blank page on every route.
  */
 export default function ScrollToTop() {
   const { pathname } = useLocation();
 
   useLayoutEffect(() => {
-    const html = document.documentElement;
-    const previous = html.style.scrollBehavior;
-
-    html.style.scrollBehavior = 'auto'; // opt this one jump out of the smooth rule
     window.scrollTo(0, 0);
-    html.style.scrollBehavior = previous;
   }, [pathname]);
 
   return null;
