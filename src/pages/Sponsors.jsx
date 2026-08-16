@@ -91,17 +91,43 @@ const tiers = [
  * Add logos to /public/logos/ and update the `logo` field.
  * Example: logo: '/logos/lockheed.png'
  */
+/*
+ * Current sponsors, grouped by the tier they actually purchased.
+ *
+ * The tier names here match the `tiers` array above — the levels we actually
+ * sell. They used to be "platinum / gold / bronze", which are not levels this
+ * chapter offers, so a company that bought Scarlet & Gray ($1,500) was being
+ * displayed under a "Platinum" heading. Grouping by the real tier keeps the
+ * logo wall consistent with the pricing table on the same page.
+ *
+ * Amounts are from the chapter sponsorship sheet and map onto the tier prices
+ * exactly ($500 Buckeye / $1,000 Carmen / $1,500 Scarlet & Gray / $2,000
+ * Platinum), which is how the two blank tier cells in the sheet were resolved.
+ *
+ * To update: add the logo to public/photos/sponsors/ as .webp and add an entry
+ * under the right tier. Empty tiers are hidden automatically.
+ */
 const sponsors = {
-  platinum: [
+  'Platinum': [],                                          // $2,000 — none yet
+  'Scarlet & Gray': [                                      // $1,500
     { name: 'Lincoln Electric', logo: '/photos/sponsors/lincolnElectric.webp' },
-    { name: 'Accenture', logo: '/photos/sponsors/Accenture.webp' },
   ],
-  gold: [
+  'Carmen': [                                              // $1,000
+    { name: 'Honda', logo: '/photos/sponsors/honda.webp' },
+    { name: 'Burns & McDonnell', logo: '/photos/sponsors/burnsMcDonnell.webp' },
     { name: 'Whiting-Turner', logo: '/photos/sponsors/wtLogo.jpg' },
   ],
-  bronze: [
-    { name: 'Honda', logo: '/photos/sponsors/honda.webp' },
+  'Buckeye': [                                             // $500
+    { name: 'Gresham Smith', logo: '/photos/sponsors/greshamSmith.webp' },
   ],
+};
+
+// Largest card for the highest tier, so the visual hierarchy matches the price.
+const TIER_CARD_SIZE = {
+  'Platinum': 'lg',
+  'Scarlet & Gray': 'lg',
+  'Carmen': 'md',
+  'Buckeye': 'sm',
 };
 
 /* ── Sponsor Logo Card ─────────────────────────────────────── */
@@ -529,40 +555,23 @@ export default function Sponsors() {
             </p>
           </div>
 
+          {/* One section per tier, highest first. Tiers with no sponsors are
+              skipped, so an empty Platinum level doesn't render a bare heading. */}
           <div className="space-y-16">
-            {/* Platinum */}
-            <div className="flex flex-col items-center">
-              <h3 className="font-headline text-xs font-black text-on-surface-variant uppercase tracking-[0.3em] mb-8">
-                Platinum Sponsors
-              </h3>
-              <div className="flex flex-wrap justify-center gap-6 w-full max-w-5xl">
-                {sponsors.platinum.map((s, i) => (
-                  <SponsorCard key={i} sponsor={s} size="lg" />
-                ))}
-              </div>
-            </div>
-            {/* Gold */}
-            <div className="flex flex-col items-center">
-              <h3 className="font-headline text-xs font-black text-on-surface-variant uppercase tracking-[0.3em] mb-8">
-                Gold Sponsors
-              </h3>
-              <div className="flex flex-wrap justify-center gap-6 w-full max-w-5xl">
-                {sponsors.gold.map((s, i) => (
-                  <SponsorCard key={i} sponsor={s} size="md" />
-                ))}
-              </div>
-            </div>
-            {/* Bronze */}
-            <div className="flex flex-col items-center">
-              <h3 className="font-headline text-xs font-black text-on-surface-variant uppercase tracking-[0.3em] mb-8">
-                Bronze Sponsors
-              </h3>
-              <div className="flex flex-wrap justify-center gap-6 w-full max-w-5xl">
-                {sponsors.bronze.map((s, i) => (
-                  <SponsorCard key={i} sponsor={s} size="sm" />
-                ))}
-              </div>
-            </div>
+            {Object.entries(sponsors)
+              .filter(([, companies]) => companies.length > 0)
+              .map(([tier, companies]) => (
+                <div key={tier} className="flex flex-col items-center">
+                  <h3 className="font-headline text-xs font-black text-on-surface-variant uppercase tracking-[0.3em] mb-8">
+                    {tier} Sponsors
+                  </h3>
+                  <div className="flex flex-wrap justify-center gap-6 w-full max-w-5xl">
+                    {companies.map((s) => (
+                      <SponsorCard key={s.name} sponsor={s} size={TIER_CARD_SIZE[tier]} />
+                    ))}
+                  </div>
+                </div>
+              ))}
           </div>
         </div>
       </section>
