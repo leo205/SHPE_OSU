@@ -1,7 +1,17 @@
 -- ============================================================================
 --  Sponsor logins — close the resume book
 -- ============================================================================
---  STATUS: NOT YET APPLIED.
+--  STATUS: APPLIED to production 2026-08-03. Verified afterwards from an
+--  anonymous client: resumes and company_access return nothing, storage signed
+--  URLs are denied, and direct anon INSERT into resumes is refused (42501).
+--
+--  Public signup has since been DISABLED in the dashboard
+--  (/auth/v1/settings now reports disable_signup: true), so the note in §7
+--  describing it as ON is historical. The explicit role gate below remains the
+--  actual control — do not weaken it on the strength of that toggle.
+--
+--  Kept as the canonical definition of the current policy set. If you change a
+--  policy through the Supabase UI, update this file too.
 --
 --  This replaces the access-code system with real Supabase Auth users, and
 --  closes the exposure verified in production on 2026-07-30:

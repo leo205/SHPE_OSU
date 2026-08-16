@@ -21,10 +21,17 @@ All three are applied. They are kept as the canonical definition of the current
 state — if you change a policy through the Supabase UI, update the matching file
 or the next person has no way to know what the database is supposed to contain.
 
-Verified from an anonymous client after applying: `resumes`, `company_access` and
-the storage bucket all return nothing; `createSignedUrl` is denied; direct
-`INSERT` into `resumes` is refused (42501); and `submit_resume()` rejects both a
-non-OSU email and a path-traversal attempt.
+Verified from an anonymous client after applying, and re-verified 2026-08-16:
+`resumes`, `company_access` and the storage bucket all return nothing;
+`createSignedUrl` is denied; direct `INSERT` into `resumes` is refused (42501),
+so submissions are RPC-only; `submit_resume()` rejects both a non-OSU email and
+a path-traversal attempt; and the `leaderboard` view exposes exactly
+`first_name` and `count`.
+
+**Public signup has since been disabled** (`/auth/v1/settings` reports
+`disable_signup: true`). That is defence in depth, not the control — the explicit
+role gate is what actually protects the resume book, and it must stay even if
+someone re-enables signup later.
 
 ## ⚠️ Saved queries in the Supabase SQL Editor
 

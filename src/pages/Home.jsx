@@ -109,12 +109,6 @@ export default function Home() {
               <div className="rounded-lg overflow-hidden shadow-xl aspect-video">
                 <img src="/photos/picsMain/SHPE_volunteering.webp" alt="SHPE Volunteering" className="w-full h-full object-cover min-h-[260px]" loading="lazy" width="1200" height="800" />
               </div>
-              <div className="absolute -bottom-6 -right-6 bg-secondary text-on-secondary p-4 rounded-xl shadow-lg max-w-[200px] hidden sm:block">
-                <p className="font-bold text-lg italic">
-                  "Empowering the Hispanic community to realize its fullest
-                  potential."
-                </p>
-              </div>
             </div>
             {/* Text */}
             <div className="order-1 md:order-2">

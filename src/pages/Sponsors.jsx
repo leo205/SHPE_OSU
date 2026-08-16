@@ -123,6 +123,9 @@ const sponsors = {
 };
 
 // Largest card for the highest tier, so the visual hierarchy matches the price.
+// A tier missing from this map falls back to 'sm' at the call site — NOT to
+// SponsorCard's own 'lg' default, which would hand a brand-new cheap tier the
+// biggest card on the page and quietly outrank the sponsors who paid more.
 const TIER_CARD_SIZE = {
   'Platinum': 'lg',
   'Scarlet & Gray': 'lg',
@@ -462,22 +465,12 @@ function ContactForm() {
 
 /* ── Sponsors Page ─────────────────────────────────────────── */
 export default function Sponsors() {
-  useEffect(() => {
-    const savedScroll = sessionStorage.getItem('sponsorsScrollY');
-    if (savedScroll) {
-      // Small timeout to bypass the browser's default reset
-      setTimeout(() => {
-        window.scrollTo({ top: parseInt(savedScroll, 10), behavior: 'instant' });
-      }, 10);
-    }
-
-    const handleBeforeUnload = () => {
-      sessionStorage.setItem('sponsorsScrollY', window.scrollY);
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, []);
+  // NOTE: this page used to save its scroll offset to sessionStorage and restore
+  // it on mount, behind a 10ms setTimeout whose comment said it was there "to
+  // bypass the browser's default reset". That reset was ScrollToTop doing its
+  // job — so opening Sponsors put you at the top and then, a frame later, threw
+  // you back down to wherever you had been reading. Removed: navigation should
+  // land at the top of the page, every time.
 
   return (
     <>
@@ -524,9 +517,16 @@ export default function Sponsors() {
               <img
                 src="/photos/profDev/shpeNationalGroup.webp"
                 alt="SHPE OSU members attending the national convention together"
-                className="w-full aspect-[4/3] object-cover object-center"
-                width="900"
-                height="675"
+                /* Source is 1179x649 (~16:9). A 4/3 frame made object-cover
+                   discard 27% of the width — 13% off each side — which cut the
+                   people standing at the edges of the group in half. Matching
+                   the frame to the source drops that to ~2%. */
+                className="w-full aspect-[16/9] object-cover object-center"
+                /* Intrinsic size of the source file. These are the CLS fallback
+                   if the stylesheet is ever deferred, so they must describe the
+                   image, not the frame. */
+                width="1179"
+                height="649"
               />
             </div>
             {/* Decorative stat badge — duplicated as visible text so no information is lost */}
@@ -567,7 +567,7 @@ export default function Sponsors() {
                   </h3>
                   <div className="flex flex-wrap justify-center gap-6 w-full max-w-5xl">
                     {companies.map((s) => (
-                      <SponsorCard key={s.name} sponsor={s} size={TIER_CARD_SIZE[tier]} />
+                      <SponsorCard key={s.name} sponsor={s} size={TIER_CARD_SIZE[tier] ?? 'sm'} />
                     ))}
                   </div>
                 </div>

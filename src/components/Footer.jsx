@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { navLinks } from '../lib/navigation';
 
 export default function Footer() {
   return (
@@ -19,33 +20,19 @@ export default function Footer() {
           </p>
         </div>
 
-        {/* Page Links */}
-        <div className="flex flex-wrap justify-center gap-6 font-label text-sm uppercase tracking-widest">
-          <Link
-            to="/events"
-            className="text-on-surface-variant hover:text-primary transition-colors"
-          >
-            Events
-          </Link>
-          <Link
-            to="/eboard"
-            className="text-on-surface-variant hover:text-primary transition-colors"
-          >
-            E-Board
-          </Link>
-          <Link
-            to="/sponsors"
-            className="text-on-surface-variant hover:text-primary transition-colors"
-          >
-            Sponsors
-          </Link>
-          <Link
-            to="/resources"
-            className="text-on-surface-variant hover:text-primary transition-colors"
-          >
-            Resources
-          </Link>
-        </div>
+        {/* Page Links — from lib/navigation so this can never fall out of sync
+            with the Navbar again. It was previously missing Home and Prof. Dev. */}
+        <nav aria-label="Footer" className="flex flex-wrap justify-center gap-6 font-label text-sm uppercase tracking-widest">
+          {navLinks.map(({ to, label }) => (
+            <Link
+              key={to}
+              to={to}
+              className="text-on-surface-variant hover:text-primary transition-colors"
+            >
+              {label}
+            </Link>
+          ))}
+        </nav>
 
         {/* Social Icons */}
         <div className="flex gap-4 items-center">

@@ -1,7 +1,14 @@
 -- ============================================================================
 --  Resume submission — server-side upsert
 -- ============================================================================
---  STATUS: NOT YET APPLIED. Run AFTER supabase/sponsor-auth.sql.
+--  STATUS: APPLIED to production 2026-08-03, after sponsor-auth.sql.
+--  Verified afterwards from an anonymous client: submit_resume() rejects a
+--  non-OSU email (invalid_email) and a path-traversal path (invalid_path), and
+--  direct anon INSERT into resumes is refused entirely (42501) — submissions
+--  are RPC-only.
+--
+--  Kept as the canonical definition of the function. If you change it through
+--  the Supabase UI, update this file too.
 --
 --  WHY THIS EXISTS
 --  ---------------

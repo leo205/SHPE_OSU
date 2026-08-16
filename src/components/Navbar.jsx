@@ -1,14 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useState } from 'react';
-
-const navLinks = [
-  { to: '/', label: 'Home' },
-  { to: '/events', label: 'Events' },
-  { to: '/eboard', label: 'E-Board' },
-  { to: '/sponsors', label: 'Sponsors' },
-  { to: '/resources', label: 'Resources' },
-  { to: '/professional-development', label: 'Prof. Dev.' },
-];
+import { navLinks } from '../lib/navigation';
 
 export default function Navbar() {
   const { pathname } = useLocation();
