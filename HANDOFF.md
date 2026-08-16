@@ -1,6 +1,6 @@
 # SHPE OSU Website — Engineering Handoff
 
-_Last updated: 2026-08-03_
+_Last updated: 2026-08-16_
 
 Developer documentation for the Digital Operations Chair and anyone maintaining
 the SHPE chapter website at The Ohio State University. Covers architecture,
@@ -29,20 +29,30 @@ what was wrong, because the same mistakes are easy to repeat.
 | **Calendar exports** | `.ics` files were hardcoded to 06:00 UTC (2 AM Eastern) and the Google Calendar links produced unparseable dates. | ✅ Real times with an explicit timezone. |
 | **`npm run lint`** | 93 errors, so nobody ran it and it caught nothing. | ✅ Clean, and a real gate. |
 
+### Also fixed since
+
+| Area | What was wrong | State |
+|---|---|---|
+| **Navigation scroll** | Clicking a tab loaded the new page at the old scroll offset and then animated to the top. Three causes: a global `scroll-behavior: smooth` that applied to the scroll-to-top as well as to anchors; `useEffect` running after paint; and the Sponsors page separately restoring its own scroll offset. | ✅ Instant, every route |
+| **Footer links** | The footer kept a hand-written copy of the nav list and had drifted — Home and Prof. Dev. were missing, so two pages were unreachable from the bottom of every page. | ✅ One shared list |
+| **Sponsor logos** | IBM removed at the president's request (it was a personal donation, not corporate). List updated to the five current sponsors and grouped by the tiers the chapter actually sells — the wall previously said Platinum/Gold/Bronze, which are not levels SHPE OSU offers. | ✅ Current |
+| **Sponsor tier buttons** | All four "Get Started" buttons scrolled to a form that always defaulted to Buckeye ($500), so a Platinum enquiry arrived labelled as the cheapest tier. | ✅ Preselects |
+| **Sponsors hero** | A ~16:9 photo in a 4:3 frame; `object-cover` discarded 27% of the width and cut people out of the group shot. | ✅ Matched |
+
 ### What is still open
 
-*   **Autumn events.** `src/data/events.js` contains only past events. Someone
-    must add real dates before the first GBM or the check-in dropdown has
-    nothing current to select. See §4.
-*   **Sponsor accounts.** No recruiter accounts exist yet — the old codes are
-    dead. Nobody can use the corporate portal until accounts are created (§3).
+*   **Autumn events.** `src/data/events.js` and the Supabase `events` table both
+    contain only past events. Someone must add real dates before the first GBM or
+    the check-in dropdown has nothing current to select. Do it from the Admin
+    Dashboard (§4) — no code needed.
+*   **Sponsor accounts.** No recruiter accounts exist yet, so nobody can use the
+    corporate portal. Two steps, and people forget the second one (§4).
+*   **Involvement-fair landing page.** Designed, not built. See `CLAUDE.md`.
 *   **Resume ownership.** Submissions are keyed on email with no proof of
-    ownership. Bounded, not solved — see the residual-risk note in §3.
-*   **`PublicLeaderboard.jsx`** is committed but imported nowhere. Delete it or
-    mount it; leaving it invites drift.
-*   **Bundle size.** One ~950 KB chunk. Code-splitting `/admin` would help.
-
----
+    ownership. Bounded, not solved — see §3.
+*   **`PublicLeaderboard.jsx`** is committed but imported nowhere. Delete or mount.
+*   **Bundle size.** One ~950 KB chunk. Code-splitting `/admin` would help, and
+    matters most for the QR-code page.
 
 ## 1. System Architecture
 

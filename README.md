@@ -1,8 +1,23 @@
-# SHPE Ohio State University - Chapter Website
+# SHPE Ohio State University — Chapter Website
 
-Welcome to the official repository for the Society of Hispanic Professional Engineers (SHPE) chapter at The Ohio State University. This web application serves as a central hub for our members, prospective members, and corporate sponsors, while providing our executive board with powerful tools to track chapter engagement, manage events, and offer recruiters secure access to our student resume database.
+The official website for the **Society of Hispanic Professional Engineers** chapter at The Ohio State University. Live at **[shpeosu.com](https://www.shpeosu.com)**.
 
-This project is built with React 18, Vite, Tailwind CSS, and Supabase to provide a fast, beautiful, responsive, and completely serverless website.
+## Our mission
+
+SHPE changes lives by empowering the Hispanic community to realize its fullest potential and to impact the world through STEM awareness, access, support, and development.
+
+This site is how the chapter does that day to day. It exists to serve four people, and every decision should be weighed against whether it helps one of them:
+
+*   **A student who has never heard of SHPE** — find out what it is, whether they belong, and how to show up.
+*   **A member** — check in at meetings, get their resume in front of recruiters, find academic and professional resources.
+*   **A corporate recruiter** — browse approved student resumes, and sponsor the chapter.
+*   **The E-Board** — run events, review resumes, and see attendance analytics **without writing code**.
+
+That last one shapes the architecture more than anything else. The E-Board turns over every year and its members are not developers, so anything they need weekly — adding an event, approving a resume, onboarding a sponsor — has to be doable from the Admin Dashboard rather than by editing a file and pushing a commit.
+
+Built with React 18, Vite, Tailwind CSS and Supabase: fast, responsive, and serverless, so it costs the chapter nothing to run.
+
+> **Working on this?** Start with [`CLAUDE.md`](./CLAUDE.md) — it covers the current state, what is actively being built, and the mistakes this codebase has already made once.
 
 ---
 
@@ -17,7 +32,7 @@ This project is built with React 18, Vite, Tailwind CSS, and Supabase to provide
     *   **National Convention Guide**: Step-by-step prep timeline (Registration, Resume, Company Research, Elevator Pitch, Business Attire, Follow-up) and logistics overview.
     *   **SponsorSHPE Call to Action**: Invites corporate partners to collaborate and redirects them to the Sponsors portal.
 *   **E-Board Roster (`/eboard`)**: Displays student leaders in a custom, Loteria-styled grid layout. Cards use dynamic Tailwind CSS grids and flexbox centering fallbacks to align the orphaned last row cleanly on all screen sizes, showcasing standardized `.webp` headshots.
-*   **Corporate Sponsor Portal (`/sponsors`)**: Highlights partner benefits and tiers (Buckeye, Carmen, Scarlet & Gray, Platinum). Contains a secure sponsor contact form powered by EmailJS, sending inquiries directly to the E-Board.
+*   **Corporate Sponsor Portal (`/sponsors`)**: Partner benefits and tiers (Buckeye $500, Carmen $1,000, Scarlet & Gray $1,500, Platinum $2,000). Current sponsors are grouped by the tier they actually purchased, and empty tiers hide themselves. Each tier's **Get Started** button preselects that tier in the contact form, so an enquiry arrives labelled with the level the recruiter clicked. Powered by EmailJS.
 *   **Resource Hub (`/resources`)**: Provides study tips, tutoring links, and a direct link to view and read the official chapter **First-Year Guide PDF** (`/photos/First-Year-Guide.pdf`).
 
 ---
@@ -143,12 +158,16 @@ shpe-osu/
 │   │   ├── supabase.js   # Supabase client initialization (loads credentials from env)
 │   │   ├── auth.js       # isAdmin/isSponsor role checks (reads app_metadata)
 │   │   ├── events.js     # Single source of truth for events: DB + bundled fallback
-│   │   ├── calendar.js   # Google Calendar / .ics export builders (unit-tested)
-│   │   └── majors.js     # Shared "Other – major" formatting
+│   │   ├── calendar.js   # Google Calendar / .ics export builders
+│   │   ├── majors.js     # Shared "Other – major" formatting
+│   │   ├── navigation.js # Nav links — shared by Navbar AND Footer
+│   │   └── scroll.js     # Smooth in-page anchor scrolling (opt-in)
 │   ├── pages/            # Core page components (Home, Events, Eboard, Sponsors, Resources, etc.)
 │   ├── App.jsx           # Client-side router declarations
 │   ├── index.css         # Tailwind utility styling
 │   └── main.jsx          # Entry point
+├── CLAUDE.md             # Working context — read this first
+├── REWRITE.md            # Plan for the ports-and-adapters rewrite
 ├── supabase/             # Database security model — READ supabase/README.md FIRST
 │   ├── README.md         # Security model, run order, and how to check live state
 │   ├── leaderboard-view.sql   # (applied) public leaderboard view
