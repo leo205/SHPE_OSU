@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import emailjs from '@emailjs/browser';
 import ImagePlaceholder from '../components/ImagePlaceholder';
+import { scrollToAnchor } from '../lib/scroll';
 
 /*
  * ══════════════════════════════════════════════════════════════
@@ -68,7 +69,8 @@ const tiers = [
     name: 'Platinum',
     price: '$2,000',
     accent: 'primary',
-    premium: true,
+    // No `premium: true` — the Platinum card used to render in inverted
+    // colours, which read as an ad rather than as one option among four.
     benefits: [
       'Networking Brunch Invitation',
       'Resume Book Access',
@@ -85,6 +87,22 @@ const tiers = [
     ],
   },
 ];
+
+/**
+ * The exact string stored in the inquiry's `tier` field and emailed to the
+ * E-Board, e.g. "Carmen ($1,000)".
+ *
+ * Derived from `tiers` rather than written out again in the <select>. The
+ * options used to be four hardcoded <option> literals duplicating the names and
+ * prices above, so repricing a tier left the dropdown — and therefore the email
+ * the E-Board receives — silently disagreeing with the pricing table on the same
+ * page.
+ */
+const tierLabel = (tier) => `${tier.name} (${tier.price})`;
+
+// "Custom" has no price and is not a purchasable tier, so it is appended rather
+// than derived.
+const TIER_OPTIONS = [...tiers.map(tierLabel), 'Custom'];
 
 /*
  * ── Current & Past Sponsors ────────────────────────────────────
@@ -178,7 +196,7 @@ const EMPTY_FORM = {
   company_name: '',
   contact_name: '',
   reply_to: '',
-  tier: 'Buckeye ($500)',
+  tier: tierLabel(tiers[0]),
   message: '',
 };
 
@@ -188,7 +206,13 @@ const EMPTY_FORM = {
 const MAX_LEN = { company_name: 150, contact_name: 120, reply_to: 254, message: 2000 };
 const RESEND_COOLDOWN_MS = 60 * 1000;
 
-function ContactForm() {
+/**
+ * `pick` is `{ label, seq }` from the parent. The sequence number matters: after
+ * a successful submit the form resets to the cheapest tier, so a plain
+ * `[label]` dependency would ignore a second click on the SAME tier and leave
+ * the wrong one selected. Bumping `seq` on every click makes each one distinct.
+ */
+function ContactForm({ pick }) {
   const formRef = useRef(null);
   const [status, setStatus] = useState('idle'); // idle | sending | success | error
   const [errorMsg, setErrorMsg] = useState('');
@@ -214,6 +238,14 @@ function ContactForm() {
       // Private-browsing quota errors shouldn't break typing.
     }
   }, [formData]);
+
+  // A Get Started click wins over whatever the restored draft had, since it is
+  // the more recent expression of intent. Skipped on first mount (seq 0) so the
+  // draft survives a plain page reload.
+  useEffect(() => {
+    if (!pick?.seq || !pick.label) return;
+    setFormData((prev) => ({ ...prev, tier: pick.label }));
+  }, [pick?.seq, pick?.label]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -412,11 +444,9 @@ function ContactForm() {
               onChange={handleChange}
               className="w-full px-4 py-3 rounded-xl border border-outline-variant bg-surface-bright focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
             >
-              <option>Buckeye ($500)</option>
-              <option>Carmen ($1,000)</option>
-              <option>Scarlet &amp; Gray ($1,500)</option>
-              <option>Platinum ($2,000)</option>
-              <option>Custom</option>
+              {TIER_OPTIONS.map((label) => (
+                <option key={label} value={label}>{label}</option>
+              ))}
             </select>
           </div>
 
@@ -465,6 +495,11 @@ function ContactForm() {
 
 /* ── Sponsors Page ─────────────────────────────────────────── */
 export default function Sponsors() {
+  // Which tier the visitor clicked "Get Started" on. Every card used to link to
+  // the same #become-a-sponsor anchor, so clicking Platinum scrolled you to a
+  // form defaulting to Buckeye — and unless you noticed, that is the tier the
+  // E-Board received the inquiry under.
+  const [tierPick, setTierPick] = useState({ label: null, seq: 0 });
   // NOTE: this page used to save its scroll offset to sessionStorage and restore
   // it on mount, behind a 10ms setTimeout whose comment said it was there "to
   // bypass the browser's default reset". That reset was ScrollToTop doing its
@@ -492,6 +527,7 @@ export default function Sponsors() {
             <div className="flex flex-wrap gap-4">
               <a
                 href="#become-a-sponsor"
+                onClick={(e) => scrollToAnchor(e, 'become-a-sponsor')}
                 className="bg-primary text-on-primary px-8 py-4 rounded-full font-bold text-lg hover:bg-primary-fixed-dim transition-all shadow-lg hover:-translate-y-1 inline-block"
               >
                 Become a Sponsor
@@ -591,21 +627,16 @@ export default function Sponsors() {
             {tiers.map((tier) => (
               <div
                 key={tier.name}
-                className={`rounded-xl p-8 flex flex-col transition-all ${tier.premium
-                  ? 'bg-primary text-on-primary shadow-2xl scale-105 z-10'
-                  : 'bg-surface-container hover:bg-surface-container-highest'
-                  }`}
+                className="rounded-xl p-8 flex flex-col transition-all bg-surface-container hover:bg-surface-container-highest"
               >
                 <div className="mb-6">
                   <h3
-                    className={`font-headline text-2xl font-bold ${tier.premium ? 'text-on-primary' : 'text-secondary'
-                      }`}
+                    className="font-headline text-2xl font-bold text-secondary"
                   >
                     {tier.name}
                   </h3>
                   <div
-                    className={`text-4xl font-black mt-2 ${tier.premium ? 'text-white' : 'text-primary'
-                      }`}
+                    className="text-4xl font-black mt-2 text-primary"
                   >
                     {tier.price}
                   </div>
@@ -614,11 +645,10 @@ export default function Sponsors() {
                   {tier.benefits.map((b) => (
                     <li key={b} className="flex gap-3 text-sm font-medium">
                       <span
-                        className={`material-symbols-outlined text-[20px] flex-shrink-0 ${tier.premium ? 'text-tertiary-container' : 'text-primary'
-                          }`}
+                        className="material-symbols-outlined text-[20px] flex-shrink-0 text-primary"
                         style={{ fontVariationSettings: '"FILL" 1' }}
                       >
-                        {tier.premium ? 'stars' : 'check_circle'}
+                        check_circle
                       </span>
                       {b}
                     </li>
@@ -626,11 +656,12 @@ export default function Sponsors() {
                 </ul>
                 <a
                   href="#become-a-sponsor"
+                  onClick={(e) => {
+                    setTierPick((p) => ({ label: tierLabel(tier), seq: p.seq + 1 }));
+                    scrollToAnchor(e, 'become-a-sponsor');
+                  }}
                   aria-label={`Get started with the ${tier.name} sponsorship tier`}
-                  className={`text-center py-3 rounded-full font-bold transition-all ${tier.premium
-                    ? 'bg-on-primary text-primary hover:opacity-90'
-                    : 'bg-primary text-on-primary hover:bg-primary-fixed-dim'
-                    }`}
+                  className="text-center py-3 rounded-full font-bold transition-all bg-primary text-on-primary hover:bg-primary-fixed-dim"
                 >
                   Get Started
                 </a>
@@ -641,7 +672,7 @@ export default function Sponsors() {
       </section>
 
       {/* ── CONTACT FORM ───────────────────────────────────── */}
-      <ContactForm />
+      <ContactForm pick={tierPick} />
     </>
   );
 }

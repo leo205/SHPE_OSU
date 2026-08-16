@@ -23,6 +23,7 @@
  */
 
 import { useState, useRef, useEffect } from 'react';
+import { scrollToAnchor } from '../lib/scroll';
 
 /* ─────────────────────────────────────────────
    DATA — Professional Development events
@@ -312,6 +313,7 @@ export default function ProfessionalDevelopment() {
               </a>
               <a
                 href="#spotlight-heading"
+                onClick={(e) => scrollToAnchor(e, 'spotlight-heading')}
                 className="bg-surface-container-highest text-on-surface px-7 py-4 rounded-full text-base font-bold hover:bg-surface-container transition-all flex items-center gap-2"
               >
                 Explore Features

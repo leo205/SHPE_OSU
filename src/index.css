@@ -8,9 +8,17 @@
   * {
     box-sizing: border-box;
   }
-  html {
-    scroll-behavior: smooth;
-  }
+  /* NO global `scroll-behavior: smooth` here.
+   *
+   * It applied to window.scrollTo(0, 0) as well as to anchor jumps, so every
+   * route change ANIMATED from wherever you were up to the top — you saw the
+   * new page at the old scroll offset and watched it slide. Trying to suppress
+   * it from JS around the jump is unreliable: setting and reverting the inline
+   * style in one synchronous block may never trigger a style recalculation, so
+   * scrollTo can still read `smooth` and animate anyway.
+   *
+   * Route changes are now instant by default, and the three in-page anchor
+   * links opt INTO smooth explicitly via scrollToAnchor() in lib/scroll.js. */
   body {
     @apply bg-surface text-on-surface font-body;
     overflow-x: hidden;
