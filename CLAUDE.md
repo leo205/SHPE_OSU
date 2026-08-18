@@ -128,6 +128,9 @@ and autumn event dates.
   error boundary, so a throw unmounts the whole app — a blank page on every route.
 - **`window.open()` returns `null` when passed `noopener`.** Open the tab, then
   set `tab.opener = null`, then assign `tab.location`.
+- **The attendance QR code is static and never expires** (`qr/`, regenerate with
+  `npm run qr`). The real risk is `shpeosu.com` lapsing — it expires 2027-05-18
+  and every printed code dies with it.
 - **A PostgREST `DELETE`/`UPDATE` matching zero rows returns success** whether or
   not a policy permits it. Write policies cannot be probed from outside; query
   `pg_policies` instead.

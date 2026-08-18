@@ -253,6 +253,35 @@ Rename them `⚠️ OLD — DO NOT RUN`.
     ```
     Vercel will auto-deploy in under 60 seconds.
 
+### The attendance QR code
+
+`qr/attendance.png` and `qr/attendance.svg` encode
+**https://www.shpeosu.com/attendance**. Send the PNG for Slack, the SVG for print.
+
+**It never expires and never needs refreshing.** A QR code is just a URL drawn as
+an image — there is no account, no service, and nothing phoning home. It works
+for as long as that URL works. Regenerate only if the route is renamed, the
+domain changes, or it should point somewhere else:
+
+```bash
+npm run qr
+```
+
+Deliberately NOT a "dynamic QR" from a generator website. Those route through the
+vendor's servers and die when the free tier ends or the company folds — taking
+every printed poster with them. This one has no third party in the path, so the
+destination can be changed from this repo without reprinting anything.
+
+**⚠️ The one thing that would break every printed code: domain expiry.**
+`shpeosu.com` is registered through Cloudflare and expires **2027-05-18**. If it
+lapses, every QR on every table tent stops working at the same moment, along with
+the site. Make sure auto-renew is on and the card on file outlives whoever added
+it — a graduating member's personal card is the usual way this fails.
+
+Printing: ~1.5 in for a table tent, ~4 in for a poster. Print the URL as text
+underneath as a fallback, never crop the white border, and test on both an iPhone
+and an Android before sending to print.
+
 ### Onboarding a Corporate Sponsor
 
 1.  Supabase Dashboard → **Authentication → Users → Add user**
