@@ -24,8 +24,6 @@ const MAJORS = [
   'Other',
 ];
 
-const PRONOUNS = ['She / Her / Hers', 'He / Him / His', 'They / Them / Theirs', 'Other'];
-
 const HOW_HEARD = [
   'Friend / Word of mouth',
   'Instagram (@shpeosu)',
@@ -57,7 +55,6 @@ function validatePayload(form, isFirst, customMajor, eventOptions) {
     if (!MAJORS.includes(form.major)) return 'Invalid major selection.';
     if (form.major === 'Other' && !customMajor.trim()) return 'Please describe your major.';
     if (customMajor.trim().length > 150) return 'Major description is too long.';
-    if (!PRONOUNS.includes(form.pronouns)) return 'Invalid pronouns selection.';
     if (!HOW_HEARD.includes(form.how_heard)) return 'Invalid "how heard" selection.';
   }
   return null;
@@ -120,7 +117,6 @@ export default function Attendance() {
     year: '',
     feedback: '',
     major: '',
-    pronouns: '',
     how_heard: '',
   });
 
@@ -202,7 +198,8 @@ export default function Attendance() {
       is_first_meeting: isFirst,
       feedback: form.feedback.trim() || null,
       major: resolvedMajor,
-      pronouns: isFirst ? form.pronouns : null,
+      // pronouns: removed from the form. The column is left in place so the
+      // rows already collected are not lost, but nothing writes it any more.
       how_heard: isFirst ? form.how_heard : null,
     };
 
@@ -505,25 +502,6 @@ export default function Attendance() {
                   />
                 </div>
               )}
-            </div>
-
-            <div>
-              <label htmlFor="pronouns" className="block text-sm font-bold uppercase tracking-wider mb-2 text-on-surface-variant">
-                Pronouns *
-              </label>
-              <select
-                id="pronouns"
-                name="pronouns"
-                required
-                value={form.pronouns}
-                onChange={handleChange}
-                className="w-full px-4 py-3 rounded-xl border border-outline-variant bg-surface focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-              >
-                <option value="">Select…</option>
-                {PRONOUNS.map((p) => (
-                  <option key={p} value={p}>{p}</option>
-                ))}
-              </select>
             </div>
 
             <div>

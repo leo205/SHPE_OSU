@@ -445,6 +445,14 @@ export default function AdminDashboard() {
       count,
     }));
 
+  // Feedback students wrote at check-in. Until now this was collected, stored,
+  // and only ever surfaced as a column in the CSV export — while the check-in
+  // form told students "we read every response!". Nobody could, without
+  // exporting a spreadsheet and scrolling sideways.
+  const feedbackEntries = attendance
+    .filter((r) => r.feedback && r.feedback.trim())
+    .sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? ''));
+
   const sanitizeCSVCell = (value) => {
     if (value === null || value === undefined) return '';
     let str = String(value);
@@ -741,6 +749,53 @@ export default function AdminDashboard() {
                 </div>
               </div>
             )}
+
+            {/* ── Member Feedback ─────────────────────────────────────── */}
+            <div className="space-y-4 pt-8 border-t border-outline-variant/20 max-w-6xl">
+              <div>
+                <h2 className="text-3xl font-black font-headline text-on-surface">Member Feedback</h2>
+                <p className="text-sm text-on-surface-variant mt-1">
+                  Everything students wrote in the &ldquo;Any feedback or suggestions?&rdquo; box at check-in, newest first.
+                </p>
+              </div>
+
+              {feedbackEntries.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-outline-variant/30 bg-surface-container-lowest px-6 py-10 text-center text-sm text-on-surface-variant">
+                  No feedback yet. It appears here as soon as someone leaves a comment when they check in.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {feedbackEntries.map((r) => (
+                    <div
+                      key={r.id}
+                      className="rounded-lg border border-outline-variant/20 bg-surface-container-lowest p-5 shadow-sm"
+                    >
+                      <p className="text-on-surface font-body leading-relaxed whitespace-pre-wrap">
+                        {r.feedback}
+                      </p>
+                      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-on-surface-variant">
+                        <span className="font-bold text-on-surface">{r.first_name}</span>
+                        <span aria-hidden="true">·</span>
+                        <span>{r.event_name}</span>
+                        <span aria-hidden="true">·</span>
+                        <span>
+                          {r.created_at
+                            ? new Date(r.created_at).toLocaleDateString('en-US', {
+                                month: 'short', day: 'numeric', year: 'numeric',
+                              })
+                            : '—'}
+                        </span>
+                        {r.is_first_meeting && (
+                          <span className="rounded-md bg-tertiary-container/20 px-2 py-0.5 font-bold text-tertiary">
+                            First Time
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
             {/* Member Directory Section on Home Page */}
             <div className="space-y-6 pt-8 border-t border-outline-variant/20 max-w-6xl">
