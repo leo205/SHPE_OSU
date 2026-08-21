@@ -194,10 +194,15 @@ export default function Join() {
           {/* Uniform square grid, six items, so it tiles evenly with a flat
               bottom edge. A masonry layout here left one column much longer
               than the others and a block of dead space below it. Keeping the
-              count a multiple of the column count is what keeps it even. */}
+              count a multiple of the column count is what keeps it even.
+
+              Corners use the "2xl" step (16px), not "xl". tailwind.config.js
+              overrides the radius scale, so the "xl" step is 3rem/48px here —
+              three times rounder than "2xl" despite the name. At 48px these
+              tiles rendered as blobs on a phone, where each is only ~167px. */}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             {gallery.map(({ src, alt }) => (
-              <div key={src} className="rounded-xl overflow-hidden shadow-md bg-surface-container">
+              <div key={src} className="rounded-2xl overflow-hidden shadow-md bg-surface-container">
                 <img
                   src={src}
                   alt={alt}
@@ -268,7 +273,7 @@ export default function Join() {
                 href={href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="bg-surface-container-lowest border border-outline-variant/20 rounded-xl px-4 py-3 text-center hover:bg-surface-container transition-colors"
+                className="bg-surface-container-lowest border border-outline-variant/20 rounded-2xl px-4 py-3 text-center hover:bg-surface-container transition-colors"
               >
                 <span className="block font-bold text-on-surface text-sm">{label}</span>
                 <span className="block text-xs text-on-surface-variant mt-0.5">{note}</span>
