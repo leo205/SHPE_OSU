@@ -104,6 +104,24 @@ const profDevEvents = [
 ];
 
 /*
+ * internSHPE Spotlight — TEMPORARILY HIDDEN.
+ *
+ * Set SHOW_SPOTLIGHT back to true to bring the whole section back. Nothing has
+ * been deleted: the data, the SpotlightCarousel component and the section markup
+ * are all intact below, and the flag gates both the section itself and the
+ * "Explore Features" button that scrolls down to it.
+ *
+ * A flag rather than commented-out JSX on purpose — commenting the markup out
+ * would leave `spotlights` and `SpotlightCarousel` unreferenced, which fails the
+ * no-unused-vars rule and makes `npm run lint` red. Gating keeps them
+ * statically referenced, so lint stays clean while nothing renders.
+ *
+ * When it comes back, check the quotes and roles are still current: these name
+ * specific members and where they interned.
+ */
+const SHOW_SPOTLIGHT = false;
+
+/*
 * Eboard Members with Spotlight tabs
 */
 const spotlights = [
@@ -311,14 +329,19 @@ export default function ProfessionalDevelopment() {
                 Connect on LinkedIn
                 <span className="material-symbols-outlined" aria-hidden="true">open_in_new</span>
               </a>
-              <a
-                href="#spotlight-heading"
-                onClick={(e) => scrollToAnchor(e, 'spotlight-heading')}
-                className="bg-surface-container-highest text-on-surface px-7 py-4 rounded-full text-base font-bold hover:bg-surface-container transition-all flex items-center gap-2"
-              >
-                Explore Features
-                <span className="material-symbols-outlined" aria-hidden="true">arrow_downward</span>
-              </a>
+              {/* Scrolls to the spotlight section, so it hides with it —
+                  otherwise this button points at an element that no longer
+                  exists and simply does nothing when clicked. */}
+              {SHOW_SPOTLIGHT && (
+                <a
+                  href="#spotlight-heading"
+                  onClick={(e) => scrollToAnchor(e, 'spotlight-heading')}
+                  className="bg-surface-container-highest text-on-surface px-7 py-4 rounded-full text-base font-bold hover:bg-surface-container transition-all flex items-center gap-2"
+                >
+                  Explore Features
+                  <span className="material-symbols-outlined" aria-hidden="true">arrow_downward</span>
+                </a>
+              )}
             </div>
           </div>
           <div className="relative flex items-center justify-center">
@@ -376,7 +399,10 @@ export default function ProfessionalDevelopment() {
         </div>
       </section>
 
-      {/* ── MEMBER VOICE / internSHPE SPOTLIGHT ───────────── */}
+      {/* ── MEMBER VOICE / internSHPE SPOTLIGHT ─────────────
+           Hidden behind SHOW_SPOTLIGHT (top of file). Flip that to true to
+           restore; nothing here has been removed. */}
+      {SHOW_SPOTLIGHT && (
       <section id="spotlight-heading" aria-labelledby="spotlight-title" className="py-20 px-6 md:px-12 bg-surface">
         <div className="max-w-screen-2xl mx-auto">
           <div className="flex items-center gap-6 mb-12">
@@ -400,6 +426,7 @@ export default function ProfessionalDevelopment() {
           </figure>
         </div>
       </section>
+      )}
 
       {/* ── NATIONAL CONVENTION ────────────────────────────── */}
       <section aria-labelledby="convention-heading" className="py-20 px-6 md:px-12 bg-surface-container-low">
