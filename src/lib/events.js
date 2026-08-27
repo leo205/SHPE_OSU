@@ -119,9 +119,10 @@ export function eventOptionLabel(event) {
  * recent past ones. A student checking in wants tonight's GBM at the top, not
  * whatever happens to sort first by date.
  *
- * `withinPastDays` keeps the list short without ever emptying it — if every event
- * is in the past (as happens over the summer), recent ones still appear so
- * check-in degrades gracefully instead of breaking.
+ * Past events are included only while they are still plausibly checkinable:
+ * within `withinPastDays`, for the student checking in a day late. Older ones
+ * appear ONLY when there is nothing else to show, so the dropdown can never be
+ * empty mid-meeting — that is the one thing it must never be.
  */
 export function sortForCheckIn(events, { withinPastDays = 30, today = new Date() } = {}) {
   const todayStr = localDateString(today);
@@ -139,7 +140,20 @@ export function sortForCheckIn(events, { withinPastDays = 30, today = new Date()
 
   const recentPast = past.filter((e) => e.date >= cutoff);
 
-  // Never return nothing: fall back to the 5 most recent if the window is empty.
-  const trailing = recentPast.length > 0 ? recentPast : past.slice(0, 5);
-  return [...upcoming, ...trailing];
+  // Once there is something upcoming, that plus anything genuinely recent is
+  // the whole useful list — stop there.
+  //
+  // This used to append `past.slice(0, 5)` unconditionally whenever the recent
+  // window came up empty, which is exactly what happens at the start of a
+  // semester: nothing has run in 30 days, so the dropdown showed this week's
+  // GBM followed by five events from LAST spring. Clutter at best, and at
+  // worst a student taps the wrong one and their check-in lands on an event
+  // from April.
+  if (upcoming.length > 0) return [...upcoming, ...recentPast];
+
+  // Nothing upcoming. Show recent events so a late check-in still works, and
+  // only if even that window is empty (mid-summer, or before the E-Board has
+  // added the new semester) fall back to the most recent few — an empty
+  // dropdown mid-meeting is worse than a stale one.
+  return recentPast.length > 0 ? recentPast : past.slice(0, 5);
 }

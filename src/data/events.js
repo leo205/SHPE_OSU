@@ -18,6 +18,50 @@
  */
 
 export const events = [
+  // ── Autumn 2026 ─────────────────────────────────────────────────────────────
+  // Mirrored from the Supabase `events` table on 2026-08-25. The DATABASE is the
+  // real source for these — they were added through the Admin Dashboard and are
+  // edited there. These copies exist for one reason: if Supabase is unreachable,
+  // the check-in dropdown and the calendar still offer them. Without a copy here
+  // an outage during a GBM leaves students unable to select the meeting they are
+  // standing in.
+  //
+  // ⚠️  `title` and `date` must stay character-identical to the database row.
+  // mergeEvents() de-duplicates on `${title}|${date}`, so a drifted title shows
+  // the event TWICE on the calendar — and the check-in label built from it
+  // (`8/28 - <title>`) is the exact string attendance is grouped by.
+  //
+  // `photo` is deliberately empty. The real images are served from Supabase
+  // storage, which is unreachable in exactly the situation these entries exist
+  // for; Events.jsx renders a placeholder when photo is empty.
+  {
+    id: 7,
+    title: 'General Body Meeting #1: SHPES AND SALSA',
+    date: '2026-08-28',
+    time: '6:00 PM',
+    endTime: '7:30 PM',
+    location: 'CURL VIEWPOINT',
+    description:
+      'Join us at our first GBM of the semester! Meet the E-Board, learn about SHPE, connect with our familia, and enjoy FREE',
+    category: 'GBM',
+    featured: true,
+    rsvpUrl: '',
+    photo: '',
+  },
+  {
+    id: 8,
+    title: 'RESUME WORKSHOP w/ RTX',
+    date: '2026-08-27',
+    time: '6:30 PM',
+    endTime: '8:00 PM',
+    location: 'FONTANA RM 2040',
+    description:
+      'Kick off the year with Pratt & Whitney! Strengthen your resume, showcase your skills, and learn how to stand out for aerospace and engineering career opportunities.',
+    category: 'Professional',
+    featured: false,
+    rsvpUrl: '',
+    photo: '',
+  },
   {
     id: 1,
     title: 'General Body Meeting #4 — Final',

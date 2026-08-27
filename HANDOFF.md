@@ -282,6 +282,101 @@ Printing: ~1.5 in for a table tent, ~4 in for a poster. Print the URL as text
 underneath as a fallback, never crop the white border, and test on both an iPhone
 and an Android before sending to print.
 
+### Backup check-in form
+
+**The problem it solves.** If the Supabase insert on `/attendance` fails, the
+check-in is gone — nothing is queued and nothing is retried. During a GBM that
+means no attendance record for the whole meeting, and the student sees only a
+generic error. `src/lib/attendanceFallback.js` adds a "Check in with the backup
+form" button to that error state, pointing at a Google Form that collects the
+same fields.
+
+**What it does and does not cover.** It covers *Supabase broken, network fine* —
+the project paused, rate-limited, or a policy changed. It does **not** help when
+the venue's wifi is down, because Google is equally unreachable then. That case
+needs a printed sign-in sheet, which costs nothing and should exist anyway.
+
+**It is inert until configured.** With `baseUrl` empty, `buildFallbackUrl()`
+returns `null` and the check-in page behaves exactly as before. There is nothing
+to revert if you decide against it.
+
+#### Setting it up
+
+1. **Build the Google Form.** One field per column, in this order:
+
+   | Form question | Type | Maps to |
+   |---|---|---|
+   | Which event did you attend? | Short answer | `event_name` |
+   | First name | Short answer | `first_name` |
+   | Last Name.## | Short answer | `last_name_dotnum` |
+   | Year | Multiple choice | `year` |
+   | Is this your first meeting this year? | Multiple choice — **Yes / No** | `is_first_meeting` |
+   | Major | Short answer | `major` |
+   | How did you hear about SHPE? | Short answer | `how_heard` |
+   | Feedback | Paragraph | `feedback` |
+
+   Use the exact same option text as the check-in form for Year (`1st Year`,
+   `2nd Year`, …) so the values can be pasted straight into the database. The
+   Yes/No wording on the first-meeting question matters — the builder maps the
+   boolean to those two strings.
+
+2. **Get the respondent link.** Form → **Send** → link icon. It ends in
+   `/viewform`. Do **not** use the URL from your address bar while editing —
+   that ends in `/edit` and a student cannot submit it.
+
+3. **Get the prefill IDs.** Form → **⋮** → **Get pre-filled link** → type a
+   recognisable dummy value into every field → **Get link**. The URL it gives
+   you contains `entry.123456789=dummy` pairs. Copy each `entry.…` number into
+   the matching field in `FALLBACK_FORM.entries`.
+
+4. **Paste both into `src/lib/attendanceFallback.js`** and deploy.
+
+Leaving any `entries` value as `''` just means that field is not prefilled — the
+form still works. A partial setup is safe. **Prefilling `event_name` is the one
+that really matters**, for the reason below.
+
+#### ⚠️ The event name must not be retyped
+
+The form is prefilled with `8/28 - General Body Meeting #1: SHPES AND SALSA`,
+built by `eventOptionLabel()`. That exact string is what the admin dashboard
+**groups attendance by**. If someone hand-types "GBM #1" instead, that meeting's
+history splits into two buckets that never reconcile and nothing warns you. This
+is the same contract described in `REWRITE.md` §6.1.
+
+If you print a paper sheet as the deeper fallback, write that exact label across
+the top for the same reason.
+
+#### Merging responses back in
+
+Responses land in a Google Sheet, not in `attendance`. There is no import button —
+the Admin Dashboard exports CSV but does not read it. Move them with the SQL
+Editor once the outage is over:
+
+```sql
+INSERT INTO attendance
+  (event_name, first_name, last_name_dotnum, year, is_first_meeting, major, how_heard, feedback)
+VALUES
+  ('8/28 - General Body Meeting #1: SHPES AND SALSA', 'Maria', 'Buckeye.01',
+   '1st Year', true, 'Mechanical Engineering', 'Involvement Fair / Tabling', NULL);
+```
+
+Two things to check before running it:
+
+- **`major`** — if the student wrote a major outside the standard list, store it
+  as `Other – <their text>` with an **en dash** (U+2013), matching
+  `src/lib/majors.js`. A hyphen here is invisible and breaks every filter.
+- **Duplicates** — someone may have submitted the form *and* successfully checked
+  in on a retry. The leaderboard counts distinct events so rankings are safe, but
+  the dashboard's raw check-in total would run high. Worth a look:
+
+  ```sql
+  SELECT event_name, first_name, last_name_dotnum, count(*)
+  FROM attendance GROUP BY 1,2,3 HAVING count(*) > 1;
+  ```
+
+Clear the Sheet after merging, so next semester's outage does not get mixed in
+with this one's.
+
 ### Onboarding a Corporate Sponsor
 
 1.  Supabase Dashboard → **Authentication → Users → Add user**
