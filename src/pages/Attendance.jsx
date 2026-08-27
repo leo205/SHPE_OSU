@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { formatMajor } from '../lib/majors';
 import { fetchEvents, mergeEvents, eventOptionLabel, sortForCheckIn } from '../lib/events';
+import { buildFallbackUrl } from '../lib/attendanceFallback';
 
 // ── Whitelisted enum values (C2, M2) ────────────────────────────────────────
 const YEARS = ['1st Year', '2nd Year', '3rd Year', '4th Year', '5th Year', 'Graduate Student', 'Professional'];
@@ -74,6 +75,12 @@ export default function Attendance() {
 
   // H1: Double-submit guard
   const isSubmittingRef = useRef(false);
+
+  // Holds the payload of a check-in the DATABASE rejected, so the backup form
+  // can be offered prefilled with it. Deliberately not set for validation
+  // errors — "you forgot to pick an event" is fixed on this page, and sending
+  // someone to a backup form for it would create a row nobody needs to merge.
+  const [failedPayload, setFailedPayload] = useState(null);
 
   // Clear the cooldown ticker if the student closes the form mid-countdown.
   useEffect(() => () => clearInterval(cooldownTimer.current), []);
@@ -185,6 +192,7 @@ export default function Attendance() {
     isSubmittingRef.current = true;
     setSubmitting(true);
     setError('');
+    setFailedPayload(null);
 
     // If major is "Other", store "Other – [custom text]" so admins can see the
     // real major. Shared with ResumeUpload via lib/majors so the two can't drift.
@@ -210,6 +218,9 @@ export default function Attendance() {
 
     if (dbError) {
       console.error('[Attendance] Insert error:', dbError);
+      // Nothing was saved. Hold the payload so the backup form can be offered
+      // prefilled — see lib/attendanceFallback.js.
+      setFailedPayload(payload);
       setError('Something went wrong. Please try again or let an E-Board member know.');
     } else {
       startCooldown();
@@ -269,6 +280,36 @@ export default function Attendance() {
   }
 
   const isCoolingDown = cooldownUntil && Date.now() < cooldownUntil;
+
+  // Backup form, offered only when the database rejected the check-in AND a
+  // form has been configured. buildFallbackUrl returns null otherwise, so an
+  // unconfigured form renders nothing rather than a dead button.
+  const fallbackUrl = buildFallbackUrl(failedPayload);
+
+  // One error block, used by both steps, so a first-timer who fails on step 2
+  // gets the same escape hatch as everyone else.
+  const errorBlock = error && (
+    <div role="alert" className="space-y-3">
+      <p className="text-sm font-bold text-error">{error}</p>
+      {fallbackUrl && (
+        <div className="bg-error-container text-on-error-container rounded-xl p-4 space-y-3">
+          <p className="text-sm font-medium leading-relaxed">
+            Your check-in was <strong>not saved</strong>. Use our backup form and an
+            E-Board member will add you in — it opens already filled out.
+          </p>
+          <a
+            href={fallbackUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center gap-2 w-full bg-primary text-on-primary px-6 py-3 rounded-full font-bold shadow-lg active:scale-95 transition-all"
+          >
+            <span className="material-symbols-outlined" aria-hidden="true">open_in_new</span>
+            Check in with the backup form
+          </a>
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-surface px-4 py-12">
@@ -437,7 +478,7 @@ export default function Attendance() {
               </div>
             </div>
 
-            {error && <p className="text-sm font-bold text-error">{error}</p>}
+            {errorBlock}
 
             <button
               type="submit"
@@ -523,7 +564,7 @@ export default function Attendance() {
               </select>
             </div>
 
-            {error && <p className="text-sm font-bold text-error">{error}</p>}
+            {errorBlock}
 
             <div className="flex gap-3">
               <button
