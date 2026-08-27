@@ -60,6 +60,16 @@
  * `major` / `how_heard` — the form has no questions for these, so there is
  * nothing to map. They are dropped on this path by design; names and the dot
  * number are what the backup exists to capture.
+ *
+ * `feedback` — deliberately not prefilled either, for two reasons. It is the
+ * one field with unbounded sensitivity (a complaint about a named person, an
+ * accommodation need), and unlike the others it is NOT what this path exists to
+ * capture — so putting it in a URL handed to Google, where it also lands in the
+ * student's browser history in plaintext, buys nothing. Dropping it also caps
+ * the URL length: a student who wrote 2,000 characters of non-ASCII feedback
+ * could otherwise produce a ~20 KB link, and the one link that exists for
+ * "the database is down" should not itself be at risk of failing to load.
+ * A student with feedback can still type it into the form.
  */
 export const FALLBACK_FORM = {
   baseUrl:
@@ -72,7 +82,7 @@ export const FALLBACK_FORM = {
     is_first_meeting: 'entry.17060628',
     major: '', // no such question on the form
     how_heard: '', // no such question on the form
-    feedback: 'entry.1494295762',
+    feedback: '', // intentionally blank — see above (entry.1494295762)
   },
 };
 
