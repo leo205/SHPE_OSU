@@ -296,55 +296,69 @@ the project paused, rate-limited, or a policy changed. It does **not** help when
 the venue's wifi is down, because Google is equally unreachable then. That case
 needs a printed sign-in sheet, which costs nothing and should exist anyway.
 
-**It is inert until configured.** With `baseUrl` empty, `buildFallbackUrl()`
-returns `null` and the check-in page behaves exactly as before. There is nothing
-to revert if you decide against it.
+**Status: live.** The form is configured in `src/lib/attendanceFallback.js`. To
+turn it off, blank out `baseUrl` — `buildFallbackUrl()` then returns `null` and
+the check-in page behaves exactly as it did before.
 
-#### Setting it up
+#### The form in use
 
-1. **Build the Google Form.** One field per column, in this order:
+[26 - 27 SHPE Attendance Form Professional Development](https://docs.google.com/forms/d/e/1FAIpQLSetATIx52meiHRLa0jWvAe67AXKAvlS1D_H3Wy7P2w0v-7wrQ/viewform)
 
-   | Form question | Type | Maps to |
-   |---|---|---|
-   | Which event did you attend? | Short answer | `event_name` |
-   | First name | Short answer | `first_name` |
-   | Last Name.## | Short answer | `last_name_dotnum` |
-   | Year | Multiple choice | `year` |
-   | Is this your first meeting this year? | Multiple choice — **Yes / No** | `is_first_meeting` |
-   | Major | Short answer | `major` |
-   | How did you hear about SHPE? | Short answer | `how_heard` |
-   | Feedback | Paragraph | `feedback` |
+| Form question | Prefilled from | Entry ID |
+|---|---|---|
+| Which event did you attend? | **not prefilled** — see below | `entry.2079501292` |
+| First name | `first_name` | `entry.1755853879` |
+| Last Name.## | `last_name_dotnum` | `entry.835781843` |
+| Year | `year` | `entry.1231543127` |
+| Is this your first meeting? | `is_first_meeting` → Yes/No | `entry.17060628` |
+| Any feedback/suggestions? | `feedback` | `entry.1494295762` |
 
-   Use the exact same option text as the check-in form for Year (`1st Year`,
-   `2nd Year`, …) so the values can be pasted straight into the database. The
-   Yes/No wording on the first-meeting question matters — the builder maps the
-   boolean to those two strings.
+This path exists to capture **who was in the room** — first name and
+Last Name.## — when the database will not accept the check-in. `major` and
+`how_heard` have no questions on this form and are dropped on this path.
 
-2. **Get the respondent link.** Form → **Send** → link icon. It ends in
-   `/viewform`. Do **not** use the URL from your address bar while editing —
-   that ends in `/edit` and a student cannot submit it.
+To change the mapping later: form → **⋮** → **Get pre-filled link**, enter a
+dummy value in each field, **Get link**, then read the `entry.123456789=` pairs
+out of the resulting URL. An empty string in `entries` means "leave this for the
+student to fill in", so a partial mapping is always safe.
 
-3. **Get the prefill IDs.** Form → **⋮** → **Get pre-filled link** → type a
-   recognisable dummy value into every field → **Get link**. The URL it gives
-   you contains `entry.123456789=dummy` pairs. Copy each `entry.…` number into
-   the matching field in `FALLBACK_FORM.entries`.
+#### ⚠️ The event label differs from the site's
 
-4. **Paste both into `src/lib/attendanceFallback.js`** and deploy.
+The form keeps its own hand-maintained event list, worded differently from what
+the site generates:
 
-Leaving any `entries` value as `''` just means that field is not prefilled — the
-form still works. A partial setup is safe. **Prefilling `event_name` is the one
-that really matters**, for the reason below.
+    form:  8/27 - Resume Workshop w/Pratt Whitney
+    site:  8/27 - RESUME WORKSHOP w/ RTX      ← what attendance.event_name holds
 
-#### ⚠️ The event name must not be retyped
+Two consequences:
 
-The form is prefilled with `8/28 - General Body Meeting #1: SHPES AND SALSA`,
-built by `eventOptionLabel()`. That exact string is what the admin dashboard
-**groups attendance by**. If someone hand-types "GBM #1" instead, that meeting's
-history splits into two buckets that never reconcile and nothing warns you. This
-is the same contract described in `REWRITE.md` §6.1.
+1. **The event is not prefilled.** Google preselects a multiple-choice option
+   only on an exact match, so prefilling would silently select nothing. The
+   student picks from the form's own list instead.
+2. **Translate the label when merging.** A form row will say
+   "Resume Workshop w/Pratt Whitney", but `attendance` must receive
+   `8/27 - RESUME WORKSHOP w/ RTX`. Insert the form's wording verbatim and that
+   event's history splits into two buckets that never reconcile, with nothing to
+   warn you — `REWRITE.md` §6.1.
 
-If you print a paper sheet as the deeper fallback, write that exact label across
-the top for the same reason.
+If you print a paper sheet as the deeper fallback, write the **site's** label
+across the top, for the same reason.
+
+#### Known gaps in the current form
+
+Worth knowing before you rely on it, and all fixable in the form editor:
+
+- **GBMs are not on the event list** — it currently covers professional
+  development events only, so a failed check-in at a GBM has no matching option.
+- **The event list does not update itself** when an event is added through the
+  Admin Dashboard. It drifts unless someone edits the form each semester.
+- **Feedback is a required question** on the form but optional on the site, so a
+  student with nothing to say must type something before they can submit.
+- **Year** offers 1st–5th only; there is no *Graduate Student* or *Professional*.
+
+Changing "Which event did you attend?" to a **Short answer** would fix the first
+two permanently: `event_name` could then be prefilled exactly, no translation
+would be needed at merge time, and the list would never need maintaining.
 
 #### Merging responses back in
 

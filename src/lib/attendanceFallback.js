@@ -32,34 +32,47 @@
  */
 
 /**
- * Paste the Google Form's details here.
+ * The Google Form, and which of its fields to prefill.
  *
- * `baseUrl` — the form's public /viewform URL. Get it from the form's "Send"
- *   button → link icon, NOT from your browser's address bar while editing
- *   (that one ends in /edit and will not work for a respondent).
+ * `baseUrl` is the public /viewform URL (from the form's "Send" button → link
+ * icon — NOT the /edit URL from the address bar, which a respondent cannot
+ * submit).
  *
- * `entries` — the prefill field IDs, which let the form open already filled in
- *   with what the student typed. Get them from the form's ⋮ menu →
- *   "Get pre-filled link" → fill every field with a recognisable dummy value →
- *   "Get link". The resulting URL contains `entry.123456789=dummy` pairs; copy
- *   each `entry.123456789` across to the matching field below.
+ * `entries` maps a check-in payload field to a Google Form prefill ID. An
+ * empty string means "do not prefill this one" — the form still works, the
+ * student just fills that field in themselves. To find an ID: form → ⋮ →
+ * "Get pre-filled link", type a dummy value into each field, "Get link", then
+ * read the `entry.123456789=` pairs out of the resulting URL.
  *
- *   Leave any of them as '' and that field is simply not prefilled — the form
- *   still works, the student just types that one in. So a partial setup is
- *   safe, and prefilling `event_name` is by far the most valuable one (see the
- *   warning on formatValue below).
+ * WHAT IS DELIBERATELY NOT PREFILLED
+ * ----------------------------------
+ * `event_name` — the form asks this as a multiple-choice question with its own
+ * hand-maintained list of events, and those labels are worded differently from
+ * the ones this site generates ("8/27 - Resume Workshop w/Pratt Whitney" here
+ * vs "8/27 - RESUME WORKSHOP w/ RTX" from eventOptionLabel()). Google only
+ * preselects a choice on an EXACT match, so prefilling would do nothing
+ * anyway. The student picks their event from the form's list instead.
+ *
+ * The consequence to know about: form rows carry the FORM's event wording, not
+ * `attendance.event_name`. Whoever merges them has to translate the label —
+ * see HANDOFF.md "Backup check-in form".
+ *
+ * `major` / `how_heard` — the form has no questions for these, so there is
+ * nothing to map. They are dropped on this path by design; names and the dot
+ * number are what the backup exists to capture.
  */
 export const FALLBACK_FORM = {
-  baseUrl: '',
+  baseUrl:
+    'https://docs.google.com/forms/d/e/1FAIpQLSetATIx52meiHRLa0jWvAe67AXKAvlS1D_H3Wy7P2w0v-7wrQ/viewform',
   entries: {
-    event_name: '',
-    first_name: '',
-    last_name_dotnum: '',
-    year: '',
-    is_first_meeting: '',
-    major: '',
-    how_heard: '',
-    feedback: '',
+    event_name: '', // intentionally blank — see above
+    first_name: 'entry.1755853879',
+    last_name_dotnum: 'entry.835781843',
+    year: 'entry.1231543127',
+    is_first_meeting: 'entry.17060628',
+    major: '', // no such question on the form
+    how_heard: '', // no such question on the form
+    feedback: 'entry.1494295762',
   },
 };
 
@@ -74,12 +87,11 @@ export function isFallbackConfigured(form = FALLBACK_FORM) {
  * `is_first_meeting` is a boolean in the database but reads as Yes/No on a
  * form, so it is mapped rather than stringified into "true"/"false".
  *
- * Everything else passes through as-is, and that matters most for
- * `event_name`. It arrives here already formatted as `8/28 - <title>` by
- * eventOptionLabel(), which is the exact string the admin dashboard groups
- * attendance by. Prefilling it is what stops someone hand-typing "GBM #1" into
- * the form and splitting that meeting's history into two buckets that never
- * reconcile.
+ * Everything else passes through unchanged. Note that a value only lands in a
+ * multiple-choice question if it matches one of that question's options
+ * character for character — Google silently ignores anything else rather than
+ * erroring. That is why `year` is mapped but harmless: "Graduate Student" is
+ * not on the form's list, so a grad student simply picks their own.
  */
 function formatValue(value) {
   if (value === true) return 'Yes';
