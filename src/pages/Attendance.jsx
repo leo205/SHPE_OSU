@@ -151,6 +151,7 @@ export default function Attendance() {
 
   const handleSection1Submit = (e) => {
     e.preventDefault();
+    setFailedPayload(null); // same reason as in submitForm
     // Belt-and-braces alongside `required`: a first-timer who advances to step 2
     // without an event would otherwise only find out on final submit, via an
     // error naming a field that step 2 doesn't contain.
@@ -177,6 +178,14 @@ export default function Attendance() {
 
   const submitForm = async () => {
     if (isSubmittingRef.current) return;
+
+    // Clear any previous database failure before this attempt. This MUST happen
+    // before the guards below, not after: while it sat lower down, a validation
+    // error on the next try left the stale backup-form button rendered beside a
+    // message like "First name is required." — offering an emergency escape
+    // hatch for a problem the student can fix on the page.
+    setFailedPayload(null);
+
     if (cooldownUntil && Date.now() < cooldownUntil) {
       setError(`Please wait ${cooldownSec} second${cooldownSec !== 1 ? 's' : ''} before submitting again.`);
       return;

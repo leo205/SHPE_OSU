@@ -296,73 +296,117 @@ the project paused, rate-limited, or a policy changed. It does **not** help when
 the venue's wifi is down, because Google is equally unreachable then. That case
 needs a printed sign-in sheet, which costs nothing and should exist anyway.
 
-**It is inert until configured.** With `baseUrl` empty, `buildFallbackUrl()`
-returns `null` and the check-in page behaves exactly as before. There is nothing
-to revert if you decide against it.
+**Status: live.** The form is configured in `src/lib/attendanceFallback.js`. To
+turn it off, blank out `baseUrl` — `buildFallbackUrl()` then returns `null` and
+the check-in page behaves exactly as it did before.
 
-#### Setting it up
+#### The form in use
 
-1. **Build the Google Form.** One field per column, in this order:
+[26 - 27 SHPE Attendance Form Professional Development](https://docs.google.com/forms/d/e/1FAIpQLSetATIx52meiHRLa0jWvAe67AXKAvlS1D_H3Wy7P2w0v-7wrQ/viewform)
 
-   | Form question | Type | Maps to |
-   |---|---|---|
-   | Which event did you attend? | Short answer | `event_name` |
-   | First name | Short answer | `first_name` |
-   | Last Name.## | Short answer | `last_name_dotnum` |
-   | Year | Multiple choice | `year` |
-   | Is this your first meeting this year? | Multiple choice — **Yes / No** | `is_first_meeting` |
-   | Major | Short answer | `major` |
-   | How did you hear about SHPE? | Short answer | `how_heard` |
-   | Feedback | Paragraph | `feedback` |
+| Form question | Prefilled from | Entry ID |
+|---|---|---|
+| Which event did you attend? | **not prefilled** — see below | `entry.2079501292` |
+| First name | `first_name` | `entry.1755853879` |
+| Last Name.## | `last_name_dotnum` | `entry.835781843` |
+| Year | `year` | `entry.1231543127` |
+| Is this your first meeting? | `is_first_meeting` → Yes/No | `entry.17060628` |
+| Any feedback/suggestions? | **not prefilled** — see below | `entry.1494295762` |
 
-   Use the exact same option text as the check-in form for Year (`1st Year`,
-   `2nd Year`, …) so the values can be pasted straight into the database. The
-   Yes/No wording on the first-meeting question matters — the builder maps the
-   boolean to those two strings.
+This path exists to capture **who was in the room** — first name and
+Last Name.## — when the database will not accept the check-in. `major` and
+`how_heard` have no questions on this form and are dropped on this path.
 
-2. **Get the respondent link.** Form → **Send** → link icon. It ends in
-   `/viewform`. Do **not** use the URL from your address bar while editing —
-   that ends in `/edit` and a student cannot submit it.
+`feedback` is deliberately left for the student to type. It is the one field
+with unbounded sensitivity, it is not what this path exists to capture, and
+prefilling it would put free text into a URL that Google logs and the student's
+browser stores in plaintext history. Leaving it out also caps the link's length.
 
-3. **Get the prefill IDs.** Form → **⋮** → **Get pre-filled link** → type a
-   recognisable dummy value into every field → **Get link**. The URL it gives
-   you contains `entry.123456789=dummy` pairs. Copy each `entry.…` number into
-   the matching field in `FALLBACK_FORM.entries`.
+To change the mapping later: form → **⋮** → **Get pre-filled link**, enter a
+dummy value in each field, **Get link**, then read the `entry.123456789=` pairs
+out of the resulting URL. An empty string in `entries` means "leave this for the
+student to fill in", so a partial mapping is always safe.
 
-4. **Paste both into `src/lib/attendanceFallback.js`** and deploy.
+#### ⚠️ The event label differs from the site's
 
-Leaving any `entries` value as `''` just means that field is not prefilled — the
-form still works. A partial setup is safe. **Prefilling `event_name` is the one
-that really matters**, for the reason below.
+The form keeps its own hand-maintained event list, worded differently from what
+the site generates:
 
-#### ⚠️ The event name must not be retyped
+    form:  8/27 - Resume Workshop w/Pratt Whitney
+    site:  8/27 - RESUME WORKSHOP w/ RTX      ← what attendance.event_name holds
 
-The form is prefilled with `8/28 - General Body Meeting #1: SHPES AND SALSA`,
-built by `eventOptionLabel()`. That exact string is what the admin dashboard
-**groups attendance by**. If someone hand-types "GBM #1" instead, that meeting's
-history splits into two buckets that never reconcile and nothing warns you. This
-is the same contract described in `REWRITE.md` §6.1.
+Two consequences:
 
-If you print a paper sheet as the deeper fallback, write that exact label across
-the top for the same reason.
+1. **The event is not prefilled.** Google preselects a multiple-choice option
+   only on an exact match, so prefilling would silently select nothing. The
+   student picks from the form's own list instead.
+2. **Translate the label when merging.** A form row will say
+   "Resume Workshop w/Pratt Whitney", but `attendance` must receive
+   `8/27 - RESUME WORKSHOP w/ RTX`. Insert the form's wording verbatim and that
+   event's history splits into two buckets that never reconcile, with nothing to
+   warn you — `REWRITE.md` §6.1.
+
+If you print a paper sheet as the deeper fallback, write the **site's** label
+across the top, for the same reason.
+
+#### Known gaps in the current form
+
+Worth knowing before you rely on it, and all fixable in the form editor:
+
+- **GBMs are not on the event list** — it currently covers professional
+  development events only, so a failed check-in at a GBM has no matching option.
+- **The event list does not update itself** when an event is added through the
+  Admin Dashboard. It drifts unless someone edits the form each semester.
+- **Feedback is a required question** on the form but optional on the site, so a
+  student with nothing to say must type something before they can submit.
+- **Year** offers 1st–5th only; there is no *Graduate Student* or *Professional*.
+
+Changing "Which event did you attend?" to a **Short answer** would fix the first
+two permanently: `event_name` could then be prefilled exactly, no translation
+would be needed at merge time, and the list would never need maintaining.
 
 #### Merging responses back in
 
 Responses land in a Google Sheet, not in `attendance`. There is no import button —
-the Admin Dashboard exports CSV but does not read it. Move them with the SQL
-Editor once the outage is over:
+the Admin Dashboard exports CSV but does not read it.
 
-```sql
-INSERT INTO attendance
-  (event_name, first_name, last_name_dotnum, year, is_first_meeting, major, how_heard, feedback)
-VALUES
-  ('8/28 - General Body Meeting #1: SHPES AND SALSA', 'Maria', 'Buckeye.01',
-   '1st Year', true, 'Mechanical Engineering', 'Involvement Fair / Tabling', NULL);
-```
+**⚠️ Do not paste form answers into a hand-written `INSERT` in the SQL Editor.**
+The form is unauthenticated and its URL ships in the public bundle, so anyone can
+submit any text into that Sheet. The SQL Editor runs as `postgres`, privileged
+and exempt from RLS, so pasting untrusted text straight into a quoted SQL string
+is an injection into the most powerful console in the project. The harmless
+version of the same bug fires on the first student named **O'Brien** — and the
+fact that an apostrophe breaks it is exactly what proves the values are not
+being escaped.
 
-Two things to check before running it:
+Use one of these instead:
 
-- **`major`** — if the student wrote a major outside the standard list, store it
+1. **Table Editor → Insert row** (preferred). Values are parameterised, so no
+   amount of punctuation in a name can change the statement.
+2. **CSV import** from the Sheet, if there are many rows.
+3. If you must use SQL, **dollar-quote every value** so quotes cannot terminate
+   the string:
+
+   ```sql
+   INSERT INTO attendance
+     (event_name, first_name, last_name_dotnum, year, is_first_meeting, major, how_heard, feedback)
+   VALUES
+     ($q$8/28 - General Body Meeting #1: SHPES AND SALSA$q$, $q$Maria$q$,
+      $q$Buckeye.01$q$, $q$1st Year$q$, true, $q$Mechanical Engineering$q$,
+      $q$Involvement Fair / Tabling$q$, NULL);
+   ```
+
+Because anyone can post to the form, **sanity-check the rows against who was
+actually in the room** before merging. Treat it as a sign-in sheet someone could
+have scribbled on, not as trusted data.
+
+Three things to check before merging:
+
+- **The event label** — the form's wording is not the site's. Translate it to the
+  `eventOptionLabel()` form (`8/27 - RESUME WORKSHOP w/ RTX`), per the warning
+  above, or that event's attendance splits in two.
+- **`major`** — the form has no major question, so these rows arrive without one.
+  If you collect it another way and it falls outside the standard list, store it
   as `Other – <their text>` with an **en dash** (U+2013), matching
   `src/lib/majors.js`. A hyphen here is invisible and breaks every filter.
 - **Duplicates** — someone may have submitted the form *and* successfully checked
