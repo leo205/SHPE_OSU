@@ -108,6 +108,7 @@ export default function AdminDashboard() {
   // Search & Filter States
   const [searchAttendance, setSearchAttendance] = useState('');
   const [filterAttendanceEvent, setFilterAttendanceEvent] = useState('All');
+  const [filterFeedbackEvent, setFilterFeedbackEvent] = useState('All');
   const [searchResumes, setSearchResumes] = useState('');
   const [resumeActiveTab, setResumeActiveTab] = useState('approved'); // 'approved' | 'pending'
 
@@ -518,6 +519,29 @@ export default function AdminDashboard() {
     .filter((r) => r.feedback && r.feedback.trim())
     .sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? ''));
 
+  // Only events that actually HAVE feedback, so the filter can never offer an
+  // option that returns nothing. Counts ride along because "which meeting did
+  // people have something to say about" is worth seeing on its own.
+  const feedbackEventMeta = {};
+  feedbackEntries.forEach((r) => {
+    const ev = r.event_name ?? 'Unknown';
+    if (!feedbackEventMeta[ev]) feedbackEventMeta[ev] = { count: 0, latest: '' };
+    feedbackEventMeta[ev].count += 1;
+    const at = r.created_at ?? '';
+    if (at > feedbackEventMeta[ev].latest) feedbackEventMeta[ev].latest = at;
+  });
+
+  // Newest event first, ordered by its most recent check-in. Sorting on the
+  // event NAME would be wrong: labels are "M/D - title", so "10/3" sorts
+  // before "8/27" as text and October would file under August.
+  const feedbackEvents = Object.entries(feedbackEventMeta)
+    .sort(([, a], [, b]) => b.latest.localeCompare(a.latest));
+
+  const visibleFeedback =
+    filterFeedbackEvent === 'All'
+      ? feedbackEntries
+      : feedbackEntries.filter((r) => (r.event_name ?? 'Unknown') === filterFeedbackEvent);
+
   const sanitizeCSVCell = (value) => {
     if (value === null || value === undefined) return '';
     let str = String(value);
@@ -881,20 +905,51 @@ export default function AdminDashboard() {
 
             {/* ── Member Feedback ─────────────────────────────────────── */}
             <div className="space-y-4 pt-8 border-t border-outline-variant/20 max-w-6xl">
-              <div>
-                <h2 className="text-3xl font-black font-headline text-on-surface">Member Feedback</h2>
-                <p className="text-sm text-on-surface-variant mt-1">
-                  Everything students wrote in the &ldquo;Any feedback or suggestions?&rdquo; box at check-in, newest first.
-                </p>
+              <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+                <div>
+                  <h2 className="text-3xl font-black font-headline text-on-surface">Member Feedback</h2>
+                  <p className="text-sm text-on-surface-variant mt-1">
+                    Everything students wrote in the &ldquo;Any feedback or suggestions?&rdquo; box at check-in, newest first.
+                  </p>
+                </div>
+
+                {feedbackEntries.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="text-xs text-on-surface-variant whitespace-nowrap">
+                      Showing {visibleFeedback.length} of {feedbackEntries.length}
+                    </span>
+                    <select
+                      value={filterFeedbackEvent}
+                      onChange={(e) => setFilterFeedbackEvent(e.target.value)}
+                      aria-label="Filter feedback by event"
+                      className="px-4 py-2 rounded-lg border border-outline-variant/30 bg-surface-container-lowest text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 shadow-sm"
+                    >
+                      <option value="All">All Events ({feedbackEntries.length})</option>
+                      {feedbackEvents.map(([ev, meta]) => (
+                        <option key={ev} value={ev}>
+                          {ev} ({meta.count})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
 
               {feedbackEntries.length === 0 ? (
                 <div className="rounded-lg border border-dashed border-outline-variant/30 bg-surface-container-lowest px-6 py-10 text-center text-sm text-on-surface-variant">
                   No feedback yet. It appears here as soon as someone leaves a comment when they check in.
                 </div>
+              ) : visibleFeedback.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-outline-variant/30 bg-surface-container-lowest px-6 py-10 text-center text-sm text-on-surface-variant">
+                  No feedback from that event yet.
+                </div>
               ) : (
-                <div className="space-y-3">
-                  {feedbackEntries.map((r) => (
+                /* Capped height with its own scrollbar. One busy GBM produced
+                   enough comments to push the Member Directory far below the
+                   fold, so this section grew without bound as attendance did —
+                   the same reason the attendance table is capped at 600px. */
+                <div className="max-h-[520px] overflow-y-auto rounded-lg border border-outline-variant/20 bg-surface-container p-3 space-y-3">
+                  {visibleFeedback.map((r) => (
                     <div
                       key={r.id}
                       className="rounded-lg border border-outline-variant/20 bg-surface-container-lowest p-5 shadow-sm"
