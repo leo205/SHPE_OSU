@@ -22,7 +22,8 @@ import {
   X,
   ExternalLink,
   ShieldCheck,
-  Edit2
+  Edit2,
+  ChevronDown
 } from 'lucide-react';
 
 const CHART_COLORS = ['#a33700', '#3b5b92', '#7b5400', '#ff7943', '#feb300'];
@@ -105,6 +106,10 @@ export default function AdminDashboard() {
   const [searchAttendance, setSearchAttendance] = useState('');
   const [filterAttendanceEvent, setFilterAttendanceEvent] = useState('All');
   const [filterFeedbackEvent, setFilterFeedbackEvent] = useState('All');
+  // Which major's member list is open in the Majors card. One at a time —
+  // this list is inside a fixed-height scroll region, and several open at once
+  // buries the ranking the card exists to show.
+  const [expandedMajor, setExpandedMajor] = useState(null);
   const [searchResumes, setSearchResumes] = useState('');
   const [resumeActiveTab, setResumeActiveTab] = useState('approved'); // 'approved' | 'pending'
 
@@ -477,7 +482,17 @@ export default function AdminDashboard() {
   attendance.forEach((r) => {
     const dotnum = memberKey(r);
     if (!dotnum) return;
-    if (!(dotnum in majorByMember)) majorByMember[dotnum] = { major: null, at: '' };
+    // firstName/lastName are captured on first sight and never overwritten:
+    // a person's name does not change between check-ins, and the major is
+    // resolved separately below.
+    if (!(dotnum in majorByMember)) {
+      majorByMember[dotnum] = {
+        major: null,
+        at: '',
+        firstName: r.first_name,
+        lastName: r.last_name_dotnum,
+      };
+    }
     // The most recent NON-NULL major wins. Returning members are never asked
     // for a major, so most of their rows carry null — letting a null win would
     // erase a major the same person gave at another meeting. Where a person has
@@ -489,13 +504,16 @@ export default function AdminDashboard() {
     // behaviour change if someone edits that query is not worth the shortcut.
     const at = r.created_at ?? '';
     if (r.major && at >= majorByMember[dotnum].at) {
-      majorByMember[dotnum] = { major: r.major, at };
+      majorByMember[dotnum] = { ...majorByMember[dotnum], major: r.major, at };
     }
   });
 
-  const majorCounts = {};
+  // Group the PEOPLE under each major, not just a tally. The count is
+  // members.length, so the number on screen and the names behind it can never
+  // disagree — clicking a major reveals exactly the rows that produced it.
+  const membersByMajor = {};
   let membersWithoutMajor = 0;
-  Object.values(majorByMember).forEach(({ major: stored }) => {
+  Object.values(majorByMember).forEach(({ major: stored, firstName, lastName }) => {
     if (!stored) {
       membersWithoutMajor += 1;
       return;
@@ -504,16 +522,20 @@ export default function AdminDashboard() {
     // the student actually typed rather than collapsing every custom entry
     // into one meaningless bucket.
     const label = isOtherMajor(stored) ? (customMajorText(stored).trim() || 'Other') : stored;
-    majorCounts[label] = (majorCounts[label] || 0) + 1;
+    if (!membersByMajor[label]) membersByMajor[label] = [];
+    membersByMajor[label].push({ firstName, lastName });
   });
+  Object.values(membersByMajor).forEach((list) =>
+    list.sort((a, b) => (a.firstName ?? '').localeCompare(b.firstName ?? ''))
+  );
   const membersWithMajor = Object.keys(majorByMember).length - membersWithoutMajor;
 
   // EVERY major, most members first. Nothing is folded into an "Other (n more)"
-  // bucket any more: the question this answers is "how many members in each
-  // major", and rolling up the tail answers it only for the majors that were
-  // already largest while hiding the rest behind a number.
-  const majorData = Object.entries(majorCounts)
-    .map(([name, value]) => ({ name, value }))
+  // bucket: the question this answers is "how many members in each major", and
+  // rolling up the tail answers it only for the majors that were already
+  // largest while hiding the rest behind a number.
+  const majorData = Object.entries(membersByMajor)
+    .map(([name, members]) => ({ name, value: members.length, members }))
     .sort((a, b) => b.value - a.value || a.name.localeCompare(b.name));
 
   // Bars are scaled against the LARGEST count rather than the member total, so
@@ -822,7 +844,7 @@ export default function AdminDashboard() {
                     </h3>
                     <p className="text-xs text-on-surface-variant mb-5">
                       {membersWithMajor > 0
-                        ? `${majorData.length} majors across ${membersWithMajor} of ${uniqueMembers} members — each counted once, not per check-in.`
+                        ? `${majorData.length} majors across ${membersWithMajor} of ${uniqueMembers} members — each counted once, not per check-in. Click a major to see who.`
                         : 'Collected from first-time attendees at check-in.'}
                     </p>
 
@@ -835,36 +857,66 @@ export default function AdminDashboard() {
                             list scrolls vertically only. A row is never wider
                             than the column — long names wrap instead. */}
                         <ul className="space-y-1 max-h-[520px] overflow-y-auto overflow-x-hidden pr-2">
-                          {majorData.map(({ name, value }) => (
-                            <li
-                              key={name}
-                              className="rounded-md px-2 py-1.5 hover:bg-surface-container-low transition-colors"
-                            >
-                              <div className="flex items-baseline justify-between gap-4">
-                                <span className="min-w-0 break-words text-sm text-on-surface leading-snug">{name}</span>
-                                <span className="shrink-0 text-sm font-bold tabular-nums text-on-surface">
-                                  {value}
-                                </span>
-                              </div>
-                              {/* Decorative: the count is already stated above,
-                                  so the bar is hidden from screen readers rather
-                                  than repeated as a second unlabelled element. */}
-                              <div
-                                aria-hidden="true"
-                                className="mt-1.5 h-2 w-full rounded-full bg-surface-container"
-                              >
-                                <div
-                                  className="h-full rounded-r-full"
-                                  style={{
-                                    // Floor of 3% so a single member is still a
-                                    // visible mark rather than nothing at all.
-                                    width: `${Math.max((value / maxMajorCount) * 100, 3)}%`,
-                                    backgroundColor: MAJOR_BAR_COLOR,
-                                  }}
-                                />
-                              </div>
-                            </li>
-                          ))}
+                          {majorData.map(({ name, value, members }) => {
+                            const isOpen = expandedMajor === name;
+                            return (
+                              <li key={name}>
+                                {/* A button, not a div with onClick: this needs to
+                                    be reachable and operable from the keyboard, and
+                                    aria-expanded is what tells a screen reader the
+                                    row opens something. */}
+                                <button
+                                  type="button"
+                                  onClick={() => setExpandedMajor((cur) => (cur === name ? null : name))}
+                                  aria-expanded={isOpen}
+                                  className="w-full rounded-md px-2 py-1.5 text-left hover:bg-surface-container-low transition-colors"
+                                >
+                                  <div className="flex items-baseline justify-between gap-4">
+                                    <span className="min-w-0 break-words text-sm text-on-surface leading-snug">{name}</span>
+                                    <span className="flex shrink-0 items-center gap-1.5 text-sm font-bold tabular-nums text-on-surface">
+                                      {value}
+                                      <ChevronDown
+                                        aria-hidden="true"
+                                        className={`h-3.5 w-3.5 text-on-surface-variant transition-transform ${
+                                          isOpen ? 'rotate-180' : ''
+                                        }`}
+                                      />
+                                    </span>
+                                  </div>
+                                  {/* Decorative: the count is already stated above,
+                                      so the bar is hidden from screen readers rather
+                                      than repeated as a second unlabelled element. */}
+                                  <div
+                                    aria-hidden="true"
+                                    className="mt-1.5 h-2 w-full rounded-full bg-surface-container"
+                                  >
+                                    <div
+                                      className="h-full rounded-r-full"
+                                      style={{
+                                        // Floor of 3% so a single member is still a
+                                        // visible mark rather than nothing at all.
+                                        width: `${Math.max((value / maxMajorCount) * 100, 3)}%`,
+                                        backgroundColor: MAJOR_BAR_COLOR,
+                                      }}
+                                    />
+                                  </div>
+                                </button>
+
+                                {isOpen && (
+                                  <ul className="mb-2 ml-2 mt-2 space-y-1 border-l-2 border-outline-variant/40 pl-3">
+                                    {members.map((m) => (
+                                      // Keyed on the dot number, which is the unique
+                                      // identity this whole card is grouped by.
+                                      <li key={m.lastName} className="text-xs leading-relaxed">
+                                        <span className="font-bold text-on-surface">{m.firstName}</span>{' '}
+                                        <span className="text-on-surface-variant">{m.lastName}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                )}
+                              </li>
+                            );
+                          })}
                         </ul>
                         {membersWithoutMajor > 0 && (
                           <p className="text-xs text-on-surface-variant mt-4 leading-relaxed">
