@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { isOtherMajor, customMajorText } from '../lib/majors';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
   LineChart, Line,
@@ -25,6 +26,16 @@ import {
 } from 'lucide-react';
 
 const CHART_COLORS = ['#a33700', '#3b5b92', '#7b5400', '#ff7943', '#feb300'];
+
+// The category donut only ever renders a handful of slices, but majors can
+// reach eight, so this palette is longer to keep two adjacent slices from
+// landing on the same colour. These are chart hex values, deliberately
+// separate from the Tailwind tokens in tailwind.config.js — those are the
+// WCAG-verified UI palette and are not touched here.
+const MAJOR_COLORS = [
+  '#a33700', '#3b5b92', '#7b5400', '#ff7943',
+  '#feb300', '#2f6b4f', '#8c3a5a', '#556070',
+];
 
 // ── Stat Card Component (Branded) ─────────────────────────────────────
 function AnalyticsStatCard({ icon: Icon, label, value, sub }) {
@@ -445,6 +456,60 @@ export default function AdminDashboard() {
       count,
     }));
 
+  const showTrend = lineData.length > 1;
+
+  // ── Majors breakdown ──────────────────────────────────────────────────
+  // Counted per PERSON, not per check-in. Someone who comes to three events
+  // would otherwise be counted three times, tilting the chart toward whoever
+  // shows up most rather than showing what the chapter actually studies.
+  // Keyed on dot number — the same identity "Most Active" uses.
+  const majorByMember = {};
+  attendance.forEach((r) => {
+    const dotnum = r.last_name_dotnum?.toLowerCase();
+    if (!dotnum) return;
+    if (!(dotnum in majorByMember)) majorByMember[dotnum] = null;
+    // Keep the FIRST non-null major seen for a person. Returning members are
+    // never asked for one, so most of their rows carry null — a plain
+    // last-write-wins would erase a major they gave at an earlier meeting.
+    if (r.major && !majorByMember[dotnum]) majorByMember[dotnum] = r.major;
+  });
+
+  const MAJOR_SLICES = 6;
+  const majorCounts = {};
+  let membersWithoutMajor = 0;
+  Object.values(majorByMember).forEach((stored) => {
+    if (!stored) {
+      membersWithoutMajor += 1;
+      return;
+    }
+    // "Other – Data Analytics" is stored flattened by lib/majors. Show what
+    // the student actually typed rather than collapsing every custom entry
+    // into one meaningless "Other" wedge.
+    const label = isOtherMajor(stored) ? (customMajorText(stored).trim() || 'Other') : stored;
+    majorCounts[label] = (majorCounts[label] || 0) + 1;
+  });
+  const membersWithMajor = Object.keys(majorByMember).length - membersWithoutMajor;
+
+  const sortedMajors = Object.entries(majorCounts)
+    .sort(([aName, aVal], [bName, bVal]) => bVal - aVal || aName.localeCompare(bName));
+
+  // Long names are truncated for the legend only; the tooltip carries the
+  // full one, so "Food, Agricultural, & Bi…" is still identifiable.
+  const majorData = sortedMajors.slice(0, MAJOR_SLICES).map(([name, value]) => ({
+    name: name.length > 24 ? `${name.slice(0, 23)}…` : name,
+    fullName: name,
+    value,
+  }));
+  const tailCount = sortedMajors.slice(MAJOR_SLICES).reduce((sum, [, v]) => sum + v, 0);
+  if (tailCount > 0) {
+    const remaining = sortedMajors.length - MAJOR_SLICES;
+    majorData.push({
+      name: `Other (${remaining} more)`,
+      fullName: `${remaining} more major${remaining === 1 ? '' : 's'}`,
+      value: tailCount,
+    });
+  }
+
   // Feedback students wrote at check-in. Until now this was collected, stored,
   // and only ever surfaced as a column in the CSV export — while the check-in
   // form told students "we read every response!". Nobody could, without
@@ -669,30 +734,94 @@ export default function AdminDashboard() {
                   </ResponsiveContainer>
                 </div>
 
-                {/* Retention Trend Over Time */}
-                {lineData.length > 1 && (
-                  <div className="lg:col-span-3 rounded-lg border border-outline-variant/20 bg-surface-container-lowest p-6 shadow-sm">
-                    <h3 className="font-bold font-headline text-base mb-6 text-on-surface">
-                      Attendance History Trend
+                {/* Trend + majors, side by side at half width each.
+                    The trend card used to span the full dashboard width, which
+                    gave a two-point line the visual weight of a chart of record.
+                    Halving it makes room for the majors breakdown, which is the
+                    question the E-Board actually asks of this data. */}
+                <div className="lg:col-span-3 grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {showTrend && (
+                    <div className="rounded-lg border border-outline-variant/20 bg-surface-container-lowest p-6 shadow-sm">
+                      <h3 className="font-bold font-headline text-base mb-6 text-on-surface">
+                        Attendance History Trend
+                      </h3>
+                      <ResponsiveContainer width="100%" height={200}>
+                        <LineChart data={lineData}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e7e1dc" />
+                          <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#5e5b57' }} />
+                          <YAxis tick={{ fontSize: 12, fill: '#5e5b57' }} />
+                          <Tooltip contentStyle={{ borderRadius: 12, fontSize: 13, border: '1px solid #e2dcd6', background: '#fbf5f0' }} />
+                          <Line
+                            type="monotone"
+                            dataKey="count"
+                            stroke="#a33700"
+                            strokeWidth={2.5}
+                            dot={{ r: 4, fill: '#a33700' }}
+                            name="Check-ins"
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+
+                  {/* Majors breakdown. Spans the full row when there is no
+                      trend yet (a single event), so it is never a half-empty row. */}
+                  <div
+                    className={`rounded-lg border border-outline-variant/20 bg-surface-container-lowest p-6 shadow-sm ${
+                      showTrend ? '' : 'lg:col-span-2'
+                    }`}
+                  >
+                    <h3 className="font-bold font-headline text-base text-on-surface">
+                      Majors
                     </h3>
-                    <ResponsiveContainer width="100%" height={200}>
-                      <LineChart data={lineData}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e7e1dc" />
-                        <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#5e5b57' }} />
-                        <YAxis tick={{ fontSize: 12, fill: '#5e5b57' }} />
-                        <Tooltip contentStyle={{ borderRadius: 12, fontSize: 13, border: '1px solid #e2dcd6', background: '#fbf5f0' }} />
-                        <Line
-                          type="monotone"
-                          dataKey="count"
-                          stroke="#a33700"
-                          strokeWidth={2.5}
-                          dot={{ r: 4, fill: '#a33700' }}
-                          name="Check-ins"
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
+                    <p className="text-xs text-on-surface-variant mb-4">
+                      {membersWithMajor > 0
+                        ? `${membersWithMajor} of ${uniqueMembers} members — each counted once, not per check-in.`
+                        : 'Collected from first-time attendees at check-in.'}
+                    </p>
+
+                    {majorData.length > 0 ? (
+                      <>
+                        <ResponsiveContainer width="100%" height={210}>
+                          <PieChart>
+                            <Pie
+                              data={majorData}
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={45}
+                              outerRadius={72}
+                              dataKey="value"
+                              paddingAngle={3}
+                            >
+                              {majorData.map((_, i) => (
+                                <Cell key={i} fill={MAJOR_COLORS[i % MAJOR_COLORS.length]} />
+                              ))}
+                            </Pie>
+                            <Tooltip
+                              formatter={(val, name, entry) => [
+                                `${val} member${val === 1 ? '' : 's'}`,
+                                entry?.payload?.fullName ?? name,
+                              ]}
+                              contentStyle={{ borderRadius: 12, fontSize: 13, border: '1px solid #e2dcd6', background: '#fbf5f0' }}
+                            />
+                            <Legend wrapperStyle={{ fontSize: 11 }} />
+                          </PieChart>
+                        </ResponsiveContainer>
+                        {membersWithoutMajor > 0 && (
+                          <p className="text-xs text-on-surface-variant mt-2 leading-relaxed">
+                            {membersWithoutMajor} member{membersWithoutMajor === 1 ? '' : 's'} not shown — no major on
+                            record. Returning members are not asked for one at check-in; you can
+                            fill these in from the Attendance tab.
+                          </p>
+                        )}
+                      </>
+                    ) : (
+                      <div className="flex h-[210px] items-center justify-center text-center text-sm text-on-surface-variant">
+                        No majors recorded yet.
+                      </div>
+                    )}
                   </div>
-                )}
+                </div>
                 {/* Events Summary Table */}
                 <div className="lg:col-span-3 space-y-4 pt-4 border-t border-outline-variant/10">
                   <div>
