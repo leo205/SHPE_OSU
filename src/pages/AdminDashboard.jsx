@@ -27,15 +27,11 @@ import {
 
 const CHART_COLORS = ['#a33700', '#3b5b92', '#7b5400', '#ff7943', '#feb300'];
 
-// The category donut only ever renders a handful of slices, but majors can
-// reach eight, so this palette is longer to keep two adjacent slices from
-// landing on the same colour. These are chart hex values, deliberately
-// separate from the Tailwind tokens in tailwind.config.js — those are the
-// WCAG-verified UI palette and are not touched here.
-const MAJOR_COLORS = [
-  '#a33700', '#3b5b92', '#7b5400', '#ff7943',
-  '#feb300', '#2f6b4f', '#8c3a5a', '#556070',
-];
+// The majors chart is a single-series magnitude comparison, so it uses ONE hue
+// rather than a categorical palette. Length already encodes the count; giving
+// each bar its own colour would encode nothing and, past roughly seven hues,
+// adjacent classes stop being distinguishable anyway.
+const MAJOR_BAR_COLOR = '#a33700';
 
 // ── Stat Card Component (Branded) ─────────────────────────────────────
 function AnalyticsStatCard({ icon: Icon, label, value, sub }) {
@@ -497,7 +493,6 @@ export default function AdminDashboard() {
     }
   });
 
-  const MAJOR_SLICES = 6;
   const majorCounts = {};
   let membersWithoutMajor = 0;
   Object.values(majorByMember).forEach(({ major: stored }) => {
@@ -507,31 +502,24 @@ export default function AdminDashboard() {
     }
     // "Other – Data Analytics" is stored flattened by lib/majors. Show what
     // the student actually typed rather than collapsing every custom entry
-    // into one meaningless "Other" wedge.
+    // into one meaningless bucket.
     const label = isOtherMajor(stored) ? (customMajorText(stored).trim() || 'Other') : stored;
     majorCounts[label] = (majorCounts[label] || 0) + 1;
   });
   const membersWithMajor = Object.keys(majorByMember).length - membersWithoutMajor;
 
-  const sortedMajors = Object.entries(majorCounts)
-    .sort(([aName, aVal], [bName, bVal]) => bVal - aVal || aName.localeCompare(bName));
+  // EVERY major, most members first. Nothing is folded into an "Other (n more)"
+  // bucket any more: the question this answers is "how many members in each
+  // major", and rolling up the tail answers it only for the majors that were
+  // already largest while hiding the rest behind a number.
+  const majorData = Object.entries(majorCounts)
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value || a.name.localeCompare(b.name));
 
-  // Long names are truncated for the legend only; the tooltip carries the
-  // full one, so "Food, Agricultural, & Bi…" is still identifiable.
-  const majorData = sortedMajors.slice(0, MAJOR_SLICES).map(([name, value]) => ({
-    name: name.length > 24 ? `${name.slice(0, 23)}…` : name,
-    fullName: name,
-    value,
-  }));
-  const tailCount = sortedMajors.slice(MAJOR_SLICES).reduce((sum, [, v]) => sum + v, 0);
-  if (tailCount > 0) {
-    const remaining = sortedMajors.length - MAJOR_SLICES;
-    majorData.push({
-      name: `Other (${remaining} more)`,
-      fullName: `${remaining} more major${remaining === 1 ? '' : 's'}`,
-      value: tailCount,
-    });
-  }
+  // Bars are scaled against the LARGEST count rather than the member total, so
+  // the ranking stays readable when the biggest major is still a small share of
+  // everyone — otherwise every bar is a stub and the chart says nothing.
+  const maxMajorCount = majorData.reduce((max, d) => Math.max(max, d.value), 0);
 
   // Feedback students wrote at check-in. Until now this was collected, stored,
   // and only ever surfaced as a column in the CSV export — while the check-in
@@ -780,12 +768,12 @@ export default function AdminDashboard() {
                   </ResponsiveContainer>
                 </div>
 
-                {/* Trend + majors, side by side at half width each.
-                    The trend card used to span the full dashboard width, which
-                    gave a two-point line the visual weight of a chart of record.
-                    Halving it makes room for the majors breakdown, which is the
-                    question the E-Board actually asks of this data. */}
-                <div className="lg:col-span-3 grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Trend + majors. The trend takes one column and the majors
+                    list two: the trend is two points and needs no room, while
+                    the majors list carries a full major name per row. Cards are
+                    top-aligned rather than stretched, so the short one does not
+                    grow a pane of empty space to match the tall one. */}
+                <div className="lg:col-span-3 grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
                   {showTrend && (
                     <div className="rounded-lg border border-outline-variant/20 bg-surface-container-lowest p-6 shadow-sm">
                       <h3 className="font-bold font-headline text-base mb-6 text-on-surface">
@@ -810,51 +798,71 @@ export default function AdminDashboard() {
                     </div>
                   )}
 
-                  {/* Majors breakdown. Spans the full row when there is no
-                      trend yet (a single event), so it is never a half-empty row. */}
+                  {/* Majors — a ranked bar list, deliberately NOT a pie.
+                      This reached fourteen majors, and a pie stops working well
+                      before that: the slices become indistinguishable and the
+                      legend runs the names together, which is exactly what it
+                      did here. The question being asked is "how many members in
+                      each major" — a magnitude comparison — and bars answer that
+                      directly, put the count next to the name, and give a long
+                      name like "Food, Agricultural, & Biological Engineering" a
+                      whole line instead of an ellipsis.
+
+                      One hue throughout: bar length already carries the count,
+                      so a second colour per row would encode nothing. */}
                   <div
                     className={`rounded-lg border border-outline-variant/20 bg-surface-container-lowest p-6 shadow-sm ${
-                      showTrend ? '' : 'lg:col-span-2'
+                      showTrend ? 'lg:col-span-2' : 'lg:col-span-3'
                     }`}
                   >
                     <h3 className="font-bold font-headline text-base text-on-surface">
                       Majors
                     </h3>
-                    <p className="text-xs text-on-surface-variant mb-4">
+                    <p className="text-xs text-on-surface-variant mb-5">
                       {membersWithMajor > 0
-                        ? `${membersWithMajor} of ${uniqueMembers} members — each counted once, not per check-in.`
+                        ? `${majorData.length} majors across ${membersWithMajor} of ${uniqueMembers} members — each counted once, not per check-in.`
                         : 'Collected from first-time attendees at check-in.'}
                     </p>
 
                     {majorData.length > 0 ? (
                       <>
-                        <ResponsiveContainer width="100%" height={210}>
-                          <PieChart>
-                            <Pie
-                              data={majorData}
-                              cx="50%"
-                              cy="50%"
-                              innerRadius={45}
-                              outerRadius={72}
-                              dataKey="value"
-                              paddingAngle={3}
+                        {/* Capped so the card cannot run away as majors
+                            accumulate over the year; at today's count nothing
+                            scrolls. */}
+                        <ul className="space-y-1 max-h-[520px] overflow-y-auto pr-1">
+                          {majorData.map(({ name, value }) => (
+                            <li
+                              key={name}
+                              className="-mx-2 rounded-md px-2 py-1.5 hover:bg-surface-container-low transition-colors"
                             >
-                              {majorData.map((_, i) => (
-                                <Cell key={i} fill={MAJOR_COLORS[i % MAJOR_COLORS.length]} />
-                              ))}
-                            </Pie>
-                            <Tooltip
-                              formatter={(val, name, entry) => [
-                                `${val} member${val === 1 ? '' : 's'}`,
-                                entry?.payload?.fullName ?? name,
-                              ]}
-                              contentStyle={{ borderRadius: 12, fontSize: 13, border: '1px solid #e2dcd6', background: '#fbf5f0' }}
-                            />
-                            <Legend wrapperStyle={{ fontSize: 11 }} />
-                          </PieChart>
-                        </ResponsiveContainer>
+                              <div className="flex items-baseline justify-between gap-4">
+                                <span className="text-sm text-on-surface leading-snug">{name}</span>
+                                <span className="shrink-0 text-sm font-bold tabular-nums text-on-surface">
+                                  {value}
+                                </span>
+                              </div>
+                              {/* Decorative: the count is already stated above,
+                                  so the bar is hidden from screen readers rather
+                                  than repeated as a second unlabelled element. */}
+                              <div
+                                aria-hidden="true"
+                                className="mt-1.5 h-2 w-full rounded-full bg-surface-container"
+                              >
+                                <div
+                                  className="h-full rounded-r-full"
+                                  style={{
+                                    // Floor of 3% so a single member is still a
+                                    // visible mark rather than nothing at all.
+                                    width: `${Math.max((value / maxMajorCount) * 100, 3)}%`,
+                                    backgroundColor: MAJOR_BAR_COLOR,
+                                  }}
+                                />
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
                         {membersWithoutMajor > 0 && (
-                          <p className="text-xs text-on-surface-variant mt-2 leading-relaxed">
+                          <p className="text-xs text-on-surface-variant mt-4 leading-relaxed">
                             {membersWithoutMajor} member{membersWithoutMajor === 1 ? '' : 's'} not shown — no major on
                             record. Returning members are not asked for one at check-in; you can
                             fill these in from the Attendance tab.
