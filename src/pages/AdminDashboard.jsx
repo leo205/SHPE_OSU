@@ -399,14 +399,27 @@ export default function AdminDashboard() {
   // ── Derived Analytics ────────────────────────────────────────────────
   const totalSubmissions = attendance.length;
   const uniqueEvents = [...new Set(attendance.map((r) => r.event_name))];
-  const uniqueMembers = [...new Set(attendance.map((r) => r.last_name_dotnum.toLowerCase()))].length;
+  // One rule for "which person is this row", used by every per-member figure
+  // below. It lives in one place because these numbers are now displayed next
+  // to each other: the majors caption reads "X of Y members", so if Y counted
+  // a blank dot number that X skipped, the arithmetic on screen would visibly
+  // fail to add up with nothing to explain it.
+  //
+  // Blank and whitespace-only dot numbers are real: the leaderboard view has
+  // its own `btrim(last_name_dotnum) <> ''` guard for the same reason
+  // (supabase/leaderboard-view.sql). The optional chaining also matters —
+  // this used to be a bare `.toLowerCase()`, which would throw on a null and,
+  // with no error boundary in the tree, take the whole dashboard down.
+  const memberKey = (row) => row.last_name_dotnum?.trim().toLowerCase() || null;
+
+  const uniqueMembers = new Set(attendance.map(memberKey).filter(Boolean)).size;
 
   // "Most Active" is labelled in events, so count DISTINCT events rather than
   // raw rows — otherwise a duplicate check-in at one GBM inflates the ranking.
   // (totalSubmissions above is deliberately still raw rows: it reports check-ins.)
   const memberAttendance = {};
   attendance.forEach(r => {
-    const dotnum = r.last_name_dotnum?.toLowerCase();
+    const dotnum = memberKey(r);
     if (!dotnum) return;
     if (!memberAttendance[dotnum]) {
       memberAttendance[dotnum] = { events: new Set(), firstName: r.first_name, lastName: r.last_name_dotnum, dotnum };
@@ -466,19 +479,28 @@ export default function AdminDashboard() {
   // Keyed on dot number — the same identity "Most Active" uses.
   const majorByMember = {};
   attendance.forEach((r) => {
-    const dotnum = r.last_name_dotnum?.toLowerCase();
+    const dotnum = memberKey(r);
     if (!dotnum) return;
-    if (!(dotnum in majorByMember)) majorByMember[dotnum] = null;
-    // Keep the FIRST non-null major seen for a person. Returning members are
-    // never asked for one, so most of their rows carry null — a plain
-    // last-write-wins would erase a major they gave at an earlier meeting.
-    if (r.major && !majorByMember[dotnum]) majorByMember[dotnum] = r.major;
+    if (!(dotnum in majorByMember)) majorByMember[dotnum] = { major: null, at: '' };
+    // The most recent NON-NULL major wins. Returning members are never asked
+    // for a major, so most of their rows carry null — letting a null win would
+    // erase a major the same person gave at another meeting. Where a person has
+    // two real majors (an admin corrected one inline), the newer is the right
+    // answer.
+    //
+    // Compared on created_at rather than trusting iteration order: rows only
+    // arrive newest-first because of an .order() in fetchData(), and a silent
+    // behaviour change if someone edits that query is not worth the shortcut.
+    const at = r.created_at ?? '';
+    if (r.major && at >= majorByMember[dotnum].at) {
+      majorByMember[dotnum] = { major: r.major, at };
+    }
   });
 
   const MAJOR_SLICES = 6;
   const majorCounts = {};
   let membersWithoutMajor = 0;
-  Object.values(majorByMember).forEach((stored) => {
+  Object.values(majorByMember).forEach(({ major: stored }) => {
     if (!stored) {
       membersWithoutMajor += 1;
       return;

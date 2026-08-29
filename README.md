@@ -74,7 +74,9 @@ These pages are not listed in the Navbar to maintain security and avoid clutter.
     *   **Most Active Members Leaderboard**: Ranks members by the number of **distinct events** attended, so a duplicate check-in at one meeting cannot inflate a ranking.
     *   **Stacked Bar Charts**: Compares First-Timers vs. Returning members per event.
     *   **Pie Charts**: Tracks attendance distribution by event category (GBMs, Professional, Socials, Study Sessions, etc.).
-    *   **Retention Trends**: Line charts visualizing attendance growth over the semester.
+    *   **Retention Trends**: Line charts visualizing attendance growth over the semester, at half width alongside the majors breakdown.
+    *   **Majors Breakdown**: Pie chart of what the chapter studies, counting **people rather than check-ins** so a frequent attendee cannot skew the mix. Custom `Other – x` entries are unwrapped to the major the student actually typed. Members with no major on record are excluded and reported beneath the chart — returning members are never asked for one at check-in, so that figure is a live measure of the gap.
+*   **Member Feedback**: Everything students wrote in the check-in feedback box, newest first, in a fixed-height scroll region and filterable by event. Each event in the filter carries its comment count.
 *   **Inline Data Editing**: Allows admins to modify a member's major inline in the attendance database. Clicking the pencil icon opens an input field that updates the database record on Enter (or cancels on Escape).
 *   **Secure CSV Export**: Allows downloading attendance records. Implements **CSV Injection mitigation** by sanitizing cells starting with formulas (`=`, `+`, `-`, `@`, tab, carriage return) with a single-quote prefix.
 *   **Resume Book Admin Dashboard (`/admin/resumes`)**:
