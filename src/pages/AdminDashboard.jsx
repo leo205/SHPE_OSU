@@ -720,8 +720,10 @@ export default function AdminDashboard() {
             {attendance.length > 0 && (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 
-                {/* Stacked Attendance per Event */}
-                <div className="lg:col-span-2 rounded-lg border border-outline-variant/20 bg-surface-container-lowest p-6 shadow-sm">
+                {/* Stacked Attendance per Event — full row. It carries one
+                    bar per event and is the chart that grows all semester, so
+                    it gets the width rather than sharing with the donut. */}
+                <div className="lg:col-span-3 rounded-lg border border-outline-variant/20 bg-surface-container-lowest p-6 shadow-sm">
                   <h3 className="font-bold font-headline text-base mb-6 text-on-surface">
                     Attendance per Event
                   </h3>
@@ -742,61 +744,65 @@ export default function AdminDashboard() {
                   </ResponsiveContainer>
                 </div>
 
-                {/* Event Type breakdown donut */}
-                <div className="rounded-lg border border-outline-variant/20 bg-surface-container-lowest p-6 shadow-sm">
-                  <h3 className="font-bold font-headline text-base mb-6 text-on-surface">
-                    Events by Category
-                  </h3>
-                  <ResponsiveContainer width="100%" height={230}>
-                    <PieChart>
-                      <Pie
-                        data={eventTypeData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={50}
-                        outerRadius={75}
-                        dataKey="value"
-                        paddingAngle={3}
-                      >
-                        {eventTypeData.map((_, i) => (
-                          <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip contentStyle={{ borderRadius: 12, fontSize: 13, border: '1px solid #e2dcd6', background: '#fbf5f0' }} />
-                      <Legend wrapperStyle={{ fontSize: 11 }} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-
                 {/* Trend + majors. The trend takes one column and the majors
                     list two: the trend is two points and needs no room, while
                     the majors list carries a full major name per row. Cards are
                     top-aligned rather than stretched, so the short one does not
                     grow a pane of empty space to match the tall one. */}
                 <div className="lg:col-span-3 grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-                  {showTrend && (
+                  {/* Left column: the two small charts, stacked. */}
+                  <div className="space-y-6">
+                    {showTrend && (
+                      <div className="rounded-lg border border-outline-variant/20 bg-surface-container-lowest p-6 shadow-sm">
+                        <h3 className="font-bold font-headline text-base mb-6 text-on-surface">
+                          Attendance History Trend
+                        </h3>
+                        <ResponsiveContainer width="100%" height={200}>
+                          <LineChart data={lineData}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#e7e1dc" />
+                            <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#5e5b57' }} />
+                            <YAxis tick={{ fontSize: 12, fill: '#5e5b57' }} />
+                            <Tooltip contentStyle={{ borderRadius: 12, fontSize: 13, border: '1px solid #e2dcd6', background: '#fbf5f0' }} />
+                            <Line
+                              type="monotone"
+                              dataKey="count"
+                              stroke="#a33700"
+                              strokeWidth={2.5}
+                              dot={{ r: 4, fill: '#a33700' }}
+                              name="Check-ins"
+                            />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                    )}
+                    {/* Event Type breakdown. Sits under the trend so the two
+                          small charts share one column and the wide
+                          per-event bars can have a full row. */}
                     <div className="rounded-lg border border-outline-variant/20 bg-surface-container-lowest p-6 shadow-sm">
                       <h3 className="font-bold font-headline text-base mb-6 text-on-surface">
-                        Attendance History Trend
+                        Events by Category
                       </h3>
-                      <ResponsiveContainer width="100%" height={200}>
-                        <LineChart data={lineData}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#e7e1dc" />
-                          <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#5e5b57' }} />
-                          <YAxis tick={{ fontSize: 12, fill: '#5e5b57' }} />
+                      <ResponsiveContainer width="100%" height={230}>
+                        <PieChart>
+                          <Pie
+                            data={eventTypeData}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={50}
+                            outerRadius={75}
+                            dataKey="value"
+                            paddingAngle={3}
+                          >
+                            {eventTypeData.map((_, i) => (
+                              <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                            ))}
+                          </Pie>
                           <Tooltip contentStyle={{ borderRadius: 12, fontSize: 13, border: '1px solid #e2dcd6', background: '#fbf5f0' }} />
-                          <Line
-                            type="monotone"
-                            dataKey="count"
-                            stroke="#a33700"
-                            strokeWidth={2.5}
-                            dot={{ r: 4, fill: '#a33700' }}
-                            name="Check-ins"
-                          />
-                        </LineChart>
+                          <Legend wrapperStyle={{ fontSize: 11 }} />
+                        </PieChart>
                       </ResponsiveContainer>
                     </div>
-                  )}
+                  </div>
 
                   {/* Majors — a ranked bar list, deliberately NOT a pie.
                       This reached fourteen majors, and a pie stops working well
@@ -810,11 +816,7 @@ export default function AdminDashboard() {
 
                       One hue throughout: bar length already carries the count,
                       so a second colour per row would encode nothing. */}
-                  <div
-                    className={`rounded-lg border border-outline-variant/20 bg-surface-container-lowest p-6 shadow-sm ${
-                      showTrend ? 'lg:col-span-2' : 'lg:col-span-3'
-                    }`}
-                  >
+                  <div className="lg:col-span-2 rounded-lg border border-outline-variant/20 bg-surface-container-lowest p-6 shadow-sm">
                     <h3 className="font-bold font-headline text-base text-on-surface">
                       Majors
                     </h3>
@@ -829,14 +831,17 @@ export default function AdminDashboard() {
                         {/* Capped so the card cannot run away as majors
                             accumulate over the year; at today's count nothing
                             scrolls. */}
-                        <ul className="space-y-1 max-h-[520px] overflow-y-auto pr-1">
+                        {/* overflow-x-hidden is deliberate, not defensive: this
+                            list scrolls vertically only. A row is never wider
+                            than the column — long names wrap instead. */}
+                        <ul className="space-y-1 max-h-[520px] overflow-y-auto overflow-x-hidden pr-2">
                           {majorData.map(({ name, value }) => (
                             <li
                               key={name}
-                              className="-mx-2 rounded-md px-2 py-1.5 hover:bg-surface-container-low transition-colors"
+                              className="rounded-md px-2 py-1.5 hover:bg-surface-container-low transition-colors"
                             >
                               <div className="flex items-baseline justify-between gap-4">
-                                <span className="text-sm text-on-surface leading-snug">{name}</span>
+                                <span className="min-w-0 break-words text-sm text-on-surface leading-snug">{name}</span>
                                 <span className="shrink-0 text-sm font-bold tabular-nums text-on-surface">
                                   {value}
                                 </span>
