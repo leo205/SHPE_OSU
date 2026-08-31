@@ -12,6 +12,12 @@ JavaScript — no TypeScript, no PropTypes (`react/prop-types` is deliberately
 disabled in `.eslintrc.cjs`; do not suggest re-enabling it without a real typing
 strategy).
 
+Current baseline (reviewed 2026-08-30): events are shared through
+`src/lib/events.js`; the static list is an intentional outage fallback. The
+admin, recruiter-dashboard, and professional-development routes are lazy-loaded.
+The attendance form no longer collects pronouns, though the historical database
+column remains.
+
 Start with `git diff` (or `git diff main...HEAD`) and review what actually
 changed. Read enough surrounding code to judge the change in context, but do not
 re-audit the whole repo.
@@ -42,13 +48,16 @@ blocked as a popup. Open the tab synchronously, then set `.location`.
 
 **Duplicated logic that drifts.** The "Other" major was formatted with an en
 dash in one file and a hyphen in another, so any filter matching one missed half
-the rows. Shared derivations belong in `src/lib/`, not copy-pasted. Similarly,
-events currently live in both `src/data/events.js` and a Supabase `events`
-table — flag any change that deepens that split.
+the rows. Shared derivations belong in `src/lib/`, not copy-pasted. Events exist
+in both Supabase and a bundled outage fallback, but every reader must go through
+`src/lib/events.js`. Flag direct page imports of `src/data/events.js`, or any
+title/date mismatch that defeats de-duplication.
 
-**Data that is written but never read, or read but never written.** Admin-created
-events never reach the check-in dropdown. Content arrays that no component maps
-over. If a change adds a field or a table, confirm something consumes it.
+**Data that is written but never read, or read but never written.** This class
+previously caused admin-created events to miss the check-in dropdown; the shared
+event loader fixed that instance. Content arrays that no component maps over are
+the same failure shape. If a change adds a field or table, confirm something
+consumes it.
 
 ## Also check
 
@@ -60,8 +69,9 @@ over. If a change adds a field or a table, confirm something consumes it.
 - Accessibility basics on new markup: labels associated with controls, keyboard
   reachability, `aria-label` on icon-only buttons. The palette already passes
   WCAG AA contrast, so do not re-litigate colors.
-- Bundle impact. The app ships as one ~950 KB chunk; flag anything that adds a
-  heavy dependency to a route the public hits.
+- Bundle impact. The heaviest private routes are lazy-loaded, but the initial
+  JavaScript chunk is still substantial. Flag heavy dependencies added to public
+  routes and any change that makes the admin/Recharts bundle eager again.
 
 ## Reporting
 

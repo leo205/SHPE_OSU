@@ -49,11 +49,6 @@ const CODES = [
     url: 'https://www.shpeosu.com/attendance',
     caption: 'Scan to check in',
   },
-  {
-    name: 'join',
-    url: 'https://www.shpeosu.com/join',
-    caption: 'Scan to learn about SHPE',
-  },
 ];
 
 const OPTIONS = {

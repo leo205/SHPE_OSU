@@ -12,6 +12,11 @@ Vite SPA on Vercel talking directly to Supabase (Postgres + Auth + Storage),
 with no backend of our own. It holds real student PII: names, OSU emails, dot
 numbers, and resume PDFs containing phone numbers and home addresses.
 
+Current baseline (reviewed 2026-08-30): public signup is disabled, but explicit
+`app_metadata` roles remain the actual control. Sponsors require
+`role = "sponsor"`; being merely authenticated reaches nothing. No sponsor
+accounts exist yet.
+
 ## The one mistake this codebase keeps making
 
 **Client-side checks are not enforcement.** Every real vulnerability found here
@@ -40,10 +45,11 @@ there isn't one, that is a finding regardless of how convincing the UI looks.
   protects nothing; if a table is publicly readable, assume `select *`.
 - Locking a table does not lock its Storage objects. `storage.objects` has its
   own policies. Test the bucket separately, always.
-- `attendance` is **intentionally** publicly readable so the leaderboard works
-  logged out. Do not report that as a bug. Do report it if the exposed columns
-  grow beyond what the leaderboard needs — feedback text, pronouns, and dot
-  numbers were written by students who did not expect them to be public.
+- `attendance` permits anonymous **INSERT for check-in only**. Anonymous SELECT
+  is not intentional and is a security finding. The public leaderboard reads
+  the owner-privileged `leaderboard` view, which must expose exactly
+  `first_name` and distinct-event `count`; any added column becomes public and
+  must be treated as a security change.
 
 ## How to work
 

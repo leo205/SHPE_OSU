@@ -1,5 +1,8 @@
 # Supabase — database security model
 
+_Documentation reviewed: 2026-08-30. The last anonymous-client verification of
+the live project remains 2026-08-16._
+
 Everything protecting student and sponsor data lives here, not in the React app.
 
 The one idea to internalise before changing anything: **the client cannot enforce
@@ -52,7 +55,8 @@ will otherwise find a tidy query called "Attendance Submission Table", run it to
 ## Roles
 
 Admins and sponsors are both Supabase Auth users, so `TO authenticated` does not
-distinguish them. The difference is a role claim read by `public.is_admin()`.
+distinguish them. Access requires an explicit role claim read by
+`public.is_admin()` or `public.is_sponsor()`.
 
 That claim **must** live in `app_metadata`, never `user_metadata`. A signed-in
 user can rewrite their own `user_metadata` via `supabase.auth.updateUser()`, so a
@@ -60,8 +64,21 @@ role stored there would be self-grantable — any sponsor could promote themselv
 to admin from the browser console. `app_metadata` is writable only by the service
 role and the dashboard.
 
-Sponsors are simply authenticated users **without** the admin tag. Creating one:
-Authentication → Add user, Auto-confirm ON, no role. Revoking one: delete the user.
+No sponsor accounts exist yet. Creating one requires both steps:
+
+1. Authentication → Users → Add user, with **Auto-confirm ON**.
+2. Grant the explicit sponsor role in the SQL Editor:
+
+   ```sql
+   UPDATE auth.users
+   SET raw_app_meta_data =
+         coalesce(raw_app_meta_data, '{}'::jsonb) || '{"role":"sponsor"}'::jsonb
+   WHERE email = 'recruiter@company.com';
+   ```
+
+An authenticated account without `app_metadata.role = "sponsor"` reaches no
+resume rows or files. Revoking access means deleting the user or clearing the
+role. This explicit sponsor gate must stay in sync with `sponsor-auth.sql`.
 
 The claim is baked into the JWT at sign-in, so anyone whose role changes must
 sign out and back in before it takes effect.

@@ -11,15 +11,13 @@ import Resources from './pages/Resources';
 import Attendance from './pages/Attendance';
 import AdminLogin from './pages/AdminLogin';
 import ProtectedRoute from './components/ProtectedRoute';
-import Join from './pages/Join';
 
 /*
  * Lazily loaded routes.
  *
- * The whole app used to ship as a single ~950 KB chunk, so someone scanning the
- * involvement-fair QR code downloaded the admin dashboard and its charting
- * library just to read a welcome page. These three are the heaviest and least
- * visited, so splitting them shrinks the bundle every public visitor pays for.
+ * The whole app used to ship as a single ~950 KB chunk. These three routes are
+ * the heaviest and least visited, so splitting them keeps the admin dashboard
+ * and its charting library out of the bundle every public visitor pays for.
  */
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 const CompanyDashboard = lazy(() => import('./pages/CompanyDashboard'));
@@ -65,7 +63,6 @@ export default function App() {
         />
 
         {/* ── Hidden routes (no Navbar / no Footer) ── */}
-        <Route path="/join" element={<Join />} />
         <Route path="/attendance" element={<Attendance />} />
         <Route path="/resume-upload" element={<ResumeUpload />} />
         <Route path="/company" element={<CompanyLogin />} />
@@ -99,4 +96,3 @@ export default function App() {
     </BrowserRouter>
   );
 }
-

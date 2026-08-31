@@ -3,6 +3,9 @@
 _Written 2026-08-03, against the codebase as it stands after the July–August
 security work._
 
+_Status reviewed 2026-08-30. The rewrite phases have not started. Route-level
+code splitting was completed independently and should be preserved._
+
 This is the working document for rebuilding the site on a hexagonal
 (ports-and-adapters) architecture. It is written to be handed to someone starting
 a fresh project with the existing UI, so it deliberately over-explains the parts
@@ -43,7 +46,7 @@ that look fine until someone runs a report. Read it before you write any code.
 
 ## 1. Where the code is today
 
-### Routes (15)
+### Routes (14, including the fallback)
 
 | Route | Page | Auth |
 |---|---|---|
@@ -65,14 +68,14 @@ that look fine until someone runs a report. Read it before you write any code.
 ### File sizes — where the weight is
 
 ```
-1415  pages/AdminDashboard.jsx     ← 5 tabs, 15 Supabase calls, ~46% markup
+1741  pages/AdminDashboard.jsx     ← 5 tabs, 15 Supabase calls, still the main split target
  648  pages/Events.jsx
- 639  pages/Sponsors.jsx
- 624  pages/ProfessionalDevelopment.jsx
- 571  pages/Attendance.jsx
+ 678  pages/Sponsors.jsx
+ 653  pages/ProfessionalDevelopment.jsx
+ 599  pages/Attendance.jsx
  412  pages/Eboard.jsx
  379  pages/ResumeUpload.jsx
- 379  pages/Home.jsx
+ 373  pages/Home.jsx
  259  pages/Resources.jsx
  257  components/PublicLeaderboard.jsx   ← imported nowhere; dead
 ```
@@ -82,9 +85,9 @@ that look fine until someone runs a report. Read it before you write any code.
 This is the complete surface the new architecture has to cover:
 
 ```
-7  .from('resumes')          7  .from('events')
+10 .from('resumes')          7  .from('events')
 4  auth.signOut()            3  storage.from('resumes')
-3  auth.getSession()         3  .from('attendance')
+3  auth.getSession()         4  .from('attendance')
 2  auth.signInWithPassword() 2  auth.onAuthStateChange()
 2  .from('leaderboard')      2  .from('company_access')   ← vestigial
 1  auth.updateUser()         1  .rpc('submit_resume')
@@ -96,6 +99,7 @@ Twelve distinct operations. That is the whole job — it is smaller than it feel
 
 - **Supabase** — Postgres, Auth, Storage
 - **EmailJS** — sponsor contact form only
+- **Vercel Web Analytics** — root-mounted React component for page views
 - **Recharts** — admin analytics
 - **lucide-react** + Material Symbols — icons
 
@@ -302,8 +306,11 @@ mechanical once phases 2–3 are done, and near-impossible before.
 
 ### Phase 5 — Clean up
 
-Delete dead code, drop `company_access`, code-split `/admin` (the bundle is one
-~950 KB chunk today).
+Delete dead code and drop `company_access`. Route-level splitting for `/admin`,
+the recruiter dashboard, and professional development was already completed
+outside this rewrite. A 2026-08-30 build produced an initial JavaScript chunk of
+about 484 KB plus a separate admin chunk of about 456 KB; preserve that boundary
+and improve it only when measurements justify the work.
 
 ---
 
@@ -422,8 +429,9 @@ change the schema — that is a separate, riskier project.
 `supabase/README.md` and was arrived at by finding real holes.
 
 - Access is gated on an **explicit role claim** (`is_admin()` / `is_sponsor()`),
-  never on merely being `authenticated`. Public signup is enabled, so
-  "authenticated" is not a permission.
+  never on merely being `authenticated`. Public signup is currently disabled,
+  but that is defence in depth; "authenticated" must still not become a
+  permission if signup is re-enabled later.
 - Roles live in **`app_metadata`, never `user_metadata`** — users can rewrite
   their own `user_metadata` from the browser console.
 - The `leaderboard` view runs with owner privileges and **bypasses RLS by
@@ -476,11 +484,15 @@ basement lecture hall unable to check in. Preserve that in `listEvents`.
 [ ]          ↑ STOP. Does the shape feel right? Fix it here.
 [ ] Phase 3  Attendance → Auth → Resumes → Sponsor inquiry
 [ ] Phase 4  Split AdminDashboard into five tab files
-[ ] Phase 5  Delete dead code, code-split /admin
+[ ] Phase 5  Delete dead code and vestigial company_access usage
+[x]          Route-level code splitting (completed independently)
 ```
 
-Do it between semesters, not during recruiting season. Each phase is a branch,
-and `npm test && npm run lint && npm run build` must pass before it merges.
+Do it between semesters, not during recruiting season. **Always work on a branch
+unless the project owner explicitly authorizes work on `main`.** Each phase is a
+separate branch, and `npm test && npm run lint && npm run build` must pass before
+it merges. Use `npm run dev` at <http://localhost:5173> for UI review and
+`npm run preview` (normally <http://localhost:4173>) for production-header checks.
 
 Run the `security-auditor` agent after Phase 3 — that is where the auth and
 resume slices land, and it has already caught holes in work that had been

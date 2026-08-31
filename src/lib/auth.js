@@ -24,8 +24,9 @@ export function isAdmin(session) {
 }
 
 /**
- * True for any signed-in user — admins and sponsors alike.
- * Sponsors are simply authenticated users without the admin tag.
+ * True for any signed-in user. This is a session-presence helper, not a sponsor
+ * authorization check; sponsor data still requires the explicit `sponsor` role
+ * enforced by RLS.
  */
 export function isSignedIn(session) {
   return Boolean(session?.user);

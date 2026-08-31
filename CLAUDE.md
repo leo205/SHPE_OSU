@@ -69,45 +69,34 @@ Everything below is live and verified.
 - **Resume replacement works**, for the first time. The old client issued an
   `UPDATE` no policy permitted, which under RLS affects zero rows and *returns
   success*, so students saw "Upload Successful" while nothing changed.
-- **Events have one source.** Admin Dashboard → Supabase `events` table → read by
-  both the public calendar and the check-in dropdown via `src/lib/events.js`.
+- **Events have one source.** Admins can add, edit, or delete them in the Admin
+  Dashboard → Supabase `events` table → read by both the public calendar and the
+  check-in dropdown via `src/lib/events.js`.
+- **Heavy routes are code-split.** The admin dashboard, recruiter dashboard, and
+  professional-development page are loaded lazily instead of being included in
+  every visitor's initial bundle.
+- **Vercel Web Analytics is integrated.** `src/main.jsx` mounts the React
+  `Analytics` component once for site-wide page-view tracking. The Vercel project
+  must have Web Analytics enabled, and data begins only after deployment and a
+  production visit; localhost is for integration testing, not traffic data.
 - **Sponsors** are Honda, Burns & McDonnell, Lincoln Electric, Whiting-Turner and
   Gresham Smith, grouped by the tiers the chapter actually sells.
 
 ## What is open
 
-1. **Autumn events are not in the database.** Until someone adds them via the
-   Admin Dashboard, the check-in dropdown has nothing current to select. Blocking
-   for the first GBM.
-2. **No sponsor accounts exist yet**, so nobody can use the corporate portal.
+1. **Upcoming events need to be added.** The first two Autumn 2026 events have
+   passed. The E-Board will add the next dates through the Admin Dashboard; the
+   bundled list in `src/data/events.js` is only the outage fallback.
+2. **No sponsor accounts exist yet**, so the corporate portal is not in use.
    Creating one is two steps and people forget the second — see `HANDOFF.md` §4.
-3. **Involvement-fair landing page** — designed, not built. See below.
+3. **Resume ownership is not proved.** A submission is keyed on email, so someone
+   who knows another student's OSU address can replace their pending entry. The
+   replacement is forced back to unapproved, which bounds but does not solve it.
 4. `PublicLeaderboard.jsx` is committed but imported nowhere. Delete or mount.
-5. Bundle is one ~950 KB chunk; `/admin` should be code-split.
-
-## Active work — the involvement-fair page
-
-A page for a QR code at the involvement fair booth, aimed at someone who has
-**never heard of SHPE**. Design decided, blocked on content from the E-Board.
-
-Agreed so far:
-
-- It is a **45-second funnel**, not a page. The reader is standing up, one-handed,
-  on congested wifi, and probably never returns. Every extra thing added reduces
-  the chance they do the one thing that matters.
-- **Primary action: join the GroupMe.** Everything else is visually subordinate.
-- **Answer "do I belong here?" above the fold** — *do I have to be Hispanic?* (no)
-  and *do I have to be an engineer?* (no). That is the actual barrier, and orgs
-  consistently under-answer it.
-- URL should be short and sayable, e.g. `/join`.
-- **The First-Year Guide is 6.6 MB.** At 2,000 scans that is ~14 GB of a 100 GB
-  monthly budget, and 30–60 seconds of waiting per person. Do not make it the
-  primary button; compress it if possible.
-- **Code-split this route.** Every scanner currently downloads the entire app —
-  including the admin dashboard and Recharts — to read one page.
-
-Still needed from the E-Board: the one-line "what is SHPE" in their own words,
-and autumn event dates.
+5. **There is no automated test suite yet.** `REWRITE.md` Phase 0 lists the
+   regression tests to add before restructuring the data layer.
+6. `AdminDashboard.jsx` still contains five tabs in one large file. Splitting it
+   remains worthwhile, but is not an emergency.
 
 ---
 
@@ -162,11 +151,26 @@ supabase/          the database security model — READ ITS README FIRST
 
 ## Before pushing
 
+**Always work on a branch unless the project owner explicitly says to work on
+`main`.** Start from an up-to-date `main`, create a focused branch, and keep
+production unchanged until the work has been reviewed locally and merged.
+
+```bash
+git switch main
+git pull --ff-only
+git switch -c feature/short-description
+```
+
 ```bash
 npm run lint     # a real gate — it was once allowed to rot to 93 errors
 npm run build
 npm run preview  # serves dist WITH the production security headers
 ```
+
+For ordinary UI review, run `npm run dev` and open
+<http://localhost:5173>. For production-header/CSP verification, use
+`npm run build && npm run preview` and open the URL Vite prints (normally
+<http://localhost:4173>).
 
 Three project subagents live in `.claude/agents/` — `security-auditor`,
 `code-reviewer`, `deploy-preflight`. They are read-only and preloaded with this

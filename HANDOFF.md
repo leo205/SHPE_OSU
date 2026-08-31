@@ -1,6 +1,6 @@
 # SHPE OSU Website — Engineering Handoff
 
-_Last updated: 2026-08-16_
+_Last updated: 2026-08-30_
 
 Developer documentation for the Digital Operations Chair and anyone maintaining
 the SHPE chapter website at The Ohio State University. Covers architecture,
@@ -41,18 +41,19 @@ what was wrong, because the same mistakes are easy to repeat.
 
 ### What is still open
 
-*   **Autumn events.** `src/data/events.js` and the Supabase `events` table both
-    contain only past events. Someone must add real dates before the first GBM or
-    the check-in dropdown has nothing current to select. Do it from the Admin
-    Dashboard (§4) — no code needed.
+*   **Upcoming events.** The first two Autumn 2026 events have passed. The E-Board
+    will add the next dates through the Admin Dashboard (§4). The bundled event
+    list is only the outage fallback and should not be treated as the editor.
 *   **Sponsor accounts.** No recruiter accounts exist yet, so nobody can use the
     corporate portal. Two steps, and people forget the second one (§4).
-*   **Involvement-fair landing page.** Designed, not built. See `CLAUDE.md`.
 *   **Resume ownership.** Submissions are keyed on email with no proof of
     ownership. Bounded, not solved — see §3.
 *   **`PublicLeaderboard.jsx`** is committed but imported nowhere. Delete or mount.
-*   **Bundle size.** One ~950 KB chunk. Code-splitting `/admin` would help, and
-    matters most for the QR-code page.
+*   **Automated tests.** There is no test script yet. `REWRITE.md` Phase 0 lists
+    the regression suite that should land before a data-layer rewrite.
+*   **Admin maintainability.** `AdminDashboard.jsx` is still one large five-tab
+    file. The heavy admin, company, and professional-development routes are now
+    code-split, but the dashboard itself should eventually be divided by tab.
 
 ## 1. System Architecture
 
@@ -63,6 +64,7 @@ graph TD
     User(Student / Recruiter / Admin) -->|Interacts| Frontend[React + Vite on Vercel]
     Frontend -->|Queries / Mutations| Supabase[Supabase Database + Auth + Storage]
     Frontend -->|Sends Inquiry| EmailJS[EmailJS API]
+    Frontend -->|Page views| Analytics[Vercel Web Analytics]
     SponsorForm[Sponsors Contact Page] -->|Submits| EmailJS
 ```
 
@@ -71,6 +73,13 @@ graph TD
 *   **Serverless Data Direct Access**: The client communicates directly with Supabase via `@supabase/supabase-js`. Database records and storage assets are secured entirely via **Row-Level Security (RLS)** rules.
 *   **Non-Coders Can Update Content**: Events are added through the Admin Dashboard into the Supabase `events` table — no code, no deploy. `src/data/events.js` remains as a bundled fallback so the calendar and check-in still work if Supabase is unreachable. Both readers go through `src/lib/events.js`; keep it that way.
 *   **Roles, Not Just Logins**: Admins and sponsors are both Supabase Auth users, so "signed in" is not a permission. Every policy checks an explicit role claim.
+*   **Analytics**: `src/main.jsx` mounts `@vercel/analytics/react` once at the
+    application root. Web Analytics must also be enabled in the Vercel project.
+    Collection starts after deployment; local development traffic is not counted.
+*   **Attendance trend dates**: The dashboard derives each trend point from the
+    `M/D - title` prefix stored in `attendance.event_name`, using `created_at`
+    only to infer the correct year. A late check-in therefore stays on its
+    event's chart date while `created_at` remains the true audit timestamp.
 
 ---
 
@@ -166,9 +175,9 @@ was effectively `USING (true)`. Public. The `sessionStorage` token in
 | `leaderboard` view | SELECT (first name + count) | SELECT | SELECT |
 
 Access is gated on an **explicit role claim**, not on merely being signed in.
-This matters because public signup is enabled: without a role check, anyone could
-register an account and thereby become `authenticated`. A self-registered account
-holds no role and reaches nothing.
+Public signup is currently disabled, but that is defence in depth rather than
+the permission boundary. If someone re-enables it, a self-registered account is
+merely `authenticated`; without an explicit role it must still reach nothing.
 
 **Roles live in `app_metadata`, never `user_metadata`.** A signed-in user can
 rewrite their own `user_metadata` via `supabase.auth.updateUser()`, so a role
@@ -240,18 +249,15 @@ Rename them `⚠️ OLD — DO NOT RUN`.
 ## 4. Maintenance & Rollover Guide
 
 ### Weekly Content Updates (E-Board Workflow)
-1.  Open `src/data/events.js`.
-2.  Add a new event object at the top of the `events` array. Ensure the category matches one of the values: `"GBM" | "Social" | "Professional" | "Academic" | "Outreach" | "Fundraiser"`.
-3.  If showing a photo, convert your image to `.webp` format and drop it into `public/photos/events/`.
-4.  Reference the path: `photo: '/photos/events/imageName.webp'`.
-5.  To highlight the event in the sidebar of the home page, set `featured: true`.
-6.  Push changes to GitHub:
-    ```bash
-    git add .
-    git commit -m "feat: add upcoming GBM"
-    git push origin main
-    ```
-    Vercel will auto-deploy in under 60 seconds.
+1.  Open the Admin Dashboard and select the **Events** tab.
+2.  Add or edit the event there. Use one of the supported categories:
+    `"GBM" | "Social" | "Professional" | "Academic" | "Outreach" | "Fundraiser"`.
+3.  Confirm it appears on `/events` and in the `/attendance` dropdown. Both read
+    through `src/lib/events.js`, so there should be no second code change.
+4.  Before an event where check-in must survive a Supabase outage, mirror the
+    exact title and date into `src/data/events.js` on a branch. This is an
+    intentional emergency fallback, not the normal content workflow. A title or
+    date mismatch creates a duplicate and can split attendance history.
 
 ### The attendance QR code
 
@@ -504,10 +510,22 @@ npm run lint
 ```
 
 ### Git Branch Strategy
-*   Never commit directly to `main` for large feature blocks.
-*   Create a branch: `git checkout -b feature/your-feature-name`.
-*   Verify the build locally (`npm run build`) before pushing your branch.
-*   Merge branch into `main` via a GitHub Pull Request to trigger the Vercel production deployment pipeline.
+*   **Always work on a branch unless the project owner explicitly says to work
+    on `main`.** This applies to fixes, documentation, and content changes—not
+    only large features.
+*   Start from an up-to-date `main`, then create a focused branch:
+    ```bash
+    git switch main
+    git pull --ff-only
+    git switch -c feature/your-change
+    ```
+*   Review ordinary UI work with `npm run dev` at
+    <http://localhost:5173>.
+*   Before pushing, run `npm run lint`, `npm run build`, then `npm run preview`.
+    Preview normally runs at <http://localhost:4173> and includes the production
+    security headers that `npm run dev` does not.
+*   Merge the branch into `main` through a GitHub Pull Request. Vercel deploys
+    production from `main`; do not merge until the local review is approved.
 
 ---
 
@@ -549,6 +567,9 @@ added here is published with no policy change to review.
 
 ## 7. Local verification before pushing
 
+Do this from a feature/fix/docs branch unless the project owner explicitly
+authorized work directly on `main`.
+
 ```bash
 npm run lint     # must be clean — it is now a real gate (was 93 errors)
 npm run build
@@ -565,6 +586,16 @@ and confirm there are no CSP violations before deploying.
 was completely broken in production, while calendar exports emitted 2 AM events,
 and while a "View PDF" button opened a blank tab and hijacked the current one.
 Click the thing you changed.
+
+After deploying an Analytics change, visit more than one production route and
+confirm the browser Network panel shows Vercel's same-origin analytics request.
+The current CSP already permits the Vercel-managed same-origin endpoint; do not
+add a broad external script or connection source without evidence it is needed.
+
+The app now lazily loads the admin dashboard, recruiter dashboard, and
+professional-development page. A local build on 2026-08-30 produced an initial
+JavaScript chunk of about 484 KB and a separate admin chunk of about 456 KB. Do
+not collapse these back into one eager bundle.
 
 ### Project subagents
 

@@ -1,8 +1,12 @@
 /**
  * ============================================================
  *  SHPE OSU — EVENTS DATA
- *  Edit this file every week to update the events calendar.
+ *  OFFLINE FALLBACK — normal event updates belong in the Admin Dashboard.
  * ============================================================
+ *
+ *  Mirror an important database event here only when check-in must continue
+ *  during a Supabase outage. Keep its title and date character-identical to the
+ *  database row so mergeEvents() can de-duplicate it safely.
  *
  *  Each event object has these fields:
  *    id          → unique number (just increment)

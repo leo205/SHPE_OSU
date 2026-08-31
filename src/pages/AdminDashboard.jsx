@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { isOtherMajor, customMajorText } from '../lib/majors';
+import { attendanceEventDate } from '../lib/events';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
   LineChart, Line,
@@ -33,6 +34,22 @@ const CHART_COLORS = ['#a33700', '#3b5b92', '#7b5400', '#ff7943', '#feb300'];
 // each bar its own colour would encode nothing and, past roughly seven hues,
 // adjacent classes stop being distinguishable anyway.
 const MAJOR_BAR_COLOR = '#a33700';
+
+const EMPTY_EVENT_FORM = {
+  title: '',
+  date: '',
+  time: '',
+  endTime: '',
+  location: '',
+  description: '',
+  category: 'GBM',
+  featured: false,
+  rsvpUrl: '',
+  photo: '',
+};
+
+const sortEventsNewestFirst = (events) =>
+  [...events].sort((a, b) => b.date.localeCompare(a.date));
 
 // ── Stat Card Component (Branded) ─────────────────────────────────────
 function AnalyticsStatCard({ icon: Icon, label, value, sub }) {
@@ -117,19 +134,9 @@ export default function AdminDashboard() {
   const [dbEvents, setDbEvents] = useState([]);
   const [eventsError, setEventsError] = useState(false);
   const [addingEvent, setAddingEvent] = useState(false);
+  const [editingEventId, setEditingEventId] = useState(null);
   const [imageFile, setImageFile] = useState(null);
-  const [eventForm, setEventForm] = useState({
-    title: '',
-    date: '',
-    time: '',
-    endTime: '',
-    location: '',
-    description: '',
-    category: 'GBM',
-    featured: false,
-    rsvpUrl: '',
-    photo: '',
-  });
+  const [eventForm, setEventForm] = useState({ ...EMPTY_EVENT_FORM });
 
   // Inline Major Editing States
   const [editingId, setEditingId] = useState(null);
@@ -296,17 +303,53 @@ export default function AdminDashboard() {
   };
 
   // ── Calendar Events Management ─────────────────────────────────────────
-  const handleAddEvent = async (e) => {
+  const clearEventImageInput = () => {
+    const fileInput = document.getElementById('event-image-input');
+    if (fileInput) fileInput.value = '';
+  };
+
+  const resetEventEditor = () => {
+    setEventForm({ ...EMPTY_EVENT_FORM });
+    setImageFile(null);
+    setEditingEventId(null);
+    clearEventImageInput();
+  };
+
+  const handleEditEvent = (event) => {
+    setEditingEventId(event.id);
+    setEventForm({
+      title: event.title || '',
+      date: event.date || '',
+      time: event.time || '',
+      endTime: event.end_time || '',
+      location: event.location || '',
+      description: event.description || '',
+      category: event.category || 'GBM',
+      featured: Boolean(event.featured),
+      rsvpUrl: event.rsvp_url || '',
+      photo: event.photo || '',
+    });
+    setImageFile(null);
+    clearEventImageInput();
+    requestAnimationFrame(() => {
+      document.getElementById('event-form-card')?.scrollIntoView({ block: 'start' });
+      document.getElementById('ev-title')?.focus();
+    });
+  };
+
+  const handleSaveEvent = async (e) => {
     e.preventDefault();
     setAddingEvent(true);
 
     let photoUrl = eventForm.photo.trim() || null;
+    let uploadedFilePath = null;
 
     // Check if an image is selected for upload
     if (imageFile) {
       const fileExt = imageFile.name.split('.').pop();
       const fileName = `${Date.now()}_${crypto.randomUUID()}.${fileExt}`;
       const filePath = `photos/${fileName}`;
+      uploadedFilePath = filePath;
 
       const { error: uploadError } = await supabase.storage
         .from('events')
@@ -327,58 +370,58 @@ export default function AdminDashboard() {
       photoUrl = data.publicUrl;
     }
 
-    const { error, data } = await supabase.from('events').insert([
-      {
-        title: eventForm.title.trim(),
-        date: eventForm.date,
-        time: eventForm.time,
-        end_time: eventForm.endTime || null,
-        location: eventForm.location.trim(),
-        description: eventForm.description.trim(),
-        category: eventForm.category,
-        featured: eventForm.featured,
-        rsvp_url: eventForm.rsvpUrl.trim() || null,
-        photo: photoUrl,
-      }
-    ]).select();
+    const payload = {
+      title: eventForm.title.trim(),
+      date: eventForm.date,
+      time: eventForm.time,
+      end_time: eventForm.endTime || null,
+      location: eventForm.location.trim(),
+      description: eventForm.description.trim(),
+      category: eventForm.category,
+      featured: eventForm.featured,
+      rsvp_url: eventForm.rsvpUrl.trim() || null,
+      photo: photoUrl,
+    };
 
-    if (!error) {
-      setEventForm({
-        title: '',
-        date: '',
-        time: '',
-        endTime: '',
-        location: '',
-        description: '',
-        category: 'GBM',
-        featured: false,
-        rsvpUrl: '',
-        photo: '',
-      });
-      setImageFile(null);
-      
-      // Clear file input DOM element
-      const fileInput = document.getElementById('event-image-input');
-      if (fileInput) fileInput.value = '';
+    const query = editingEventId
+      ? supabase.from('events').update(payload).eq('id', editingEventId)
+      : supabase.from('events').insert([payload]);
+    const { error, data } = await query.select().single();
 
-      if (data) {
-        setDbEvents(prev => [data[0], ...prev]);
-      } else {
-        const evData = await supabase.from('events').select('*').order('date', { ascending: false });
-        if (evData.data) setDbEvents(evData.data);
-      }
+    if (!error && data) {
+      setDbEvents((prev) => sortEventsNewestFirst(
+        editingEventId
+          ? prev.map((event) => (event.id === editingEventId ? data : event))
+          : [data, ...prev]
+      ));
+      resetEventEditor();
     } else {
-      console.error('Error adding calendar event:', error);
-      alert('Failed to add event. Please make sure the events table is created in Supabase.');
+      if (uploadedFilePath) {
+        const { error: cleanupError } = await supabase.storage
+          .from('events')
+          .remove([uploadedFilePath]);
+        if (cleanupError) {
+          console.warn('Could not clean up unused event image:', cleanupError);
+        }
+      }
+      const action = editingEventId ? 'update' : 'add';
+      console.error(`Error trying to ${action} calendar event:`, error);
+      alert(`Failed to ${action} event: ${error?.message || 'Unknown database error.'}`);
     }
     setAddingEvent(false);
   };
 
   const handleDeleteEvent = async (id) => {
     if (!window.confirm('Delete this calendar event? This cannot be undone.')) return;
-    const { error } = await supabase.from('events').delete().eq('id', id);
-    if (!error) {
+    const { error, data } = await supabase
+      .from('events')
+      .delete()
+      .eq('id', id)
+      .select('id')
+      .single();
+    if (!error && data) {
       setDbEvents(prev => prev.filter(ev => ev.id !== id));
+      if (editingEventId === id) resetEventEditor();
     } else {
       console.error('Error deleting calendar event:', error);
       alert(`Could not delete that event: ${error.message}`);
@@ -461,7 +504,10 @@ export default function AdminDashboard() {
 
   const byDate = {};
   attendance.forEach((r) => {
-    const d = r.created_at?.slice(0, 10) || 'Unknown';
+    // Plot the meeting date encoded in event_name. Keep created_at unchanged as
+    // the audit trail for when the student actually submitted the form.
+    const d = attendanceEventDate(r.event_name, r.created_at?.slice(0, 10));
+    if (!d) return;
     byDate[d] = (byDate[d] || 0) + 1;
   });
   const lineData = Object.entries(byDate)
@@ -755,7 +801,6 @@ export default function AdminDashboard() {
                       <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#5e5b57' }} />
                       <YAxis tick={{ fontSize: 12, fill: '#5e5b57' }} />
                       <Tooltip
-                        formatter={(val, name) => [val, name === 'newMembers' ? 'First-Timers' : 'Returning']}
                         labelFormatter={(label, payload) => payload?.[0]?.payload?.fullName || label}
                         contentStyle={{ borderRadius: 12, fontSize: 13, border: '1px solid #e2dcd6', background: '#fbf5f0' }}
                       />
@@ -1300,7 +1345,7 @@ WHERE email = 'recruiter@company.com';`}</pre>
                   The <code className="bg-surface-container px-1.5 py-0.5 rounded font-mono font-bold text-xs">events</code> table is not found in your Supabase database. To enable this dynamic calendar feature, copy and run the following SQL command in your <strong>Supabase Dashboard → SQL Editor</strong>:
                 </p>
                 <pre className="p-4 bg-surface-container-lowest text-xs rounded-lg font-mono overflow-x-auto text-on-surface border border-outline-variant/30 select-all leading-relaxed">
-{`CREATE TABLE events (
+{`CREATE TABLE public.events (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   created_at timestamptz DEFAULT now(),
   title text NOT NULL,
@@ -1315,19 +1360,24 @@ WHERE email = 'recruiter@company.com';`}</pre>
   photo text DEFAULT ''
 );
 
-ALTER TABLE events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.events ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Allow public read events" ON events FOR SELECT USING (true);
-CREATE POLICY "Allow admin full access events" ON events FOR ALL TO authenticated USING (true) WITH CHECK (true);`}
+CREATE POLICY "events public read"
+  ON public.events FOR SELECT TO anon, authenticated USING (true);
+CREATE POLICY "events admin all"
+  ON public.events FOR ALL TO authenticated
+  USING (public.is_admin()) WITH CHECK (public.is_admin());`}
                 </pre>
               </div>
             )}
 
             {/* Event Form Card */}
             {!eventsError && (
-              <div className="bg-surface-container-lowest border border-outline-variant/20 rounded-xl p-6 shadow-sm max-w-4xl">
-                <h3 className="font-bold font-headline text-on-surface mb-4">Add Upcoming Event</h3>
-                <form onSubmit={handleAddEvent} className="space-y-4 font-body text-sm">
+              <div id="event-form-card" className="bg-surface-container-lowest border border-outline-variant/20 rounded-xl p-6 shadow-sm max-w-4xl scroll-mt-6">
+                <h3 className="font-bold font-headline text-on-surface mb-4">
+                  {editingEventId ? 'Edit Calendar Event' : 'Add Upcoming Event'}
+                </h3>
+                <form onSubmit={handleSaveEvent} className="space-y-4 font-body text-sm">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="md:col-span-2">
                       <label htmlFor="ev-title" className="block text-xs font-bold text-on-surface-variant uppercase mb-1.5">Event Title</label>
@@ -1424,7 +1474,9 @@ CREATE POLICY "Allow admin full access events" ON events FOR ALL TO authenticate
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                     <div className="md:col-span-2">
-                      <label htmlFor="event-image-input" className="block text-xs font-bold text-on-surface-variant uppercase mb-1.5">Event Image (Max 500 KB)</label>
+                      <label htmlFor="event-image-input" className="block text-xs font-bold text-on-surface-variant uppercase mb-1.5">
+                        {editingEventId ? 'Replacement Image (Optional, Max 500 KB)' : 'Event Image (Max 500 KB)'}
+                      </label>
                       <input
                         type="file"
                         id="event-image-input"
@@ -1432,6 +1484,11 @@ CREATE POLICY "Allow admin full access events" ON events FOR ALL TO authenticate
                         onChange={handleImageChange}
                         className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 cursor-pointer border border-outline-variant/30 rounded-lg px-2 py-1.5 bg-surface-container-lowest"
                       />
+                      {editingEventId && eventForm.photo && !imageFile && (
+                        <p className="mt-1.5 text-xs text-on-surface-variant">
+                          The current image will be kept unless you choose a replacement.
+                        </p>
+                      )}
                     </div>
                     <div className="flex items-center gap-2 mb-3">
                       <input
@@ -1460,18 +1517,40 @@ CREATE POLICY "Allow admin full access events" ON events FOR ALL TO authenticate
                     />
                   </div>
 
-                  <button
-                    type="submit"
-                    disabled={addingEvent}
-                    className="bg-primary text-on-primary px-6 py-3 rounded-lg font-bold text-sm hover:bg-primary-fixed-dim transition shadow-sm flex items-center gap-2 font-headline disabled:opacity-50"
-                  >
-                    {addingEvent ? (
-                      <span className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
-                    ) : (
-                      <Plus className="h-4 w-4" />
+                  {editingEventId && (
+                    <p className="rounded-lg bg-tertiary-container/20 px-4 py-3 text-xs text-on-surface-variant">
+                      Changing a title or date does not rename historical attendance. If this event is mirrored in
+                      the bundled outage fallback, make the same change there on a branch to avoid a duplicate.
+                    </p>
+                  )}
+
+                  <div className="flex flex-wrap gap-3">
+                    <button
+                      type="submit"
+                      disabled={addingEvent}
+                      className="bg-primary text-on-primary px-6 py-3 rounded-lg font-bold text-sm hover:bg-primary-fixed-dim transition shadow-sm flex items-center gap-2 font-headline disabled:opacity-50"
+                    >
+                      {addingEvent ? (
+                        <span className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                      ) : editingEventId ? (
+                        <Check className="h-4 w-4" />
+                      ) : (
+                        <Plus className="h-4 w-4" />
+                      )}
+                      {editingEventId ? 'Save Changes' : 'Add Calendar Event'}
+                    </button>
+                    {editingEventId && (
+                      <button
+                        type="button"
+                        onClick={resetEventEditor}
+                        disabled={addingEvent}
+                        className="px-6 py-3 rounded-lg border border-outline-variant/40 text-on-surface font-bold text-sm hover:bg-surface-container transition flex items-center gap-2 disabled:opacity-50"
+                      >
+                        <X className="h-4 w-4" />
+                        Cancel
+                      </button>
                     )}
-                    Add Calendar Event
-                  </button>
+                  </div>
                 </form>
               </div>
             )}
@@ -1510,13 +1589,28 @@ CREATE POLICY "Allow admin full access events" ON events FOR ALL TO authenticate
                           <td className="px-6 py-4 text-on-surface-variant">{ev.time}{ev.end_time ? ` - ${ev.end_time}` : ''}</td>
                           <td className="px-6 py-4 text-on-surface-variant">{ev.location}</td>
                           <td className="px-6 py-4 text-right">
-                            <button
-                              onClick={() => handleDeleteEvent(ev.id)}
-                              className="p-2 rounded-lg bg-error/10 hover:bg-error/20 text-error transition"
-                              title="Delete event"
-                            >
-                              <Trash2 className="h-4.5 w-4.5" />
-                            </button>
+                            <div className="flex justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleEditEvent(ev)}
+                                disabled={addingEvent}
+                                className="p-2 rounded-lg bg-secondary/10 hover:bg-secondary/20 text-secondary transition focus:outline-none focus:ring-2 focus:ring-secondary/50 disabled:opacity-50"
+                                title="Edit event"
+                                aria-label={`Edit ${ev.title}`}
+                              >
+                                <Edit2 className="h-4.5 w-4.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteEvent(ev.id)}
+                                disabled={addingEvent}
+                                className="p-2 rounded-lg bg-error/10 hover:bg-error/20 text-error transition focus:outline-none focus:ring-2 focus:ring-error/50 disabled:opacity-50"
+                                title="Delete event"
+                                aria-label={`Delete ${ev.title}`}
+                              >
+                                <Trash2 className="h-4.5 w-4.5" />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}

@@ -17,7 +17,11 @@ That last one shapes the architecture more than anything else. The E-Board turns
 
 Built with React 18, Vite, Tailwind CSS and Supabase: fast, responsive, and serverless, so it costs the chapter nothing to run.
 
-> **Working on this?** Start with [`CLAUDE.md`](./CLAUDE.md) — it covers the current state, what is actively being built, and the mistakes this codebase has already made once.
+Current operational note: no sponsor accounts have been created yet, and the
+E-Board is responsible for adding the next upcoming events through the Admin
+Dashboard.
+
+> **Working on this?** Start with [`CLAUDE.md`](./CLAUDE.md) — it covers the current state, remaining work, branch policy, and the mistakes this codebase has already made once.
 
 ---
 
@@ -42,7 +46,7 @@ These pages are not listed in the Navbar to maintain security and avoid clutter.
 
 #### 1. Student Check-In (`/attendance`)
 *   **Mobile-First Check-In**: Quick check-in page for chapter events. Options come from the same shared source as the public calendar (`src/lib/events.js`), so an event added in the Admin Dashboard is immediately checkinable. The list is seeded from the bundled fallback at first paint, so a slow or failed network can never leave students staring at an empty dropdown mid-meeting.
-*   **First-Time Meeting Logic**: Prompts first-time attendees for pronouns, how they heard about SHPE, and their major.
+*   **First-Time Meeting Logic**: Prompts first-time attendees for how they heard about SHPE and their major. The historical `pronouns` database column is retained, but the form no longer collects it.
 *   **Custom Major Entry**: If a student selects "Other" as their major, a text input appears allowing them to type their exact major (limited to 150 characters, saved in the database as `Other – [custom text]`, formatted by the shared helper in `src/lib/majors.js` so the check-in form and the resume portal cannot drift apart).
 *   **Spam Prevention**: Implements a 30-second submit cooldown to prevent accidental double-submits or database flooding.
 
@@ -56,6 +60,7 @@ These pages are not listed in the Navbar to maintain security and avoid clutter.
 *   **Safe File Naming**: Re-encrypts filenames on upload to `submissions/${Date.now()}_${crypto.randomUUID()}.pdf` to avoid directory traversal and filename collision vulnerabilities.
 
 #### 3. Recruiter Portal (`/company` & `/company/dashboard`)
+*   **Operational status**: The portal is implemented, but no sponsor accounts exist yet.
 *   **Real Accounts**: Recruiters sign in with an email and password. Accounts are created by the E-Board in the Supabase dashboard and granted a `sponsor` role; an account without that role can reach nothing, so a half-finished setup fails closed.
 *   **Database-Enforced Access**: What a recruiter can see is decided by Postgres Row-Level Security, not by JavaScript. Sponsors see approved resumes only — never the pending queue, attendance records, or anything else.
 *   **Resume Book Browser**: Filter student resumes by name, major, and graduation year.
@@ -74,11 +79,14 @@ These pages are not listed in the Navbar to maintain security and avoid clutter.
     *   **Most Active Members Leaderboard**: Ranks members by the number of **distinct events** attended, so a duplicate check-in at one meeting cannot inflate a ranking.
     *   **Stacked Bar Charts**: Compares First-Timers vs. Returning members per event.
     *   **Pie Charts**: Tracks attendance distribution by event category (GBMs, Professional, Socials, Study Sessions, etc.).
-    *   **Retention Trends**: Line charts visualizing attendance growth over the semester, at half width alongside the majors breakdown.
-    *   **Majors Breakdown**: Pie chart of what the chapter studies, counting **people rather than check-ins** so a frequent attendee cannot skew the mix. Custom `Other – x` entries are unwrapped to the major the student actually typed. Members with no major on record are excluded and reported beneath the chart — returning members are never asked for one at check-in, so that figure is a live measure of the gap.
+*   **Retention Trends**: Line charts visualizing attendance growth over the semester, at half width alongside the majors breakdown. Check-ins are plotted on the event's date rather than the submission timestamp, so a student checking in late does not create a false attendance day.
+    *   **Majors Breakdown**: Ranked bar list of what the chapter studies, counting **people rather than check-ins** so a frequent attendee cannot skew the mix. Each major can be expanded to show its members. Custom `Other – x` entries are unwrapped to the major the student actually typed. Members with no major on record are excluded and reported beneath the chart — returning members are never asked for one at check-in, so that figure is a live measure of the gap.
 *   **Member Feedback**: Everything students wrote in the check-in feedback box, newest first, in a fixed-height scroll region and filterable by event. Each event in the filter carries its comment count.
 *   **Inline Data Editing**: Allows admins to modify a member's major inline in the attendance database. Clicking the pencil icon opens an input field that updates the database record on Enter (or cancels on Escape).
 *   **Secure CSV Export**: Allows downloading attendance records. Implements **CSV Injection mitigation** by sanitizing cells starting with formulas (`=`, `+`, `-`, `@`, tab, carriage return) with a single-quote prefix.
+*   **Calendar Management**: Admins can add, edit, or delete calendar events.
+    Editing reuses the event form, preserves the existing image unless a
+    replacement is selected, and updates the shared calendar/check-in source.
 *   **Resume Book Admin Dashboard (`/admin/resumes`)**:
     *   **Review Pipeline**: Admins can view, approve, revoke, or delete pending resume submissions.
     *   **Sponsor Onboarding**: Step-by-step instructions for creating a recruiter account and granting the `sponsor` role.
@@ -96,8 +104,9 @@ These pages are not listed in the Navbar to maintain security and avoid clutter.
 | **Data Viz** | Recharts | Graphs, pie charts, and trends for the Admin Dashboard |
 | **Database** | Supabase (PostgreSQL) | Stores attendance, resumes, and company access records |
 | **Storage** | Supabase Storage Buckets | Stores student resume PDF files securely |
-| **Authentication** | Supabase Auth | Handles secure Email/Password logins for E-Board admins |
+| **Authentication** | Supabase Auth | Handles role-gated Email/Password logins for E-Board admins and sponsors |
 | **Emails** | EmailJS | Directly handles corporate sponsor contact inquiries from the frontend |
+| **Analytics** | Vercel Web Analytics | Counts privacy-friendly visitors and page views after deployment |
 | **Hosting** | Vercel | Automatic deployments connected to GitHub |
 
 ---
@@ -136,6 +145,30 @@ npm run dev
 ```
 Open [http://localhost:5173](http://localhost:5173) in your browser.
 
+### Branch and review policy
+
+Always work on a branch unless the project owner explicitly asks for work
+directly on `main`. Production deploys from `main`, so even documentation and
+small fixes should be reviewed before they are merged.
+
+```bash
+git switch main
+git pull --ff-only
+git switch -c feature/your-change
+```
+
+Use `npm run dev` and open [http://localhost:5173](http://localhost:5173) for
+ordinary UI review. Before merging, run `npm run lint`, `npm run build`, and
+`npm run preview`; the preview URL is normally
+[http://localhost:4173](http://localhost:4173) and includes the production CSP
+and security headers.
+
+Vercel Web Analytics is mounted once in `src/main.jsx` using
+`@vercel/analytics/react`. It does not collect development traffic. Enable Web
+Analytics in the Vercel project dashboard, deploy the reviewed branch through
+the normal merge process, then visit the production site to begin collecting
+page views.
+
 ---
 
 ## 📂 Directory Structure
@@ -155,7 +188,7 @@ shpe-osu/
 ├── src/
 │   ├── components/       # Reusable layout UI components (Navbar, Footer, ProtectedRoute, etc.)
 │   ├── data/
-│   │   └── events.js     # Centralized source of truth for the Events Calendar
+│   │   └── events.js     # Bundled outage fallback for database events
 │   ├── lib/
 │   │   ├── supabase.js   # Supabase client initialization (loads credentials from env)
 │   │   ├── auth.js       # isAdmin/isSponsor role checks (reads app_metadata)
@@ -194,8 +227,9 @@ shpe-osu/
 
 *   **Row-Level Security (RLS)**: Every table is closed by default and opened
     deliberately. Access is gated on an explicit role claim (`is_admin()` /
-    `is_sponsor()`) rather than on merely being signed in — public signup means
-    "authenticated" is not by itself a meaningful permission.
+    `is_sponsor()`) rather than on merely being signed in. Public signup is
+    currently disabled, but `authenticated` still is not a permission: the role
+    gate must remain safe if signup is enabled again later.
     *   `attendance`: public INSERT (check-in) only. Reads are admin-only; the
         public leaderboard is served by a two-column view instead.
     *   `resumes`: no public read. Sponsors see approved rows; admins see all.

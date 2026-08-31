@@ -115,6 +115,53 @@ export function eventOptionLabel(event) {
 }
 
 /**
+ * Resolves the calendar date represented by an attendance row's event label.
+ *
+ * Attendance keeps `created_at` as the real submission/audit timestamp. The
+ * dashboard trend, however, should plot a late check-in against the meeting it
+ * belongs to, not the following day. Event labels intentionally omit the year,
+ * so we choose the matching date closest to the submission date. Considering
+ * the adjacent years also handles a Dec. 31 meeting checked into on Jan. 1.
+ */
+export function attendanceEventDate(eventName, submittedDate) {
+  const submittedMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(submittedDate ?? '');
+  if (!submittedMatch) return null;
+
+  const submittedYear = Number(submittedMatch[1]);
+  const submittedMonth = Number(submittedMatch[2]);
+  const submittedDay = Number(submittedMatch[3]);
+  const submittedTime = Date.UTC(submittedYear, submittedMonth - 1, submittedDay);
+  const submitted = new Date(submittedTime);
+  const submittedIsValid = submitted.getUTCFullYear() === submittedYear
+    && submitted.getUTCMonth() === submittedMonth - 1
+    && submitted.getUTCDate() === submittedDay;
+  if (!submittedIsValid) return null;
+
+  const eventMatch = /^(\d{1,2})\/(\d{1,2})\s+-\s+/.exec(eventName ?? '');
+  if (!eventMatch) return submittedDate;
+
+  const month = Number(eventMatch[1]);
+  const day = Number(eventMatch[2]);
+  const candidates = [submittedYear - 1, submittedYear, submittedYear + 1]
+    .map((year) => {
+      const time = Date.UTC(year, month - 1, day);
+      const date = new Date(time);
+      if (
+        date.getUTCFullYear() !== year
+        || date.getUTCMonth() !== month - 1
+        || date.getUTCDate() !== day
+      ) return null;
+      return { year, time };
+    })
+    .filter(Boolean)
+    .sort((a, b) => Math.abs(a.time - submittedTime) - Math.abs(b.time - submittedTime));
+
+  if (candidates.length === 0) return submittedDate;
+
+  return `${candidates[0].year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+/**
  * Orders events for the check-in dropdown: soonest upcoming first, then the most
  * recent past ones. A student checking in wants tonight's GBM at the top, not
  * whatever happens to sort first by date.

@@ -310,7 +310,7 @@ function LoteriaCard({ member }) {
 
   return (
     <div
-      className={`loteria-card flex flex-col aspect-[2.5/3.5] bg-surface-container-lowest p-4 rounded-xl shadow-lg border-4 relative group w-[calc(50%-12px)] sm:w-[calc(33.333%-16px)] md:w-[calc(25%-18px)] xl:w-[calc(20%-19.2px)] ${accentColor} ${member.rotate}`}
+      className={`loteria-card flex flex-col aspect-[2.5/3.5] bg-surface-container-lowest p-4 rounded-md shadow-lg border-4 relative w-[calc(50%-12px)] sm:w-[calc(33.333%-16px)] md:w-[calc(25%-18px)] xl:w-[calc(20%-19.2px)] ${accentColor} ${member.rotate}`}
     >
 
       {/* Photo slot */}
