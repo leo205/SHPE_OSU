@@ -1,6 +1,5 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { categoryColors } from '../data/events';
-import ImagePlaceholder from '../components/ImagePlaceholder';
 import { supabase } from '../lib/supabase';
 import { buildGoogleCalendarUrl, downloadICS } from '../lib/calendar';
 import { fetchEvents, mergeEvents, localDateString } from '../lib/events';
@@ -16,109 +15,229 @@ function formatDateKey(year, month, day) {
   return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
+/* ── Event artwork ────────────────────────────────────────── */
+function EventArtwork({ event, className = '' }) {
+  const [imageFailed, setImageFailed] = useState(false);
+  const colors = categoryColors[event.category] || categoryColors.GBM;
+  const photo = typeof event.photo === 'string' ? event.photo.trim() : '';
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [photo]);
+
+  if (photo && !imageFailed) {
+    return (
+      <img
+        src={photo}
+        alt={`Flyer for ${event.title}`}
+        className={`block w-full h-full object-contain bg-surface-container-high ${className}`}
+        loading="lazy"
+        onError={() => setImageFailed(true)}
+      />
+    );
+  }
+
+  // This is a deliberate branded card treatment, not a missing-image warning.
+  // The title, category, and date are already available as adjacent text.
+  return (
+    <div
+      aria-hidden="true"
+      className={`relative flex flex-col items-center justify-center gap-2 overflow-hidden ${colors.bg} ${colors.text} ${className}`}
+    >
+      <div className="absolute -top-16 -right-12 h-40 w-40 rounded-full bg-white/20" />
+      <div className="absolute -bottom-16 -left-12 h-36 w-36 rounded-full bg-black/5" />
+      <span className="material-symbols-outlined relative text-5xl opacity-80">
+        event_available
+      </span>
+      <span className="relative font-headline text-xs font-black uppercase tracking-[0.22em] opacity-80">
+        SHPE OSU
+      </span>
+    </div>
+  );
+}
+
 /* ── Event Detail Modal ────────────────────────────────────── */
 function EventModal({ event, onClose }) {
   const colors = categoryColors[event.category] || categoryColors.GBM;
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
-      role="presentation"
-      onClick={onClose}
-      onKeyDown={(e) => e.key === 'Escape' && onClose()}
-    >
-      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/click-events-have-key-events */}
-      <div
-        className="bg-surface rounded-2xl shadow-2xl max-w-lg w-full p-8 relative"
-        role="dialog"
-        aria-modal="true"
-        aria-label={event.title}
-        onClick={(e) => e.stopPropagation()}
+  const closeButtonRef = useRef(null);
+  const dialogRef = useRef(null);
+  const [imageFailed, setImageFailed] = useState(false);
+  const photo = typeof event.photo === 'string' ? event.photo.trim() : '';
+  const hasFlyer = Boolean(photo) && !imageFailed;
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [photo]);
+
+  useEffect(() => {
+    const previouslyFocused = document.activeElement;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    closeButtonRef.current?.focus();
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
+        return;
+      }
+
+      if (e.key !== 'Tab' || !dialogRef.current) return;
+      const focusable = [...dialogRef.current.querySelectorAll(
+        'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      )];
+      if (focusable.length === 0) return;
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+      previouslyFocused?.focus?.();
+    };
+  }, [onClose]);
+
+  const details = (
+    <div className={`${hasFlyer ? 'p-6 pt-16 md:min-h-0 md:p-8 md:pt-16 md:overflow-y-auto' : 'max-h-[calc(100dvh-1.5rem)] overflow-y-auto p-6 pt-16 sm:max-h-[calc(100dvh-3rem)] sm:p-8 sm:pt-16'} overscroll-contain`}>
+      <span
+        className={`inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest mb-4 ${colors.badge}`}
       >
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 p-2 rounded-full hover:bg-surface-container transition-colors"
-          aria-label="Close event details"
-        >
-          <span className="material-symbols-outlined" aria-hidden="true">close</span>
-        </button>
+        {event.category}
+      </span>
+      <h3 id="event-modal-title" className="font-headline text-2xl font-extrabold text-on-surface mb-3">
+        {event.title}
+      </h3>
 
-        <span
-          className={`inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest mb-4 ${colors.badge}`}
-        >
-          {event.category}
-        </span>
-        <h3 className="font-headline text-2xl font-extrabold text-on-surface mb-3">
-          {event.title}
-        </h3>
-
-        <div className="space-y-2 text-on-surface-variant text-sm mb-6">
-          <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[18px] text-primary" aria-hidden="true">
-              calendar_month
-            </span>
-            <span>
-              {new Date(event.date + 'T12:00:00').toLocaleDateString('en-US', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-              })}
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[18px] text-primary" aria-hidden="true">
-              schedule
-            </span>
-            <span>
-              {event.time}
-              {event.endTime ? ` – ${event.endTime}` : ''}
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[18px] text-primary" aria-hidden="true">
-              location_on
-            </span>
-            <span>{event.location}</span>
-          </div>
+      <div className="space-y-2 text-on-surface-variant text-sm mb-6">
+        <div className="flex items-center gap-2">
+          <span className="material-symbols-outlined text-[18px] text-primary" aria-hidden="true">
+            calendar_month
+          </span>
+          <span>
+            {new Date(event.date + 'T12:00:00').toLocaleDateString('en-US', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+            })}
+          </span>
         </div>
+        <div className="flex items-center gap-2">
+          <span className="material-symbols-outlined text-[18px] text-primary" aria-hidden="true">
+            schedule
+          </span>
+          <span>
+            {event.time}
+            {event.endTime ? ` – ${event.endTime}` : ''}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="material-symbols-outlined text-[18px] text-primary" aria-hidden="true">
+            location_on
+          </span>
+          <span>{event.location}</span>
+        </div>
+      </div>
 
-        <p className="text-on-surface-variant leading-relaxed mb-6">
-          {event.description}
-        </p>
+      <p id="event-modal-description" className="text-on-surface-variant leading-relaxed mb-6">
+        {event.description}
+      </p>
 
+      <div className="flex flex-wrap gap-3 mb-5">
         {event.rsvpUrl && (
           <a
             href={event.rsvpUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-block bg-primary text-on-primary px-6 py-3 rounded-full font-bold mb-4 hover:bg-primary-fixed-dim transition-all"
+            className="inline-block bg-primary text-on-primary px-6 py-3 rounded-full font-bold hover:bg-primary-fixed-dim transition-colors"
           >
             RSVP Now
           </a>
         )}
-
-        <div className="flex flex-wrap gap-3 pt-4 border-t border-outline-variant/30">
+        {hasFlyer && (
           <a
-            href={buildGoogleCalendarUrl(event)}
+            href={photo}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-2 bg-surface-container px-4 py-2 rounded-full text-sm font-bold hover:bg-surface-container-high transition-colors"
+            className="inline-flex items-center gap-2 border border-outline-variant/40 px-5 py-3 rounded-full text-sm font-bold text-on-surface hover:bg-surface-container transition-colors"
           >
-            <span className="material-symbols-outlined text-[18px] text-primary">
-              event
-            </span>
-            Add to Google Calendar
+            <span className="material-symbols-outlined text-[18px]" aria-hidden="true">open_in_new</span>
+            Open Full-Size Flyer
           </a>
-          <button
-            onClick={() => downloadICS(event)}
-            className="flex items-center gap-2 bg-surface-container px-4 py-2 rounded-full text-sm font-bold hover:bg-surface-container-high transition-colors"
-          >
-            <span className="material-symbols-outlined text-[18px] text-secondary">
-              calendar_month
-            </span>
-            Add to Apple / Outlook
-          </button>
-        </div>
+        )}
+      </div>
+
+      <div className="flex flex-wrap gap-3 pt-4 border-t border-outline-variant/30">
+        <a
+          href={buildGoogleCalendarUrl(event)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-2 bg-surface-container px-4 py-2 rounded-full text-sm font-bold hover:bg-surface-container-high transition-colors"
+        >
+          <span className="material-symbols-outlined text-[18px] text-primary" aria-hidden="true">
+            event
+          </span>
+          Add to Google Calendar
+        </a>
+        <button
+          onClick={() => downloadICS(event)}
+          className="flex items-center gap-2 bg-surface-container px-4 py-2 rounded-full text-sm font-bold hover:bg-surface-container-high transition-colors"
+        >
+          <span className="material-symbols-outlined text-[18px] text-secondary" aria-hidden="true">
+            calendar_month
+          </span>
+          Add to Apple / Outlook
+        </button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-3 sm:p-6 bg-black/50 backdrop-blur-sm"
+      role="presentation"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div
+        ref={dialogRef}
+        className={`bg-surface rounded-2xl shadow-2xl w-full relative max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-3rem)] overflow-hidden ${hasFlyer ? 'max-w-5xl' : 'max-w-lg'}`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="event-modal-title"
+        aria-describedby="event-modal-description"
+      >
+        <button
+          ref={closeButtonRef}
+          type="button"
+          onClick={onClose}
+          className="absolute z-20 top-3 right-3 p-2 rounded-full bg-surface/95 shadow-sm hover:bg-surface-container transition-colors focus:outline-none focus:ring-2 focus:ring-primary"
+          aria-label="Close event details"
+        >
+          <span className="material-symbols-outlined" aria-hidden="true">close</span>
+        </button>
+        {hasFlyer ? (
+          <div className="max-h-[calc(100dvh-1.5rem)] overflow-y-auto overscroll-contain sm:max-h-[calc(100dvh-3rem)] md:grid md:grid-cols-[minmax(0,1.15fr)_minmax(20rem,0.85fr)] md:overflow-hidden">
+            <div className="flex min-h-0 items-center justify-center bg-surface-container-high">
+              <img
+                src={photo}
+                alt={`Flyer for ${event.title}`}
+                className="block w-full max-h-[45dvh] md:max-h-[calc(100dvh-3rem)] object-contain"
+                onError={() => setImageFailed(true)}
+              />
+            </div>
+            {details}
+          </div>
+        ) : details}
       </div>
     </div>
   );
@@ -129,6 +248,7 @@ export default function Events() {
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const closeEventModal = useCallback(() => setSelectedEvent(null), []);
   const [members, setMembers] = useState([]);
   // Seeded from the bundled static list so the calendar, Featured and Upcoming
   // sections render on first paint; the DB fetch upgrades it. Starting empty
@@ -514,16 +634,7 @@ export default function Events() {
                       }}
                     >
                       <div className="relative rounded-xl overflow-hidden mb-3 bg-surface-container-lowest h-72 md:h-[420px]">
-                        {ev.photo ? (
-                          <img
-                            src={ev.photo}
-                            alt={ev.title}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                            loading="lazy"
-                          />
-                        ) : (
-                          <ImagePlaceholder label={`${ev.title} Photo`} className="w-full h-full group-hover:scale-105 transition-transform duration-500" />
-                        )}
+                        <EventArtwork event={ev} className="w-full h-full" />
                         <div
                           className={`absolute top-3 left-3 px-3 py-1 rounded-full text-xs font-bold ${colors.badge}`}
                         >
@@ -584,16 +695,7 @@ export default function Events() {
                 }}
               >
                 <div className="relative h-48 bg-surface-container-lowest overflow-hidden">
-                  {ev.photo ? (
-                    <img
-                      src={ev.photo}
-                      alt={ev.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <ImagePlaceholder label={`${ev.title} Photo`} className="w-full h-full group-hover:scale-105 transition-transform duration-500" />
-                  )}
+                  <EventArtwork event={ev} className="w-full h-full" />
                   <div
                     className={`absolute top-3 left-3 px-3 py-1 rounded-full text-xs font-bold ${colors.badge}`}
                   >
@@ -621,12 +723,12 @@ export default function Events() {
                       })}{' '}
                       • {ev.time}
                     </span>
-                    <button className="flex items-center gap-1 hover:gap-2 transition-all font-headline">
+                    <span className="flex items-center gap-1 font-headline">
                       DETAILS{' '}
                       <span className="material-symbols-outlined text-sm">
                         arrow_forward
                       </span>
-                    </button>
+                    </span>
                   </div>
                 </div>
               </div>
@@ -640,7 +742,7 @@ export default function Events() {
       {selectedEvent && (
         <EventModal
           event={selectedEvent}
-          onClose={() => setSelectedEvent(null)}
+          onClose={closeEventModal}
         />
       )}
     </>
