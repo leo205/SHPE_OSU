@@ -37,21 +37,19 @@ function EventArtwork({ event, className = '' }) {
     );
   }
 
-  // This is a deliberate branded card treatment, not a missing-image warning.
-  // The title, category, and date are already available as adjacent text.
+  // Use the chapter's real logo when no flyer exists. Keeping this plain and
+  // official makes the empty state feel intentional without inventing artwork.
   return (
     <div
       aria-hidden="true"
-      className={`relative flex flex-col items-center justify-center gap-2 overflow-hidden ${colors.bg} ${colors.text} ${className}`}
+      className={`relative flex items-center justify-center overflow-hidden bg-surface-container-lowest p-8 ${className}`}
     >
-      <div className="absolute -top-16 -right-12 h-40 w-40 rounded-full bg-white/20" />
-      <div className="absolute -bottom-16 -left-12 h-36 w-36 rounded-full bg-black/5" />
-      <span className="material-symbols-outlined relative text-5xl opacity-80">
-        event_available
-      </span>
-      <span className="relative font-headline text-xs font-black uppercase tracking-[0.22em] opacity-80">
-        SHPE OSU
-      </span>
+      <img
+        src="/photos/shpeLogo.png"
+        alt=""
+        className="block max-h-[55%] w-[68%] object-contain"
+      />
+      <div className={`absolute inset-x-0 bottom-0 h-2 ${colors.dot}`} />
     </div>
   );
 }

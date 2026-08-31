@@ -252,7 +252,7 @@ Rename them `⚠️ OLD — DO NOT RUN`.
 1.  Open the Admin Dashboard and select the **Events** tab.
 2.  Add or edit the event there. Use one of the supported categories:
     `"GBM" | "Social" | "Professional" | "Academic" | "Outreach" | "Fundraiser"`.
-    The image is optional. Events without one receive a branded category panel;
+    The image is optional. Events without one use the official SHPE logo;
     uploaded flyers are displayed uncropped and link to the original full-size
     file from the event details modal.
 3.  Confirm it appears on `/events` and in the `/attendance` dropdown. Both read
