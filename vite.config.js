@@ -9,7 +9,8 @@ import { readFileSync } from 'node:fs'
  * be invisible until it hit production — that is how the sponsor contact form
  * silently broke (api.emailjs.com was missing from connect-src). Reading the
  * same file the deploy reads keeps one source of truth and makes CSP
- * violations reproducible locally via `npm run preview`.
+ * violations reproducible locally via `npm run preview`. Sponsor mail now goes
+ * through Supabase Edge, so the browser must never reconnect to EmailJS.
  */
 function productionHeaders() {
   const config = JSON.parse(
@@ -24,6 +25,12 @@ function productionHeaders() {
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
+  // Vite 7 raised its default floor to Safari 16. Keep the chapter site's
+  // documented Safari 14 support explicit instead of silently dropping older
+  // student devices during a tooling-only security update.
+  build: {
+    target: 'safari14',
+  },
   preview: {
     headers: productionHeaders(),
   },

@@ -187,18 +187,19 @@ export default function AdminDashboard() {
   const saveAttendanceMajor = async (id) => {
     setSavingId(id);
     const trimmed = editMajorVal.trim();
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('attendance')
       .update({ major: trimmed || null })
-      .eq('id', id);
-    if (!error) {
+      .eq('id', id)
+      .select('id');
+    if (!error && data?.length === 1) {
       setAttendance((prev) =>
         prev.map((r) => (r.id === id ? { ...r, major: trimmed || null } : r))
       );
       setEditingId(null);
     } else {
       console.error('[AdminDashboard] Update error:', error);
-      alert(`Could not save that major: ${error.message}`);
+      alert(`Could not save that major: ${error?.message || 'the row was not found'}`);
     }
     setSavingId(null);
   };
@@ -207,53 +208,89 @@ export default function AdminDashboard() {
   const saveResumeMajor = async (id) => {
     setSavingId(id);
     const trimmed = editMajorVal.trim();
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('resumes')
       .update({ major: trimmed || null })
-      .eq('id', id);
-    if (!error) {
+      .eq('id', id)
+      .select('id');
+    if (!error && data?.length === 1) {
       setResumes((prev) =>
         prev.map((r) => (r.id === id ? { ...r, major: trimmed || null } : r))
       );
       setEditingId(null);
     } else {
       console.error('[AdminDashboard] Resume update error:', error);
-      alert(`Could not save that major: ${error.message}`);
+      alert(`Could not save that major: ${error?.message || 'the row was not found'}`);
     }
     setSavingId(null);
   };
 
   // ── Resumes Toggle Approval ───────────────────────────────────────────
   const handleToggleResumeApproval = async (id, currentStatus) => {
-    const { error } = await supabase.from('resumes').update({ approved: !currentStatus }).eq('id', id);
-    if (error) {
+    if (currentStatus) {
+      const { data, error } = await supabase
+        .from('resumes')
+        .update({ approved: false })
+        .eq('id', id)
+        .select('id');
+      if (error || data?.length !== 1) {
+        console.error('[AdminDashboard] Resume revoke failed:', error);
+        alert(`Could not revoke this resume: ${error?.message || 'the row was not found'}`);
+        return;
+      }
+      setResumes((prev) => prev.map((r) => (r.id === id ? { ...r, approved: false } : r)));
+      return;
+    }
+
+    // Approval is intentionally atomic in PostgreSQL: it publishes this row
+    // while retiring older versions for the same normalized email. A direct
+    // browser UPDATE could leave two recruiter-visible revisions.
+    const { data, error } = await supabase.rpc('approve_resume_submission', {
+      p_resume_id: id,
+    });
+    if (error || data !== 'accepted') {
       // Silent failure here is dangerous in both directions: an admin thinks
       // they published a resume that stayed hidden, or revoked one still live.
       console.error('[AdminDashboard] Approval toggle failed:', error);
-      alert(`Could not ${currentStatus ? 'revoke' : 'approve'} this resume: ${error.message}`);
+      alert(`Could not approve this resume: ${error?.message || data || 'unknown error'}`);
       return;
     }
-    setResumes((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, approved: !currentStatus } : r))
-    );
+
+    const { data: refreshed, error: refreshError } = await supabase
+      .from('resumes')
+      .select('*')
+      .order('uploaded_at', { ascending: false });
+    if (refreshError) {
+      console.error('[AdminDashboard] Resume refresh failed:', refreshError);
+      alert('The resume was approved, but the list could not refresh. Reload this page.');
+      return;
+    }
+    setResumes(refreshed ?? []);
   };
 
   // ── Resumes Delete ────────────────────────────────────────────────────
-  const handleDeleteResume = async (id, path) => {
+  const handleDeleteResume = async (id) => {
     if (!window.confirm('Delete this resume? This cannot be undone.')) return;
 
-    // Delete the row first: an orphaned storage blob is harmless, but a row
-    // pointing at a deleted file shows recruiters a resume that 404s.
-    const { error: dbError } = await supabase.from('resumes').delete().eq('id', id);
-    if (dbError) {
+    // The RPC marks a protected submission reservation as superseded in the
+    // same transaction as deleting its row. That prevents an exact public
+    // retry from falsely reporting success after an admin deletion.
+    const { data, error: dbError } = await supabase.rpc('delete_resume_submission', {
+      p_resume_id: id,
+    });
+    if (dbError || data?.status !== 'deleted' || !data?.resume_path) {
       console.error('[AdminDashboard] Resume delete failed:', dbError);
-      alert(`Could not delete this resume: ${dbError.message}`);
+      alert(`Could not delete this resume: ${dbError?.message || data?.status || 'unknown error'}`);
       return;
     }
 
-    const { error: storageError } = await supabase.storage.from('resumes').remove([path]);
+    const { error: storageError } = await supabase.storage.from('resumes').remove([data.resume_path]);
     if (storageError) {
-      console.warn('[AdminDashboard] Orphaned resume file left in storage:', path, storageError);
+      console.warn('[AdminDashboard] Orphaned resume file left in storage:', data.resume_path, storageError);
+      alert(
+        'The resume record was removed from the book, but its private PDF could not be deleted. '
+        + `Keep this path for an admin cleanup retry: ${data.resume_path}`
+      );
     }
 
     setResumes((prev) => prev.filter((r) => r.id !== id));
@@ -1636,6 +1673,9 @@ CREATE POLICY "events admin all"
               <div>
                 <h1 className="text-3xl font-black font-headline text-on-surface">Resume Submissions</h1>
                 <p className="text-sm text-on-surface-variant mt-1">Approve or reject student resumes for the Corporate Resume Book.</p>
+                <p className="text-xs font-semibold text-error mt-2 max-w-2xl">
+                  Before approving, verify that the name and OSU email match the PDF. The public upload check blocks bots but does not prove email ownership.
+                </p>
               </div>
 
               {/* Search resumes */}
@@ -1802,7 +1842,7 @@ CREATE POLICY "events admin all"
                             </button>
                             <button
                               type="button"
-                              onClick={() => handleDeleteResume(r.id, r.resume_path)}
+                              onClick={() => handleDeleteResume(r.id)}
                               className="p-2 rounded-lg bg-error/10 hover:bg-error/20 text-error transition"
                               title="Delete resume submission"
                             >

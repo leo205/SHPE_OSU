@@ -1,14 +1,20 @@
 -- ============================================================================
 --  Resume submission — server-side upsert
 -- ============================================================================
---  STATUS: APPLIED to production 2026-08-03, after sponsor-auth.sql.
+--  STATUS: SUPERSEDED. The original version was applied 2026-08-03. This branch
+--  copy has NOT been re-applied; it retires the legacy function and is retained
+--  only as history. Do not rerun it before the protected submit-resume cutover:
+--  revoking the legacy browser routine early would break production uploads.
+--  The canonical rollout is resume-edge-submit.sql followed, after browser
+--  verification, by resume-lockdown.sql. Do not use this historical file as an
+--  extra rollout step.
 --  Verified afterwards from an anonymous client: submit_resume() rejects a
 --  non-OSU email (invalid_email) and a path-traversal path (invalid_path), and
 --  direct anon INSERT into resumes is refused entirely (42501) — submissions
 --  are RPC-only.
 --
---  Kept as the canonical definition of the function. If you change it through
---  the Supabase UI, update this file too.
+--  Do not grant this function to a browser role. The canonical implementation
+--  is resume-edge-submit.sql followed by resume-lockdown.sql.
 --
 --  WHY THIS EXISTS
 --  ---------------
@@ -30,33 +36,16 @@
 --  moves into the database, where it runs with exactly the privileges it needs
 --  and nothing more.
 --
---  SECURITY NOTES
---  --------------
---  This function is SECURITY DEFINER and callable by anon, so it is a privileged
---  entry point and validates everything itself. In particular:
---
---   * `approved` is hardcoded false and is not a parameter. A submission can
---     never publish itself into the recruiter-visible book.
---   * The OSU email domain check is enforced HERE, not just in the browser.
---     The client-side check in ResumeUpload.jsx is bypassable by anyone posting
---     to PostgREST directly; this one is not.
---   * `resume_path` is constrained to the submissions/ prefix so a caller cannot
---     point a row at an arbitrary object elsewhere in the bucket.
---   * It returns ONLY an action word — 'created' or 'replaced'. Nothing about
---     any other row, and in particular not the previous storage path, which
---     belongs to whoever submitted it.
---
---  RESIDUAL RISK (accepted, see HANDOFF.md)
---  ----------------------------------------
---  Submissions are keyed on email with no proof of ownership, so someone who
---  knows a classmate's OSU address could overwrite their entry. Two things bound
---  the damage: a replacement always lands as `approved = false`, so it drops out
---  of the recruiter book pending E-Board review rather than showing false
---  content to sponsors; and the previous file is left in storage, so an admin
---  can restore it. Closing this properly needs emailed confirmation links, which
---  is a bigger build. The same exposure exists in the current system, which lets
---  anyone insert a row under any email.
+--  RETIREMENT NOTE
+--  ---------------
+--  This historical SECURITY DEFINER function is deliberately recreated only so
+--  older databases have one known signature that can be revoked below. Its
+--  email-keyed replacement behavior is unsafe for public callers: a claimed
+--  address is not proof of ownership and a replacement de-lists the approved
+--  row. Do not call it from new code and do not restore browser EXECUTE.
 -- ============================================================================
+
+BEGIN;
 
 CREATE OR REPLACE FUNCTION public.submit_resume(
   p_full_name       text,
@@ -162,13 +151,12 @@ END;
 $$;
 
 REVOKE ALL ON FUNCTION public.submit_resume(text, text, text, text, text) FROM public;
-GRANT EXECUTE ON FUNCTION public.submit_resume(text, text, text, text, text)
-  TO anon, authenticated;
+REVOKE ALL ON FUNCTION public.submit_resume(text, text, text, text, text)
+  FROM anon, authenticated;
 
 COMMENT ON FUNCTION public.submit_resume(text, text, text, text, text) IS
-  'Privileged entry point for student resume submissions. Callable by anon. '
-  'Validates input server-side, forces approved=false, upserts on email. '
-  'Do not add parameters that widen what the caller can set.';
+  'RETIRED legacy resume upsert. Do not grant to browser roles; use the '
+  'Turnstile-protected submit-resume Edge Function.';
 
 
 -- ─────────────────────────────────────────────────────────────────────────────
@@ -197,14 +185,10 @@ DROP POLICY IF EXISTS "Public can insert resumes" ON public.resumes;
 -- ─────────────────────────────────────────────────────────────────────────────
 --  Verify
 -- ─────────────────────────────────────────────────────────────────────────────
---  As anon, each of these should RAISE (nothing is written):
+--  As anon, each of these should fail with permission denied (nothing written):
 --    select * from submit_resume('X','someone@gmail.com','CSE','2027','submissions/a.pdf');
---      -> invalid_email
+--      -> permission denied
 --    select * from submit_resume('X','a@osu.edu','CSE','2027','../secret.pdf');
---      -> invalid_path
---
---  A first real submission returns ('created', null); an immediate second one
---  for the same email returns too_soon; after 30s it returns
---  ('replaced', '<old path>') and leaves exactly ONE row for that address:
---    SELECT email, count(*) FROM resumes GROUP BY email HAVING count(*) > 1;
---      -> zero rows
+--      -> permission denied
+
+COMMIT;

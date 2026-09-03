@@ -265,7 +265,11 @@ export default function Events() {
         .order('count', { ascending: false })
         // Secondary sort: Postgres gives no ordering guarantee among ties, so
         // without this the top 10 reshuffles on every reload.
-        .order('first_name', { ascending: true });
+        .order('first_name', { ascending: true })
+        // Keep a poisoned or unexpectedly large aggregate from turning the
+        // public Events page into an unbounded download/render. This is UI
+        // containment; the protected submission path is the integrity control.
+        .limit(10);
 
       if (!error && data) {
         setMembers(data.map(r => ({ firstName: r.first_name, count: r.count })));
