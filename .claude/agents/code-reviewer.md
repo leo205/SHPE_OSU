@@ -100,8 +100,9 @@ so the row, sibling revisions, reservation, and Storage path cannot drift.
 Email delivery is different: a provider timeout may mean the sponsor inquiry was
 sent even when no response arrived. The Edge Function makes exactly one EmailJS
 attempt and the client reports `delivery_unconfirmed`; it must never retry
-automatically. The EmailJS service/template/public/private keys stay in Edge
-secrets, never the Vite bundle.
+automatically. The EmailJS service/template/public values and optional private
+key stay in Edge secrets, never the Vite bundle. If private-key enforcement is
+unavailable, the deployment must rotate the public key during cutover.
 
 **Emergency fallback leakage.** The Google attendance fallback is offered only
 after two real `service_unavailable` failures. A fallback URL may prefill only a

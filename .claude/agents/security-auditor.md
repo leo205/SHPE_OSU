@@ -79,13 +79,14 @@ there isn't one, that is a finding regardless of how convincing the UI looks.
   an already-approved resume. Turnstile reduces automated abuse but does not
   prove that the claimed OSU email belongs to the submitter; keep this residual
   risk visible until OSU SSO or email verification is implemented.
-- Sponsor inquiry fields may reach EmailJS only from Edge using server secrets,
-  including the private access key. The provider call is attempted exactly once:
+- Sponsor inquiry fields may reach EmailJS only from Edge using server-held
+  provider values. The provider call is attempted exactly once:
   a timeout is ambiguous and must return `delivery_unconfirmed`, never trigger
-  an automatic retry. The EmailJS dashboard must require private-key
-  authentication **before cutover**; moving keys server-side does not invalidate
-  an older public bundle or copied public credentials. Verify the template has a
-  literal trusted recipient rather than a user-controlled `To` value.
+  an automatic retry. When private-key enforcement is unavailable, rotate the
+  public key during cutover, update only the Edge secret, and prove the old key
+  fails; moving an unchanged key server-side does not invalidate an older public
+  bundle. Verify the template has a literal trusted recipient rather than a
+  user-controlled `To` value.
 - The emergency Google attendance fallback is for availability, not a second
   ingestion API. It appears only after two actual `service_unavailable` results,
   and its URL may contain only a validated canonical `M/D - title` event label.
@@ -170,11 +171,12 @@ immediately. Prove both raw table INSERT and private-bucket upload are denied
 anonymously after lockdown.
 
 **Sponsor:** the shared limiter must exist before `submit-sponsor-inquiry` is
-usable. Configure all EmailJS values and plan quotas as Supabase Edge secrets,
-enable EmailJS private-key-required mode, deploy the function, then deploy the
-browser cutover. Confirm the built public bundle contains neither provider
-credentials nor direct `api.emailjs.com` traffic. Do not claim the cutover safe
-while an old public-only EmailJS route remains accepted.
+usable. Configure the required EmailJS values and plan quotas as Supabase Edge
+secrets, deploy the function, then deploy the browser cutover. Rotate the public
+key and update only Edge when private-key enforcement is unavailable. Confirm
+the built public bundle contains neither provider credentials nor direct
+`api.emailjs.com` traffic. Do not claim the cutover safe while the old browser
+key remains accepted.
 
 ## Reporting
 

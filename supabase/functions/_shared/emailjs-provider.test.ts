@@ -38,6 +38,21 @@ describe('EmailJS server provider', () => {
     expect(init.body).not.toContain('turnstile_token');
   });
 
+  it('omits accessToken when the EmailJS account has no private-key feature', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(new Response('OK', { status: 200 }));
+    const { privateKey: _privateKey, ...freePlanConfig } = config;
+
+    await expect(sendEmailJsInquiry(inquiry, freePlanConfig, fetchImpl)).resolves.toBe('sent');
+
+    const [, init] = fetchImpl.mock.calls[0];
+    expect(JSON.parse(init.body)).toEqual({
+      service_id: 'service_test',
+      template_id: 'template_test',
+      user_id: 'public_test',
+      template_params: inquiry,
+    });
+  });
+
   it.each([
     ['provider rejection', vi.fn().mockResolvedValue(new Response('no', { status: 429 }))],
     ['unexpected 2xx body', vi.fn().mockResolvedValue(new Response('queued', { status: 200 }))],

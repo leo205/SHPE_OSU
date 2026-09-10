@@ -296,10 +296,23 @@ describe('protected sponsor inquiry Edge handler', () => {
     );
   });
 
-  it('fails closed for missing private configuration and provider ambiguity', async () => {
-    const misconfigured = setup({ env: { ...environment, EMAILJS_PRIVATE_KEY: '' } });
+  it('allows an omitted optional private key but fails closed for missing required provider configuration', async () => {
+    const freePlan = setup({ env: { ...environment, EMAILJS_PRIVATE_KEY: '' } });
+    expect((await freePlan.handler(request())).status).toBe(200);
+    expect(freePlan.sendInquiry).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.not.objectContaining({ privateKey: expect.anything() }),
+    );
+
+    const misconfigured = setup({ env: { ...environment, EMAILJS_PUBLIC_KEY: '' } });
     expect((await misconfigured.handler(request())).status).toBe(503);
     expect(misconfigured.createAdmin).not.toHaveBeenCalled();
+
+    const placeholderPrivateKey = setup({
+      env: { ...environment, EMAILJS_PRIVATE_KEY: 'replace-with-private-key' },
+    });
+    expect((await placeholderPrivateKey.handler(request())).status).toBe(503);
+    expect(placeholderPrivateKey.createAdmin).not.toHaveBeenCalled();
 
     const providerFailure = setup({ sendResult: 'failed' });
     const response = await providerFailure.handler(request());

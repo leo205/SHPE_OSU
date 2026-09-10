@@ -74,12 +74,18 @@ function configuredEmailJs(env: SponsorInquiryHandlerDependencies['env']): Email
   const privateKey = env('EMAILJS_PRIVATE_KEY')?.trim();
 
   if (
-    !serviceId || !templateId || !publicKey || !privateKey
-    || [serviceId, templateId, publicKey, privateKey].some((value) => value.startsWith('replace-'))
+    !serviceId || !templateId || !publicKey
+    || [serviceId, templateId, publicKey].some((value) => value.startsWith('replace-'))
+    || privateKey?.startsWith('replace-')
   ) {
     return null;
   }
-  return { serviceId, templateId, publicKey, privateKey };
+  return {
+    serviceId,
+    templateId,
+    publicKey,
+    ...(privateKey ? { privateKey } : {}),
+  };
 }
 
 async function readJson(request: Request): Promise<

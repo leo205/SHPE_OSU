@@ -4,7 +4,7 @@ export type EmailJsConfig = {
   serviceId: string;
   templateId: string;
   publicKey: string;
-  privateKey: string;
+  privateKey?: string;
 };
 
 type EmailInquiry = Omit<SponsorInquiry, 'turnstile_token'>;
@@ -27,7 +27,7 @@ export async function sendEmailJsInquiry(
         service_id: config.serviceId,
         template_id: config.templateId,
         user_id: config.publicKey,
-        accessToken: config.privateKey,
+        ...(config.privateKey ? { accessToken: config.privateKey } : {}),
         template_params: inquiry,
       }),
       signal: AbortSignal.timeout(8_000),

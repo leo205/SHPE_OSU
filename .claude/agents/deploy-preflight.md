@@ -52,17 +52,18 @@ production `VITE_TURNSTILE_SITE_KEY` is restricted to `shpeosu.com` and
 `www.shpeosu.com`. Supabase Edge secrets are a separate deployment surface:
 confirm `TURNSTILE_SECRET_KEY`, `TURNSTILE_ALLOWED_HOSTNAMES`, a random
 32-byte-or-longer `RATE_LIMIT_HMAC_SECRET`, `PUBLIC_SITE_ORIGINS`, and a Supabase
-secret/service-role key exist there. The sponsor function additionally needs all
-four `EMAILJS_*` values and reviewed daily/monthly quotas. None may be `VITE_`.
+secret/service-role key exist there. The sponsor function additionally needs the
+EmailJS service/template/public values, the private value when supported, and
+reviewed daily/monthly quotas. None may be `VITE_`.
 
 Search the built output for `@emailjs/browser`, `api.emailjs.com`, service IDs,
 template IDs, or provider keys. Any hit from application code is blocking. The
 sponsor browser must invoke `submit-sponsor-inquiry`; EmailJS delivery happens
 once in Edge and an ambiguous timeout must not auto-retry. Before that browser
-cutover, verify in the EmailJS dashboard that private-key authentication is
-required and the template's `To` recipient is a literal trusted address. An
-Edge-supplied private key alone does not disable requests copied from an old
-public bundle.
+cutover, verify the template's `To` recipient is a literal trusted address. If
+private-key authentication is unavailable, rotate the public key during cutover,
+replace only the Edge secret, and prove the old browser key fails. If private-key
+authentication is supported, require it and prove the public-only route fails.
 
 **2. Content that has silently expired.**
 `src/lib/events.js` feeds both the public calendar and the attendance dropdown.
@@ -142,9 +143,10 @@ production at once.
   deploy/configure the Edge Function and browser; verify submit/view/approve/
   delete in staging; then apply `resume-lockdown.sql` immediately. Confirm raw
   anonymous metadata INSERT, legacy RPC execution, and Storage upload are denied.
-- Sponsor: ensure the shared limiter exists; configure private provider secrets
-  and quotas; require EmailJS private-key authentication; deploy the function;
-  then cut over the browser.
+- Sponsor: ensure the shared limiter exists; configure provider values and
+  quotas; deploy the function; cut over the browser; then rotate the EmailJS
+  public key and update only the Edge secret. Prefer verified private-key
+  enforcement instead when the account supports it.
 
 After every stage, query live policies/function privileges and run the documented
 safe probes from `supabase/README.md`. Source SQL and a successful CLI command are

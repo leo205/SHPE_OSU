@@ -116,7 +116,7 @@ claims protect the operations behind them.
 | **Storage** | Supabase Storage Buckets | Stores student resume PDF files securely |
 | **Authentication** | Supabase Auth | Handles role-gated Email/Password logins for E-Board admins and sponsors |
 | **Public-write gateway** | Supabase Edge Functions + Cloudflare Turnstile | Validates and rate-limits attendance, resume, and sponsor submissions server-side |
-| **Emails** | EmailJS REST API | Sends one server-authenticated sponsor notification from Edge; no browser provider key |
+| **Emails** | EmailJS REST API | Sends one server-routed sponsor notification from Edge; no provider key in the current browser bundle |
 | **Analytics** | Vercel Web Analytics | Counts privacy-friendly visitors and page views after deployment |
 | **Hosting** | Vercel | Automatic deployments connected to GitHub |
 
@@ -287,8 +287,11 @@ The protected-submission SQL and Edge files on this branch are **not applied to
 production yet**. Do not merge only the frontend. Follow `supabase/README.md`:
 apply/probe additive SQL, configure Edge-only secrets and exact origins, deploy
 and test all three functions, switch the frontend, then immediately apply the
-lockdown SQL. The sponsor cutover is incomplete until EmailJS Account → Security
-requires its private key; old public IDs remain recoverable from caches/history.
+lockdown SQL. For the current EmailJS Free account, rotate the EmailJS public key
+during cutover, update the Edge secret immediately, and keep the replacement out
+of Vite; old public IDs remain recoverable from caches/history but become invalid.
+If EmailJS later exposes private-key enforcement, enable and verify it as an
+additional control.
 
 ### Known residual risk
 

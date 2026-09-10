@@ -161,20 +161,20 @@ side effect. The following are Edge-only secrets and settings:
 EMAILJS_SERVICE_ID
 EMAILJS_TEMPLATE_ID
 EMAILJS_PUBLIC_KEY
-EMAILJS_PRIVATE_KEY
+EMAILJS_PRIVATE_KEY (optional when the account does not expose this feature)
 SPONSOR_INQUIRY_DAILY_LIMIT
 SPONSOR_INQUIRY_MONTHLY_LIMIT
 ```
 
-There is an external cutover blocker that code cannot solve: in the EmailJS
-dashboard, enable the setting that requires the private key for API requests,
-keep the template's recipient as a fixed trusted address rather than a
+The current EmailJS Free account does not expose private-key enforcement. Keep
+the template's recipient as a fixed trusted address rather than a
 browser-supplied variable, and render `inquiry_id` in the admin-visible message
-for correlation after an ambiguous delivery. Then prove that the old
-public-key-only REST request fails while the Edge request succeeds. Supplying
-`accessToken` from Edge does not by itself disable an already-public browser
-route. **Do not call sponsor inquiry hardened or remove the old path from
-production until that dashboard control has been enabled and tested.**
+for correlation after an ambiguous delivery. During the coordinated browser
+cutover, rotate the EmailJS public key, immediately replace
+`EMAILJS_PUBLIC_KEY` in Edge secrets, and prove the old key fails while the Edge
+request succeeds. The replacement key must never enter Vite, Git, logs, or chat.
+If the account later exposes private-key enforcement, configure
+`EMAILJS_PRIVATE_KEY`, enable the requirement, and repeat both probes.
 
 If EmailJS delivery times out, it may already have sent. Keep the result
 `delivery_unconfirmed`, do not automatically retry, and direct the user to the
@@ -225,8 +225,9 @@ Apply one numbered stage at a time and record its evidence.
    admin approve/delete. Confirm existing approved resumes remain readable only
    to authorized roles.
 5. Configure staging Edge secrets from `functions/.env.example`. Use exact
-   preview origins and Turnstile hostnames. Complete and prove the EmailJS
-   private-key requirement before sponsor cutover.
+   preview origins and Turnstile hostnames. Prepare the EmailJS public-key
+   rotation, or private-key enforcement when the account supports it, before
+   sponsor cutover.
 6. Deploy all three Edge Functions with the staged `config.toml`. Probe rejected
    origin, malformed/oversized body, bad and replayed Turnstile token, exhausted
    rate bucket, provider failure, and one valid request for each function.
