@@ -35,6 +35,13 @@ const CHART_COLORS = ['#a33700', '#3b5b92', '#7b5400', '#ff7943', '#feb300'];
 // adjacent classes stop being distinguishable anyway.
 const MAJOR_BAR_COLOR = '#a33700';
 
+const ADMIN_TABS = [
+  { id: 'home', label: 'Home', icon: HomeIcon },
+  { id: 'companies', label: 'Companies', icon: Briefcase },
+  { id: 'events', label: 'Events', icon: Calendar },
+  { id: 'resume', label: 'Resume', icon: FileText },
+];
+
 const EMPTY_EVENT_FORM = {
   title: '',
   date: '',
@@ -54,7 +61,7 @@ const sortEventsNewestFirst = (events) =>
 // ── Stat Card Component (Branded) ─────────────────────────────────────
 function AnalyticsStatCard({ icon: Icon, label, value, sub }) {
   return (
-    <div className="flex-1 min-w-[200px] rounded-xl border border-outline-variant/20 bg-surface-container-lowest p-6 shadow-sm flex flex-col justify-between">
+    <div className="min-w-0 rounded-xl border border-outline-variant/20 bg-surface-container-lowest p-5 sm:p-6 shadow-sm flex flex-col justify-between">
       <div>
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs font-bold font-headline uppercase tracking-widest text-on-surface-variant truncate">
@@ -74,7 +81,7 @@ function AnalyticsStatCard({ icon: Icon, label, value, sub }) {
 // ── Top Members Card Component (Branded) ──────────────────────────────
 function TopMembersCard({ members }) {
   return (
-    <div className="flex-1 min-w-[280px] rounded-xl border border-outline-variant/20 bg-surface-container-lowest p-6 shadow-sm">
+    <div className="min-w-0 rounded-xl border border-outline-variant/20 bg-surface-container-lowest p-5 sm:p-6 shadow-sm">
       <div className="flex items-center gap-2 mb-4">
         <div className="w-8 h-8 bg-surface-container-low rounded-lg flex items-center justify-center">
           <span className="text-sm">🔥</span>
@@ -83,12 +90,12 @@ function TopMembersCard({ members }) {
       </div>
       <div className="space-y-3 font-body">
         {members.slice(0, 3).map((m, i) => (
-          <div key={m.dotnum} className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
+          <div key={m.dotnum} className="flex min-w-0 items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-2">
               <span className={`font-headline font-black text-sm w-5 text-center ${
                 i === 0 ? 'text-primary' : 'text-on-surface-variant'
               }`}>{i + 1}</span>
-              <span className="font-bold text-on-surface text-sm truncate max-w-[150px]">{m.firstName} {m.lastName}</span>
+              <span className="min-w-0 truncate font-bold text-on-surface text-sm">{m.firstName} {m.lastName}</span>
             </div>
             <span className="text-xs font-bold bg-primary-container/15 text-primary-dim px-2.5 py-0.5 rounded-full shrink-0">
               {m.count} {m.count === 1 ? 'event' : 'events'}
@@ -731,10 +738,61 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="flex h-screen w-full bg-surface font-body text-on-surface overflow-hidden">
-      
+    <div className="min-h-screen w-full bg-surface font-body text-on-surface md:flex md:h-screen md:overflow-hidden">
+
+      {/* ── MOBILE HEADER + TAB BAR ─────────────────────────────────── */}
+      <header className="sticky top-0 z-30 border-b border-outline-variant/20 bg-surface-container-low/95 shadow-sm backdrop-blur md:hidden">
+        <div className="flex h-14 items-center justify-between px-4">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <img
+              src="/photos/shpeLogo.png"
+              alt="SHPE Logo"
+              className="h-8 w-auto shrink-0 object-contain"
+            />
+            <span className="truncate font-headline text-sm font-black text-on-surface">
+              Admin Dashboard
+            </span>
+          </div>
+          <div className="flex shrink-0 items-center gap-1">
+            <a
+              href="/"
+              aria-label="Go to website"
+              className="flex h-10 w-10 items-center justify-center rounded-lg text-primary transition hover:bg-surface-container"
+            >
+              <ExternalLink className="h-5 w-5" strokeWidth={2} />
+            </a>
+            <button
+              type="button"
+              onClick={handleSignOut}
+              aria-label="Log out"
+              className="flex h-10 w-10 items-center justify-center rounded-lg text-error transition hover:bg-error/10"
+            >
+              <LogOut className="h-5 w-5" strokeWidth={2} />
+            </button>
+          </div>
+        </div>
+        <nav aria-label="Admin sections" className="grid grid-cols-4 gap-1 px-2 pb-2">
+          {ADMIN_TABS.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => { setActiveTab(id); setEditingId(null); }}
+              aria-current={activeTab === id ? 'page' : undefined}
+              className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1 py-2 font-headline text-[10px] font-bold leading-none transition sm:text-xs ${
+                activeTab === id
+                  ? 'bg-primary text-on-primary shadow-sm'
+                  : 'text-on-surface-variant hover:bg-surface-container hover:text-on-surface'
+              }`}
+            >
+              <Icon className="h-4.5 w-4.5" strokeWidth={activeTab === id ? 2.3 : 1.9} />
+              <span className="truncate">{label}</span>
+            </button>
+          ))}
+        </nav>
+      </header>
+
       {/* ── SIDEBAR ─────────────────────────────────────────────────── */}
-      <aside className="flex h-full w-64 shrink-0 flex-col justify-between border-r border-outline-variant/20 bg-surface-container-low px-4 py-6">
+      <aside className="hidden h-full w-64 shrink-0 flex-col justify-between border-r border-outline-variant/20 bg-surface-container-low px-4 py-6 md:flex">
         <div>
           <div className="mb-8 flex items-center px-2">
             <img
@@ -745,12 +803,7 @@ export default function AdminDashboard() {
           </div>
 
           <nav className="flex flex-col gap-1">
-            {[
-              { id: 'home', label: 'Home', icon: HomeIcon },
-              { id: 'companies', label: 'Companies', icon: Briefcase },
-              { id: 'events', label: 'Events', icon: Calendar },
-              { id: 'resume', label: 'Resume', icon: FileText },
-            ].map(({ id, label, icon: Icon }) => (
+            {ADMIN_TABS.map(({ id, label, icon: Icon }) => (
               <button
                 key={id}
                 type="button"
@@ -788,18 +841,18 @@ export default function AdminDashboard() {
       </aside>
 
       {/* ── MAIN CONTENT AREA ───────────────────────────────────────── */}
-      <main className="flex-1 overflow-y-auto px-10 py-8">
+      <main className="w-full min-w-0 px-4 py-5 sm:px-6 md:flex-1 md:overflow-y-auto md:px-8 md:py-8 lg:px-10">
         
         {/* ── TAB 1: HOME (ANALYTICS & CHARTS) ────────────────────────── */}
         {activeTab === 'home' && (
-          <div className="space-y-8 max-w-6xl">
+          <div className="w-full max-w-6xl space-y-7 sm:space-y-8">
             <div>
-              <h1 className="text-3xl font-black font-headline tracking-tight text-on-surface">Dashboard</h1>
+              <h1 className="text-2xl font-black font-headline tracking-tight text-on-surface sm:text-3xl">Dashboard</h1>
               <p className="text-sm text-on-surface-variant mt-1">Real-time attendance insights and statistics.</p>
             </div>
 
             {/* Stats Cards Row */}
-            <div className="flex flex-col gap-4 sm:flex-row">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
               <AnalyticsStatCard
                 icon={Users}
                 label="Members"
@@ -828,7 +881,7 @@ export default function AdminDashboard() {
                 {/* Stacked Attendance per Event — full row. It carries one
                     bar per event and is the chart that grows all semester, so
                     it gets the width rather than sharing with the donut. */}
-                <div className="lg:col-span-3 rounded-lg border border-outline-variant/20 bg-surface-container-lowest p-6 shadow-sm">
+                <div className="min-w-0 rounded-lg border border-outline-variant/20 bg-surface-container-lowest p-4 shadow-sm sm:p-6 lg:col-span-3">
                   <h3 className="font-bold font-headline text-base mb-6 text-on-surface">
                     Attendance per Event
                   </h3>
@@ -857,7 +910,7 @@ export default function AdminDashboard() {
                   {/* Left column: the two small charts, stacked. */}
                   <div className="space-y-6">
                     {showTrend && (
-                      <div className="rounded-lg border border-outline-variant/20 bg-surface-container-lowest p-6 shadow-sm">
+                      <div className="min-w-0 rounded-lg border border-outline-variant/20 bg-surface-container-lowest p-4 shadow-sm sm:p-6">
                         <h3 className="font-bold font-headline text-base mb-6 text-on-surface">
                           Attendance History Trend
                         </h3>
@@ -882,7 +935,7 @@ export default function AdminDashboard() {
                     {/* Event Type breakdown. Sits under the trend so the two
                           small charts share one column and the wide
                           per-event bars can have a full row. */}
-                    <div className="rounded-lg border border-outline-variant/20 bg-surface-container-lowest p-6 shadow-sm">
+                    <div className="min-w-0 rounded-lg border border-outline-variant/20 bg-surface-container-lowest p-4 shadow-sm sm:p-6">
                       <h3 className="font-bold font-headline text-base mb-6 text-on-surface">
                         Events by Category
                       </h3>
@@ -920,7 +973,7 @@ export default function AdminDashboard() {
 
                       One hue throughout: bar length already carries the count,
                       so a second colour per row would encode nothing. */}
-                  <div className="lg:col-span-2 rounded-lg border border-outline-variant/20 bg-surface-container-lowest p-6 shadow-sm">
+                  <div className="min-w-0 rounded-lg border border-outline-variant/20 bg-surface-container-lowest p-4 shadow-sm sm:p-6 lg:col-span-2">
                     <h3 className="font-bold font-headline text-base text-on-surface">
                       Majors
                     </h3>
@@ -1021,8 +1074,8 @@ export default function AdminDashboard() {
                     <h3 className="font-bold font-headline text-base text-on-surface">Events Analytics</h3>
                     <p className="text-xs text-on-surface-variant">Overview of check-in volume and member retention across events.</p>
                   </div>
-                  <div className="overflow-hidden rounded-lg border border-outline-variant/20 bg-surface-container-lowest shadow-sm">
-                    <table className="w-full text-left text-sm">
+                  <div className="overflow-x-auto overscroll-x-contain rounded-lg border border-outline-variant/20 bg-surface-container-lowest shadow-sm">
+                    <table className="min-w-[760px] w-full text-left text-sm">
                       <thead>
                         <tr className="bg-surface-container-high border-b border-outline-variant/20 text-on-surface-variant font-bold uppercase tracking-wider text-xs font-headline">
                           <th className="px-6 py-4">Event Name</th>
@@ -1076,14 +1129,14 @@ export default function AdminDashboard() {
             <div className="space-y-4 pt-8 border-t border-outline-variant/20 max-w-6xl">
               <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
                 <div>
-                  <h2 className="text-3xl font-black font-headline text-on-surface">Member Feedback</h2>
+                  <h2 className="text-2xl font-black font-headline text-on-surface sm:text-3xl">Member Feedback</h2>
                   <p className="text-sm text-on-surface-variant mt-1">
                     Everything students wrote in the &ldquo;Any feedback or suggestions?&rdquo; box at check-in, newest first.
                   </p>
                 </div>
 
                 {feedbackEntries.length > 0 && (
-                  <div className="flex flex-wrap items-center gap-3">
+                  <div className="grid w-full grid-cols-1 gap-3 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
                     <span className="text-xs text-on-surface-variant whitespace-nowrap">
                       Showing {visibleFeedback.length} of {feedbackEntries.length}
                     </span>
@@ -1091,7 +1144,7 @@ export default function AdminDashboard() {
                       value={filterFeedbackEvent}
                       onChange={(e) => setFilterFeedbackEvent(e.target.value)}
                       aria-label="Filter feedback by event"
-                      className="px-4 py-2 rounded-lg border border-outline-variant/30 bg-surface-container-lowest text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 shadow-sm"
+                      className="w-full min-w-0 max-w-full rounded-lg border border-outline-variant/30 bg-surface-container-lowest px-4 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/50 sm:w-auto sm:max-w-sm"
                     >
                       <option value="All">All Events ({feedbackEntries.length})</option>
                       {feedbackEvents.map(([ev, meta]) => (
@@ -1154,20 +1207,20 @@ export default function AdminDashboard() {
             <div className="space-y-6 pt-8 border-t border-outline-variant/20 max-w-6xl">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                  <h1 className="text-3xl font-black font-headline text-on-surface">Member Directory</h1>
+                  <h1 className="text-2xl font-black font-headline text-on-surface sm:text-3xl">Member Directory</h1>
                   <p className="text-sm text-on-surface-variant mt-1">Review, search, and update check-in data.</p>
                 </div>
                 
-                <div className="flex flex-wrap items-center gap-3">
+                <div className="grid w-full grid-cols-1 gap-3 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
                   {/* Search */}
-                  <div className="relative">
+                  <div className="relative w-full sm:w-auto">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant h-4 w-4" />
                     <input
                       type="search"
                       placeholder="Search name or major..."
                       value={searchAttendance}
                       onChange={(e) => setSearchAttendance(e.target.value)}
-                      className="pl-9 pr-4 py-2 rounded-lg border border-outline-variant/30 bg-surface-container-lowest text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 w-56 shadow-sm"
+                      className="w-full rounded-lg border border-outline-variant/30 bg-surface-container-lowest py-2 pl-9 pr-4 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/50 sm:w-56"
                     />
                   </div>
 
@@ -1175,7 +1228,7 @@ export default function AdminDashboard() {
                   <select
                     value={filterAttendanceEvent}
                     onChange={(e) => setFilterAttendanceEvent(e.target.value)}
-                    className="px-4 py-2 rounded-lg border border-outline-variant/30 bg-surface-container-lowest text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 shadow-sm"
+                    className="w-full min-w-0 rounded-lg border border-outline-variant/30 bg-surface-container-lowest px-4 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/50 sm:w-auto sm:max-w-xs"
                   >
                     <option value="All">All Events</option>
                     {uniqueEvents.map((ev) => (
@@ -1187,7 +1240,7 @@ export default function AdminDashboard() {
                   <button
                     type="button"
                     onClick={exportCSV}
-                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-on-primary text-sm font-bold hover:bg-primary-fixed-dim transition shadow-sm font-headline"
+                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-on-primary shadow-sm transition hover:bg-primary-fixed-dim sm:w-auto"
                   >
                     <Download className="h-4 w-4" />
                     Export CSV
@@ -1197,8 +1250,8 @@ export default function AdminDashboard() {
 
               {/* Attendance Table */}
               <div className="overflow-hidden rounded-lg border border-outline-variant/20 bg-surface-container-lowest shadow-sm">
-                <div className="overflow-x-auto max-h-[600px] rounded-t-lg">
-                  <table className="w-full text-left text-sm">
+                <div className="max-h-[600px] overflow-x-auto overscroll-x-contain rounded-t-lg">
+                  <table className="min-w-[980px] w-full text-left text-sm">
                     <thead>
                       <tr className="bg-surface-container-high border-b border-outline-variant/20 text-on-surface-variant font-bold uppercase tracking-wider text-xs font-headline">
                         <th className="px-6 py-4">Name</th>
@@ -1270,8 +1323,9 @@ export default function AdminDashboard() {
                                 <span className="truncate max-w-[200px] inline-block">{r.major || '—'}</span>
                                 <button
                                   onClick={() => { setEditingId(r.id); setEditMajorVal(r.major || ''); }}
-                                  className="p-1 text-on-surface-variant hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity"
+                                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-on-surface-variant opacity-100 transition hover:bg-primary/10 hover:text-primary focus:opacity-100 sm:h-auto sm:w-auto sm:p-1 sm:opacity-0 sm:group-hover:opacity-100"
                                   title="Edit major"
+                                  aria-label={`Edit major for ${r.first_name}`}
                                 >
                                   <Edit2 className="h-3.5 w-3.5" />
                                 </button>
@@ -1307,12 +1361,12 @@ export default function AdminDashboard() {
         {activeTab === 'companies' && (
           <div className="space-y-6 max-w-4xl">
             <div>
-              <h1 className="text-3xl font-black font-headline text-on-surface">Recruiter Codes</h1>
+              <h1 className="text-2xl font-black font-headline text-on-surface sm:text-3xl">Recruiter Codes</h1>
               <p className="text-sm text-on-surface-variant mt-1">Sponsors sign in with a real account. The codes below are historical and grant nothing — delete them once every sponsor has a login.</p>
             </div>
 
             {/* Sponsor onboarding — access codes are gone */}
-            <div className="bg-surface-container-lowest border border-outline-variant/20 rounded-lg p-6 shadow-sm">
+            <div className="rounded-lg border border-outline-variant/20 bg-surface-container-lowest p-4 shadow-sm sm:p-6">
               <h3 className="font-bold font-headline text-on-surface mb-2">Give a sponsor access</h3>
               <p className="text-sm text-on-surface-variant mb-4">
                 Access codes are no longer used — they were readable by anyone, so they
@@ -1337,8 +1391,8 @@ WHERE email = 'recruiter@company.com';`}</pre>
             {/* Historical codes — these no longer grant access to anything. */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 font-body">
               {codes.map(c => (
-                <div key={c.id} className="p-5 rounded-lg border border-outline-variant/20 bg-surface-container-lowest flex justify-between items-center shadow-sm hover:border-outline-variant transition-all">
-                  <div>
+                <div key={c.id} className="flex min-w-0 items-center justify-between gap-3 rounded-lg border border-outline-variant/20 bg-surface-container-lowest p-5 shadow-sm transition-all hover:border-outline-variant">
+                  <div className="min-w-0">
                     <h4 className="font-bold text-on-surface">{c.company_name}</h4>
                     <p className="font-mono text-lg font-semibold tracking-wider text-primary mt-1">{c.access_code}</p>
                     <p className="text-[10px] text-on-surface-variant mt-1">
@@ -1355,7 +1409,7 @@ WHERE email = 'recruiter@company.com';`}</pre>
                 </div>
               ))}
               {codes.length === 0 && (
-                <div className="col-span-2 text-center py-12 text-on-surface-variant bg-surface-container-lowest border border-dashed border-outline-variant/20 rounded-lg">
+                <div className="rounded-lg border border-dashed border-outline-variant/20 bg-surface-container-lowest py-12 text-center text-on-surface-variant sm:col-span-2">
                   No company access codes generated yet.
                 </div>
               )}
@@ -1367,13 +1421,13 @@ WHERE email = 'recruiter@company.com';`}</pre>
         {activeTab === 'events' && (
           <div className="space-y-6 max-w-5xl">
             <div>
-              <h1 className="text-3xl font-black font-headline text-on-surface">Calendar Events</h1>
+              <h1 className="text-2xl font-black font-headline text-on-surface sm:text-3xl">Calendar Events</h1>
               <p className="text-sm text-on-surface-variant mt-1">Manage events displayed on the public website calendar.</p>
             </div>
 
             {/* SQL Table Check Warning */}
             {eventsError && (
-              <div className="p-6 bg-error/10 border border-error/20 text-on-surface rounded-xl space-y-4 font-body max-w-4xl shadow-sm">
+              <div className="max-w-4xl space-y-4 rounded-xl border border-error/20 bg-error/10 p-4 font-body text-on-surface shadow-sm sm:p-6">
                 <div className="flex items-center gap-2.5 text-error">
                   <span className="material-symbols-outlined font-black">warning</span>
                   <h3 className="font-bold font-headline">Events Database Table Missing</h3>
@@ -1410,7 +1464,7 @@ CREATE POLICY "events admin all"
 
             {/* Event Form Card */}
             {!eventsError && (
-              <div id="event-form-card" className="bg-surface-container-lowest border border-outline-variant/20 rounded-xl p-6 shadow-sm max-w-4xl scroll-mt-6">
+              <div id="event-form-card" className="max-w-4xl scroll-mt-32 rounded-xl border border-outline-variant/20 bg-surface-container-lowest p-4 shadow-sm sm:p-6 md:scroll-mt-6">
                 <h3 className="font-bold font-headline text-on-surface mb-4">
                   {editingEventId ? 'Edit Calendar Event' : 'Add Upcoming Event'}
                 </h3>
@@ -1561,11 +1615,11 @@ CREATE POLICY "events admin all"
                     </p>
                   )}
 
-                  <div className="flex flex-wrap gap-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                     <button
                       type="submit"
                       disabled={addingEvent}
-                      className="bg-primary text-on-primary px-6 py-3 rounded-lg font-bold text-sm hover:bg-primary-fixed-dim transition shadow-sm flex items-center gap-2 font-headline disabled:opacity-50"
+                      className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-6 py-3 text-sm font-bold text-on-primary shadow-sm transition hover:bg-primary-fixed-dim disabled:opacity-50 sm:w-auto"
                     >
                       {addingEvent ? (
                         <span className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
@@ -1581,7 +1635,7 @@ CREATE POLICY "events admin all"
                         type="button"
                         onClick={resetEventEditor}
                         disabled={addingEvent}
-                        className="px-6 py-3 rounded-lg border border-outline-variant/40 text-on-surface font-bold text-sm hover:bg-surface-container transition flex items-center gap-2 disabled:opacity-50"
+                        className="flex w-full items-center justify-center gap-2 rounded-lg border border-outline-variant/40 px-6 py-3 text-sm font-bold text-on-surface transition hover:bg-surface-container disabled:opacity-50 sm:w-auto"
                       >
                         <X className="h-4 w-4" />
                         Cancel
@@ -1596,8 +1650,8 @@ CREATE POLICY "events admin all"
             {!eventsError && (
               <div className="space-y-4">
                 <h3 className="font-bold font-headline text-base text-on-surface">Active Events Calendar</h3>
-                <div className="overflow-x-auto rounded-lg border border-outline-variant/20 bg-surface-container-lowest shadow-sm max-w-4xl">
-                  <table className="w-full text-left text-sm">
+                <div className="max-w-4xl overflow-x-auto overscroll-x-contain rounded-lg border border-outline-variant/20 bg-surface-container-lowest shadow-sm">
+                  <table className="min-w-[820px] w-full text-left text-sm">
                     <thead>
                       <tr className="bg-surface-container-high border-b border-outline-variant/20 text-on-surface-variant font-bold uppercase tracking-wider text-xs font-headline">
                         <th className="px-6 py-4">Title</th>
@@ -1671,7 +1725,7 @@ CREATE POLICY "events admin all"
           <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
-                <h1 className="text-3xl font-black font-headline text-on-surface">Resume Submissions</h1>
+                <h1 className="text-2xl font-black font-headline text-on-surface sm:text-3xl">Resume Submissions</h1>
                 <p className="text-sm text-on-surface-variant mt-1">Approve or reject student resumes for the Corporate Resume Book.</p>
                 <p className="text-xs font-semibold text-error mt-2 max-w-2xl">
                   Before approving, verify that the name and OSU email match the PDF. The public upload check blocks bots but does not prove email ownership.
@@ -1679,20 +1733,20 @@ CREATE POLICY "events admin all"
               </div>
 
               {/* Search resumes */}
-              <div className="relative">
+              <div className="relative w-full sm:w-auto">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant h-4 w-4" />
                 <input
                   type="search"
                   placeholder="Search name, email, major..."
                   value={searchResumes}
                   onChange={e => setSearchResumes(e.target.value)}
-                  className="pl-9 pr-4 py-2.5 rounded-lg border border-outline-variant/30 bg-surface-container-lowest text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 w-64 shadow-sm"
+                  className="w-full rounded-lg border border-outline-variant/30 bg-surface-container-lowest py-2.5 pl-9 pr-4 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/50 sm:w-64"
                 />
               </div>
             </div>
 
             {/* Split sub-tabs */}
-            <div className="flex gap-1.5 p-1.5 bg-surface-container rounded-full w-fit animate-fade-in">
+            <div className="grid w-full grid-cols-2 gap-1.5 rounded-2xl bg-surface-container p-1.5 animate-fade-in sm:w-fit sm:rounded-full">
               {[
                 { key: 'approved', label: 'Approved & Public', count: approvedResumes.length, color: 'text-primary bg-primary/10' },
                 { key: 'pending', label: 'Pending Verification', count: pendingResumes.length, color: 'text-error bg-error/10' },
@@ -1701,7 +1755,7 @@ CREATE POLICY "events admin all"
                   key={subTab.key}
                   type="button"
                   onClick={() => { setResumeActiveTab(subTab.key); setEditingId(null); }}
-                  className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-bold text-sm transition-all font-headline ${
+                  className={`flex min-w-0 items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-xs font-bold transition-all font-headline sm:rounded-full sm:px-5 sm:text-sm ${
                     resumeActiveTab === subTab.key
                       ? "bg-surface-container-lowest shadow-sm text-on-surface"
                       : "text-on-surface-variant hover:text-on-surface"
@@ -1719,8 +1773,8 @@ CREATE POLICY "events admin all"
 
             {/* Resumes Table */}
             <div className="overflow-hidden rounded-lg border border-outline-variant/20 bg-surface-container-lowest shadow-sm">
-              <div className="overflow-x-auto max-h-[500px] rounded-t-lg">
-                <table className="w-full text-left text-sm">
+              <div className="max-h-[500px] overflow-x-auto overscroll-x-contain rounded-t-lg">
+                <table className="min-w-[940px] w-full text-left text-sm">
                   <thead>
                     <tr className="bg-surface-container-high border-b border-outline-variant/20 text-on-surface-variant font-bold uppercase tracking-wider text-xs font-headline">
                       <th className="px-6 py-4">Student</th>
@@ -1785,8 +1839,9 @@ CREATE POLICY "events admin all"
                               <span className="truncate max-w-[200px] inline-block">{r.major || '—'}</span>
                               <button
                                 onClick={() => { setEditingId(r.id); setEditMajorVal(r.major || ''); }}
-                                className="p-1 text-on-surface-variant hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity"
+                                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-on-surface-variant opacity-100 transition hover:bg-primary/10 hover:text-primary focus:opacity-100 sm:h-auto sm:w-auto sm:p-1 sm:opacity-0 sm:group-hover:opacity-100"
                                 title="Edit major"
+                                aria-label={`Edit major for ${r.full_name}`}
                               >
                                 <Edit2 className="h-3.5 w-3.5" />
                               </button>
