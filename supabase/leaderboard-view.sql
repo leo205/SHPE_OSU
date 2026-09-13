@@ -1,12 +1,11 @@
 -- ============================================================================
 --  Fix the public `leaderboard` view
 -- ============================================================================
---  STATUS: TOP-10 REVISION NOT YET APPLIED.
---  The two-column privacy fix was applied to production 2026-07-30 and verified
---  anonymously: `dotnum` and `last_name_dotnum` both return 42703 (column does
---  not exist), and the anon SELECT grant survived the DROP. This branch keeps
---  that privacy boundary and additionally caps the public view itself at ten
---  rows. Production still needs the current definition applied and probed.
+--  STATUS: APPLIED to production 2026-07-30, after the matching client deploy.
+--  Verified from an anonymous client afterwards: `dotnum` and `last_name_dotnum`
+--  both return 42703 (column does not exist), and the anon SELECT grant survived
+--  the DROP. Re-running this file is harmless (DROP IF EXISTS + CREATE), but it
+--  is not needed unless the view is changed again.
 --
 --  Kept in the repo as the canonical definition of the view — do not edit the
 --  view through the Supabase UI without updating this file, or the next person
@@ -44,12 +43,10 @@
 --     double-tapped submit, or reopening the form — scored 2. A member could
 --     outrank someone who genuinely attended more events.
 --
---  The replacement exposes only what the leaderboard renders: the top ten first
---  names and their distinct-event counts. The private member key is used only to
---  aggregate and deterministically break exact public ties; it is not projected
---  by the view. Keeping the owner's privileges is intentional; it is what lets
---  an anonymous visitor see the leaderboard without opening the attendance
---  table itself.
+--  The replacement exposes only what the leaderboard renders: a first name and
+--  a distinct-event count. Keeping the owner's privileges is intentional; it is
+--  what lets an anonymous visitor see the leaderboard without opening the
+--  attendance table itself.
 -- ============================================================================
 
 -- CREATE OR REPLACE cannot drop columns from an existing view, so this must be
@@ -62,22 +59,14 @@ DROP VIEW IF EXISTS public.leaderboard;
 -- and should not rest on a version default.
 CREATE VIEW public.leaderboard
 WITH (security_invoker = false) AS
-  SELECT ranked.first_name, ranked.count
-  FROM (
-    SELECT
-      lower(btrim(last_name_dotnum))                 AS member_key,
-      max(first_name)                                AS first_name,
-      count(DISTINCT lower(btrim(event_name)))       AS count
-    FROM public.attendance
-    WHERE first_name IS NOT NULL
-      AND last_name_dotnum IS NOT NULL
-      AND btrim(last_name_dotnum) <> ''
-    GROUP BY lower(btrim(last_name_dotnum))
-  ) AS ranked
-  ORDER BY ranked.count DESC,
-           lower(ranked.first_name) ASC,
-           ranked.member_key ASC
-  LIMIT 10;
+  SELECT
+    max(first_name)                                AS first_name,
+    count(DISTINCT lower(btrim(event_name)))       AS count
+  FROM public.attendance
+  WHERE first_name IS NOT NULL
+    AND last_name_dotnum IS NOT NULL
+    AND btrim(last_name_dotnum) <> ''
+  GROUP BY lower(btrim(last_name_dotnum));
 
 -- DROP discards the old grants, so they must be reissued or the public
 -- leaderboard silently returns nothing for logged-out visitors.
@@ -88,7 +77,7 @@ GRANT SELECT ON public.leaderboard TO anon, authenticated;
 COMMENT ON VIEW public.leaderboard IS
   'PUBLIC + owner-privileged: readable by anon and bypasses RLS on attendance. '
   'Adding a column here publishes it with no policy change to review. '
-  'Previously exposed last_name_dotnum. Keep to top-ten first_name + count.';
+  'Previously exposed last_name_dotnum. Keep to first_name + count.';
 
 -- NOTE: DROP+CREATE resets the view owner to whoever runs this. The RLS bypass
 -- only works if that role is exempt from RLS on `attendance` (owns the table, or
@@ -106,7 +95,3 @@ COMMENT ON VIEW public.leaderboard IS
 --
 --   SELECT grantee, privilege_type FROM information_schema.role_table_grants
 --   WHERE table_name = 'leaderboard';
---
--- Should return no more than ten rows, ordered by descending distinct events
---
---   SELECT * FROM public.leaderboard;

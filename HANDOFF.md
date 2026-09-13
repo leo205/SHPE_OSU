@@ -1,6 +1,6 @@
 # SHPE OSU Website — Engineering Handoff
 
-_Last updated: 2026-09-03_
+_Last updated: 2026-08-30_
 
 Developer documentation for the Digital Operations Chair and anyone maintaining
 the SHPE chapter website at The Ohio State University. Covers architecture,
@@ -10,10 +10,7 @@ database design, the security model, maintenance protocols, and deployment.
 
 ## 0. Where the site stands today
 
-**Live at https://www.shpeosu.com, deployed from `main` via Vercel.** The
-security changes described as _staged_ below exist only on
-`security/harden-public-submissions`; they have not been applied to Supabase or
-deployed to production.
+**Live at https://www.shpeosu.com, deployed from `main` via Vercel.**
 
 The site is in good working order. A security review in July–August 2026 found
 and closed a set of real problems; the notes below are deliberately blunt about
@@ -24,7 +21,7 @@ what was wrong, because the same mistakes are easy to repeat.
 | Area | What was wrong | State |
 |---|---|---|
 | **Resume book** | Approved resumes (names + OSU emails), recruiter access codes, and the resume PDFs themselves were readable by **anyone**, with no login and no code. Verified by downloading a real 130 KB resume anonymously. | ✅ Closed. Sponsors now sign in; access is enforced by Postgres. |
-| **Sponsor contact form** | Every inquiry had been silently failing. The Content-Security-Policy omitted `api.emailjs.com`, so the browser blocked the request — invisible locally, because those headers only apply on Vercel. | ✅ The original browser path was repaired in production; its protected Edge replacement is staged below. |
+| **Sponsor contact form** | Every inquiry had been silently failing. The Content-Security-Policy omitted `api.emailjs.com`, so the browser blocked the request — invisible locally, because those headers only apply on Vercel. | ✅ Fixed and verified in production. |
 | **Resume replacement** | Never worked. The client issued an `UPDATE` no policy permitted, which under RLS affects zero rows and *returns success* — students saw "Upload Successful" while nothing changed. | ✅ Moved into the database. |
 | **Leaderboard** | The public `leaderboard` view exposed every member's OSU dot number, and the Events page printed them on a public page. Views bypass RLS, so this read straight through the protection on `attendance`. | ✅ View reduced to first name + count. |
 | **Check-in** | Events added through the Admin Dashboard appeared on the calendar but could not be checked into — the check-in form read a different source. | ✅ One shared source. |
@@ -42,23 +39,6 @@ what was wrong, because the same mistakes are easy to repeat.
 | **Sponsor tier buttons** | All four "Get Started" buttons scrolled to a form that always defaulted to Buckeye ($500), so a Platinum enquiry arrived labelled as the cheapest tier. | ✅ Preselects |
 | **Sponsors hero** | A ~16:9 photo in a 4:3 frame; `object-cover` discarded 27% of the width and cut people out of the group shot. | ✅ Matched |
 
-### Security hardening staged on this branch
-
-This is the code state under review, **not the current production state**. The
-SQL files say `STATUS: NOT YET APPLIED` intentionally. Follow their order; an
-out-of-order rollout can either break a live form or leave the old anonymous
-endpoint open.
-
-| Surface | Staged design | Status |
-|---|---|---|
-| **Attendance** | Browser calls `submit-attendance`; Edge verifies Turnstile, validates the canonical event, and invokes a service-only RPC with durable network and identity limits. Direct anonymous table inserts are then revoked. | Code/tests ready; SQL and Edge rollout pending |
-| **Resume upload** | Browser sends one bounded multipart request to `submit-resume`; Edge validates the PDF, reserves a server-generated path, uploads privately, and queues a pending revision. Approval/deletion are atomic admin RPCs. | Code/tests ready; SQL and Edge rollout pending |
-| **Sponsor inquiry** | Browser sends no EmailJS credentials. `submit-sponsor-inquiry` verifies Turnstile and durable quotas, then makes exactly one bounded EmailJS REST attempt with a server-only private key. | Code/tests ready; Edge, secrets, template, and EmailJS account setting pending |
-| **Outage fallback** | The Google Form URL never contains attendee identity, demographics, or feedback. It is offered only after two genuine service failures, never after a validation, verification, or rate-limit rejection. | Code/tests ready; form remains public/untrusted |
-| **GroupMe invitation** | The project owner explicitly re-approved the original GroupMe invitation on 2026-09-03. | Exact original link restored on Home, Footer, and the first-attendance success screen; regression contract prevents silent destination drift |
-| **Dependencies** | React Router and Vite were updated without `--force`; the production and full dependency audits are clean. Safari 14 remains an explicit build target. | Code/tests ready |
-| **Public leaderboard** | Both clients request ten rows, and the canonical view now enforces the same top-ten cap so a direct caller cannot enumerate the remaining aggregates. It still exposes only `first_name` and distinct-event `count`. | Client ready; revised view SQL pending |
-
 ### What is still open
 
 *   **Upcoming events.** The first two Autumn 2026 events have passed. The E-Board
@@ -67,19 +47,10 @@ endpoint open.
 *   **Sponsor accounts.** No recruiter accounts exist yet, so nobody can use the
     corporate portal. Two steps, and people forget the second one (§4).
 *   **Resume ownership.** Submissions are keyed on email with no proof of
-    ownership. Turnstile limits automation but does not prove the claimant owns
-    that address. Bounded, not solved — see §3.
-*   **Attendance identity/presence.** Turnstile, canonical-event validation,
-    duplicate suppression, and durable limits reduce automated leaderboard
-    poisoning; they do not prove that a submitted dot number belongs to the
-    visitor or that the visitor attended. OSU SSO, a rotating event-scoped
-    secret, or explicit admin review would be a separate product decision. The
-    previously discussed form-lock workflow remains deferred.
+    ownership. Bounded, not solved — see §3.
 *   **`PublicLeaderboard.jsx`** is committed but imported nowhere. Delete or mount.
-*   **Security rollout.** Apply the staged migrations and Edge Functions in the
-    documented order, test them in staging, and only then deploy the matching
-    frontend and final lockdown. The branch is not a deployable all-at-once SQL
-    bundle; see `supabase/README.md`.
+*   **Automated tests.** There is no test script yet. `REWRITE.md` Phase 0 lists
+    the regression suite that should land before a data-layer rewrite.
 *   **Admin maintainability.** `AdminDashboard.jsx` is still one large five-tab
     file. The heavy admin, company, and professional-development routes are now
     code-split, but the dashboard itself should eventually be divided by tab.
@@ -91,21 +62,15 @@ The SHPE OSU website is built as a serverless Single Page Application (SPA) to e
 ```mermaid
 graph TD
     User(Student / Recruiter / Admin) -->|Interacts| Frontend[React + Vite on Vercel]
-    Frontend -->|Public reads + authenticated admin/sponsor work| Supabase[Supabase Database + Auth + Storage]
-    Frontend -->|Attendance / resume / sponsor submissions| Edge[Supabase Edge Functions]
-    Edge -->|Verify challenge| Turnstile[Cloudflare Turnstile]
-    Edge -->|Service-only RPC / private object write| Supabase
-    Edge -->|One sponsor-email attempt| EmailJS[EmailJS REST API]
+    Frontend -->|Queries / Mutations| Supabase[Supabase Database + Auth + Storage]
+    Frontend -->|Sends Inquiry| EmailJS[EmailJS API]
     Frontend -->|Page views| Analytics[Vercel Web Analytics]
+    SponsorForm[Sponsors Contact Page] -->|Submits| EmailJS
 ```
 
 ### Architectural Principles
 *   **Zero-Cost Hosting**: Vercel handles static frontend hosting on their free tier, while Supabase handles Database, Auth, and Storage on their free tier.
-*   **Least-Privilege Data Access**: The client uses `@supabase/supabase-js` for
-    public reads and authenticated admin/sponsor work. Unauthenticated writes
-    for attendance, resumes, and sponsor inquiries cross an Edge Function,
-    Turnstile, strict validation, and durable rate limits. The browser never
-    receives the Supabase service role or EmailJS private key.
+*   **Serverless Data Direct Access**: The client communicates directly with Supabase via `@supabase/supabase-js`. Database records and storage assets are secured entirely via **Row-Level Security (RLS)** rules.
 *   **Non-Coders Can Update Content**: Events are added through the Admin Dashboard into the Supabase `events` table — no code, no deploy. `src/data/events.js` remains as a bundled fallback so the calendar and check-in still work if Supabase is unreachable. Both readers go through `src/lib/events.js`; keep it that way.
 *   **Roles, Not Just Logins**: Admins and sponsors are both Supabase Auth users, so "signed in" is not a permission. Every policy checks an explicit role claim.
 *   **Analytics**: `src/main.jsx` mounts `@vercel/analytics/react` once at the
@@ -120,12 +85,7 @@ graph TD
 
 ## 2. Database Schema (PostgreSQL)
 
-The live application utilizes five tables/views and one storage bucket in
-Supabase. (`events` and `leaderboard` were added after the original draft of
-this document — see §2.4 and §2.5.) The staged migrations also add the internal,
-RLS-locked `public_submission_rate_limits` and
-`resume_submission_reservations` tables. They are service-only implementation
-details, not browser APIs.
+The application utilizes five tables/views and one storage bucket in Supabase. (`events` and `leaderboard` were added after the original draft of this document — see §2.4 and §2.5.)
 
 ### 1. `attendance`
 Stores all student check-in records.
@@ -156,9 +116,7 @@ CREATE TABLE resumes (
   major text NOT NULL,
   graduation_year text NOT NULL,
   resume_path text NOT NULL, -- Format: submissions/timestamp_uuid.pdf
-  approved boolean DEFAULT false NOT NULL,
-  submission_id uuid,                  -- staged idempotency key
-  submission_fingerprint text          -- staged SHA-256 request binding
+  approved boolean DEFAULT false NOT NULL
 );
 ```
 
@@ -181,7 +139,7 @@ CREATE TABLE company_access (
 ### Supabase Storage Bucket: `resumes`
 *   Contains a folder called `submissions/` where all resume files are stored.
 *   Uploads accept PDFs from **10 KB to 250 KB**. (A previous 2 MB *minimum* rejected essentially every legitimate resume, and the 5 MB ceiling let image-heavy exports eat the free-tier bucket.)
-*   The 250 KB ceiling was chosen against the resumes actually on file (n=9: median 168 KB, max 305 KB). Expect it to reject roughly 1 in 5 submissions — mostly Canva/InDesign exports with an embedded photo. The upload form tells students their file's size and how to shrink it, and offers an E-Board fallback. If rejections become a support burden, change the browser constant in `src/lib/resume.js`, the Edge validation, the Storage bucket limit, tests, and documentation together; never raise only the client check.
+*   The 250 KB ceiling was chosen against the resumes actually on file (n=9: median 168 KB, max 305 KB). Expect it to reject roughly 1 in 5 submissions — mostly Canva/InDesign exports with an embedded photo. The upload form tells students their file's size and how to shrink it, and offers an E-Board fallback. If rejections become a support burden, raise `MAX_FILE_SIZE_BYTES` in `src/pages/ResumeUpload.jsx`; 300 KB would have accepted 8 of the 9.
 *   All file permissions are private. Downloads/reads require generating a **Signed URL** with a 60-second TTL.
 
 ---
@@ -205,7 +163,7 @@ RLS runs per-row inside Postgres and cannot see browser JavaScript, so the polic
 was effectively `USING (true)`. Public. The `sessionStorage` token in
 `CompanyDashboard.jsx` protected nothing.
 
-**What production enforces before this branch is rolled out**
+**What is enforced now**
 
 | Table / bucket | anon | sponsor | admin |
 |---|---|---|---|
@@ -215,22 +173,6 @@ was effectively `USING (true)`. Public. The `sessionStorage` token in
 | `events` | SELECT | SELECT | full |
 | storage `resumes` | INSERT to `submissions/` | approved files only | full |
 | `leaderboard` view | SELECT (first name + count) | SELECT | SELECT |
-
-**What the staged lockdown enforces after the full rollout**
-
-| Table / bucket | anon | Edge `service_role` | sponsor | admin |
-|---|---|---|---|---|
-| `attendance` | — | validated submit RPC | — | full |
-| `resumes` | — | reserve + queue RPCs | approved rows | full via atomic lifecycle RPCs |
-| storage `resumes` | — | reserved private upload | approved files only | read through signed URLs |
-| submission limiter/reservations | — | internal only | — | no direct client grant |
-| `events` | SELECT | SELECT | SELECT | full |
-| `leaderboard` view | two public aggregate columns | SELECT | SELECT | SELECT |
-
-Turnstile is an automation signal, not authentication. CORS is browser
-containment, not an anti-spam boundary. The security boundary is the combination
-of server validation, service-only database functions, RLS/grants, strict
-provider credentials, idempotency, and durable database counters.
 
 Access is gated on an **explicit role claim**, not on merely being signed in.
 Public signup is currently disabled, but that is defence in depth rather than
@@ -272,54 +214,35 @@ if re-run:** "Attendance Submission Table" (contains the original public-read
 policies) and "Leaderboard Attendance Aggregates" (the old dot-number view).
 Rename them `⚠️ OLD — DO NOT RUN`.
 
-### Code and data safeguards
-
-1.  **Protected public submissions**:
-    `Attendance.jsx`, `ResumeUpload.jsx`, and `Sponsors.jsx` invoke named Edge
-    Functions. They never fall back to a direct table insert, public Storage
-    upload, legacy resume RPC, or browser EmailJS request. Edge repeats all
-    validation because browser checks are only usability. It verifies an
-    action-bound Turnstile token and consumes HMAC-keyed database counters;
-    raw IP addresses and dot numbers are not stored in the limiter table.
-
-2.  **Magic-Byte PDF Verification**:
-    Both the browser and Edge read the first four bytes for `%PDF`; Edge also
-    enforces the exact PDF media type and 10–250 KB size range. A browser MIME
-    label or filename alone is never trusted.
-
-3.  **Safe resume retries and approval**:
-    Edge binds a UUID to a SHA-256 fingerprint and a server-generated exact
-    path of `submissions/<13-digit timestamp>_<uuid>.pdf`. An exact retry
-    converges on that reservation; changed content cannot reuse it. A claimed
-    email always creates a pending revision and cannot de-list an existing
-    approved resume. Admin approve/delete operations lock and re-check the row
-    in service-only atomic RPCs instead of trusting a zero-row browser update.
-
-4.  **Sponsor Access — Supabase Auth**:
+### Frontend Code Safeguards
+1.  **Magic-Byte PDF Verification**:
+    To prevent MIME-type spoofing (e.g. naming an executable malware file `resume.pdf`), `ResumeUpload.jsx` checks the first 4 bytes of the binary buffer for `%PDF` (`0x25, 0x50, 0x44, 0x46`):
+    ```javascript
+    async function isValidPDF(file) {
+      const buf = await file.slice(0, 4).arrayBuffer();
+      const bytes = new Uint8Array(buf);
+      return PDF_MAGIC.every((b, i) => bytes[i] === b);
+    }
+    ```
+2.  **Sponsor Access — Supabase Auth**:
     Recruiters sign in with an email and password and are granted a `sponsor`
     role. This replaced an 8-character code checked in the browser against a
     publicly-readable table, with the session held in `sessionStorage` — which a
     recruiter could simply write by hand. All of that machinery is deleted;
     `src/lib/companySession.js` no longer exists. Enforcement is in the database.
 
-5.  **Sponsor inquiry delivery**:
-    EmailJS service, template, public, and private credentials exist only in
-    Edge secrets. The request schema rejects unknown fields and client-supplied
-    routing, and the server makes one timed provider attempt with no automatic
-    retry. Ambiguous delivery tells the visitor to email directly instead of
-    risking a duplicate. EmailJS must also be configured to require its private
-    key; putting the key on Edge alone does not disable the historical public
-    browser route.
+3.  **Server-Side Resume Submission**:
+    `submit_resume()` is the only way a resume reaches the database. It runs as
+    `SECURITY DEFINER`, validates every field itself, enforces the OSU email
+    domain (the browser check is bypassable; this one is not), pins `approved` to
+    `false` so nothing can publish itself past review, constrains the storage path
+    to `submissions/`, and upserts on email so a re-upload replaces rather than
+    duplicates.
 
-6.  **CSV Injection Prevention**:
+4.  **CSV Injection Prevention**:
     When exporting check-in tables, cells starting with formula triggers (`=`, `+`, `-`, `@`, tab, or carriage returns) are automatically prefixed with a single-quote `'` to mitigate spreadsheet software hijack attacks.
-
-7.  **Outage fallback privacy**:
-    The Google Form link contains no name, dot number, year, first-meeting
-    answer, major, discovery source, or feedback. At most it may carry the
-    canonical event label once its real Google entry ID is verified. Responses
-    remain unauthenticated and quarantined in the Sheet until an admin validates
-    and manually imports them.
+5.  **Safe Upload Filenames**:
+    User-uploaded filenames are discarded. They are renamed on upload to `submissions/${Date.now()}_${crypto.randomUUID()}.pdf` to mitigate directory traversal and path traversal exploits.
 
 ---
 
@@ -370,76 +293,142 @@ and an Android before sending to print.
 
 ### Backup check-in form
 
-**The problem it solves.** If two genuine `submit-attendance` service attempts
-cannot be confirmed, `src/lib/attendanceFallback.js` offers a link to the
-chapter's Google Form. It is an outage escape hatch, not a second normal
-submission API.
+**The problem it solves.** If the Supabase insert on `/attendance` fails, the
+check-in is gone — nothing is queued and nothing is retried. During a GBM that
+means no attendance record for the whole meeting, and the student sees only a
+generic error. `src/lib/attendanceFallback.js` adds a "Check in with the backup
+form" button to that error state, pointing at a Google Form that collects the
+same fields.
 
-**When it must not appear.** Never offer it after `invalid_submission`,
-`verification_required`, `verification_failed`, or `rate_limited`. Doing so
-would turn the fallback into a bypass for the protected endpoint. It also cannot
-help if venue Wi-Fi is down; keep a paper sign-in sheet for that case.
+**What it does and does not cover.** It covers *Supabase broken, network fine* —
+the project paused, rate-limited, or a policy changed. It does **not** help when
+the venue's wifi is down, because Google is equally unreachable then. That case
+needs a printed sign-in sheet, which costs nothing and should exist anyway.
 
-**Privacy boundary.** No attendee data is prefilled. Names, dot numbers,
-demographics, major, discovery source, and feedback must never appear in a URL,
-where they can reach browser history, proxy logs, copied links, referrers, and
-screenshots. The URL builder has a hard allowlist for the canonical event label
-only. Its Google `entry.*` ID is currently blank because it has not been
-verified, so the current link carries no form answers at all.
+**Status: live.** The form is configured in `src/lib/attendanceFallback.js`. To
+turn it off, blank out `baseUrl` — `buildFallbackUrl()` then returns `null` and
+the check-in page behaves exactly as it did before.
 
-The configured form is:
-[26 - 27 SHPE Attendance Form Professional Development](https://docs.google.com/forms/d/e/1FAIpQLSetATIx52meiHRLa0jWvAe67AXKAvlS1D_H3Wy7P2w0v-7wrQ/viewform).
-Blank `FALLBACK_FORM.baseUrl` to disable the fallback without changing the UI.
+#### The form in use
 
-To configure event-only prefill later:
+[26 - 27 SHPE Attendance Form Professional Development](https://docs.google.com/forms/d/e/1FAIpQLSetATIx52meiHRLa0jWvAe67AXKAvlS1D_H3Wy7P2w0v-7wrQ/viewform)
 
-1. Make the form accept the exact `eventOptionLabel()` value: `M/D - title`.
-2. Use Google Forms' **Get pre-filled link** flow with a dummy event value.
-3. Copy the resulting `entry.<digits>` identifier into `event_name`; never
-   guess it and never add another field to the allowlist.
-4. Test that the correct event appears without any identity in the URL.
+| Form question | Prefilled from | Entry ID |
+|---|---|---|
+| Which event did you attend? | **not prefilled** — see below | `entry.2079501292` |
+| First name | `first_name` | `entry.1755853879` |
+| Last Name.## | `last_name_dotnum` | `entry.835781843` |
+| Year | `year` | `entry.1231543127` |
+| Is this your first meeting? | `is_first_meeting` → Yes/No | `entry.17060628` |
+| Any feedback/suggestions? | **not prefilled** — see below | `entry.1494295762` |
 
-**Responses are quarantined.** The Google Form is public and its Sheet is
-untrusted. Nothing automatically imports those rows into `attendance` or mixes
-them into leaderboard/chart totals. An admin must compare them with who was in
-the room, normalize the event to the exact `M/D - title` contract, check for
-duplicates, and use parameterized Table Editor/CSV tooling for a deliberate
-manual import. Never paste untrusted answers into hand-built SQL. Clear or
-archive the Sheet after reconciliation so semesters do not mix.
+This path exists to capture **who was in the room** — first name and
+Last Name.## — when the database will not accept the check-in. `major` and
+`how_heard` have no questions on this form and are dropped on this path.
 
-Before any manual import, check duplicates against existing attendance:
+`feedback` is deliberately left for the student to type. It is the one field
+with unbounded sensitivity, it is not what this path exists to capture, and
+prefilling it would put free text into a URL that Google logs and the student's
+browser stores in plaintext history. Leaving it out also caps the link's length.
 
-```sql
-SELECT event_name, first_name, last_name_dotnum, count(*)
-FROM attendance GROUP BY 1,2,3 HAVING count(*) > 1;
-```
+To change the mapping later: form → **⋮** → **Get pre-filled link**, enter a
+dummy value in each field, **Get link**, then read the `entry.123456789=` pairs
+out of the resulting URL. An empty string in `entries` means "leave this for the
+student to fill in", so a partial mapping is always safe.
 
-### Sponsor inquiry operations
+#### ⚠️ The event label differs from the site's
 
-The public sponsor form calls `submit-sponsor-inquiry`; only that Edge Function
-talks to EmailJS. Configure its secrets from `supabase/functions/.env.example`.
-Do not create `VITE_EMAILJS_*` variables or add `api.emailjs.com` to browser
-`connect-src`.
+The form keeps its own hand-maintained event list, worded differently from what
+the site generates:
 
-Before rollout:
+    form:  8/27 - Resume Workshop w/Pratt Whitney
+    site:  8/27 - RESUME WORKSHOP w/ RTX      ← what attendance.event_name holds
 
-1. Set the real EmailJS service, template, public, and private keys in Edge
-   secrets. Never deploy the example Turnstile secret or `dummy-key-pass` host.
-2. In EmailJS **Account → Security**, require the private key. Sending an
-   `accessToken` from Edge is insufficient while the historical public-key-only
-   route remains enabled.
-3. Keep recipient, sender, and subject fixed in the provider template. Render
-   visitor values with escaped double braces, not raw triple braces; include the
-   generated `inquiry_id` in the admin-visible message so an ambiguous delivery
-   can be correlated, and do not send an automatic reply to the unverified
-   address.
-4. Set exact production/preview origins and Turnstile hostnames. Wildcard Vercel
-   previews are deliberately not accepted.
-5. Confirm in staging that Supabase's gateway supplies a trustworthy client IP
-   and that spoofed forwarding headers cannot choose another limiter identity.
-6. Exercise success, validation rejection, Turnstile rejection, quota rejection,
-   timeout, and ambiguous provider failure. The server must never retry the
-   email side effect automatically.
+Two consequences:
+
+1. **The event is not prefilled.** Google preselects a multiple-choice option
+   only on an exact match, so prefilling would silently select nothing. The
+   student picks from the form's own list instead.
+2. **Translate the label when merging.** A form row will say
+   "Resume Workshop w/Pratt Whitney", but `attendance` must receive
+   `8/27 - RESUME WORKSHOP w/ RTX`. Insert the form's wording verbatim and that
+   event's history splits into two buckets that never reconcile, with nothing to
+   warn you — `REWRITE.md` §6.1.
+
+If you print a paper sheet as the deeper fallback, write the **site's** label
+across the top, for the same reason.
+
+#### Known gaps in the current form
+
+Worth knowing before you rely on it, and all fixable in the form editor:
+
+- **GBMs are not on the event list** — it currently covers professional
+  development events only, so a failed check-in at a GBM has no matching option.
+- **The event list does not update itself** when an event is added through the
+  Admin Dashboard. It drifts unless someone edits the form each semester.
+- **Feedback is a required question** on the form but optional on the site, so a
+  student with nothing to say must type something before they can submit.
+- **Year** offers 1st–5th only; there is no *Graduate Student* or *Professional*.
+
+Changing "Which event did you attend?" to a **Short answer** would fix the first
+two permanently: `event_name` could then be prefilled exactly, no translation
+would be needed at merge time, and the list would never need maintaining.
+
+#### Merging responses back in
+
+Responses land in a Google Sheet, not in `attendance`. There is no import button —
+the Admin Dashboard exports CSV but does not read it.
+
+**⚠️ Do not paste form answers into a hand-written `INSERT` in the SQL Editor.**
+The form is unauthenticated and its URL ships in the public bundle, so anyone can
+submit any text into that Sheet. The SQL Editor runs as `postgres`, privileged
+and exempt from RLS, so pasting untrusted text straight into a quoted SQL string
+is an injection into the most powerful console in the project. The harmless
+version of the same bug fires on the first student named **O'Brien** — and the
+fact that an apostrophe breaks it is exactly what proves the values are not
+being escaped.
+
+Use one of these instead:
+
+1. **Table Editor → Insert row** (preferred). Values are parameterised, so no
+   amount of punctuation in a name can change the statement.
+2. **CSV import** from the Sheet, if there are many rows.
+3. If you must use SQL, **dollar-quote every value** so quotes cannot terminate
+   the string:
+
+   ```sql
+   INSERT INTO attendance
+     (event_name, first_name, last_name_dotnum, year, is_first_meeting, major, how_heard, feedback)
+   VALUES
+     ($q$8/28 - General Body Meeting #1: SHPES AND SALSA$q$, $q$Maria$q$,
+      $q$Buckeye.01$q$, $q$1st Year$q$, true, $q$Mechanical Engineering$q$,
+      $q$Involvement Fair / Tabling$q$, NULL);
+   ```
+
+Because anyone can post to the form, **sanity-check the rows against who was
+actually in the room** before merging. Treat it as a sign-in sheet someone could
+have scribbled on, not as trusted data.
+
+Three things to check before merging:
+
+- **The event label** — the form's wording is not the site's. Translate it to the
+  `eventOptionLabel()` form (`8/27 - RESUME WORKSHOP w/ RTX`), per the warning
+  above, or that event's attendance splits in two.
+- **`major`** — the form has no major question, so these rows arrive without one.
+  If you collect it another way and it falls outside the standard list, store it
+  as `Other – <their text>` with an **en dash** (U+2013), matching
+  `src/lib/majors.js`. A hyphen here is invisible and breaks every filter.
+- **Duplicates** — someone may have submitted the form *and* successfully checked
+  in on a retry. The leaderboard counts distinct events so rankings are safe, but
+  the dashboard's raw check-in total would run high. Worth a look:
+
+  ```sql
+  SELECT event_name, first_name, last_name_dotnum, count(*)
+  FROM attendance GROUP BY 1,2,3 HAVING count(*) > 1;
+  ```
+
+Clear the Sheet after merging, so next semester's outage does not get mixed in
+with this one's.
 
 ### Onboarding a Corporate Sponsor
 
@@ -504,12 +493,7 @@ Setup a local `.env` file in the `shpe-osu` directory:
 ```env
 VITE_SUPABASE_URL=https://your-project-id.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key-here
-VITE_TURNSTILE_SITE_KEY=your-site-key-here
 ```
-
-Use Node `^20.19.0` or `>=22.12.0`. Edge-only secrets belong in Supabase, never
-in Vite; `supabase/functions/.env.example` is the complete template for local
-function development. A variable prefixed `VITE_` is public by design.
 
 ### Useful CLI Commands
 Run these commands inside the `/Users/leonardomedina/Documents/SHPE_web/shpe-osu` directory:
@@ -526,16 +510,6 @@ npm run build
 
 # Run ESLint validation checks
 npm run lint
-
-# Run the unit/security regression suite
-npm test
-
-# Type-check/bundle all Supabase Edge Function entry points
-npm run check:edge
-
-# Dependency vulnerability gates
-npm audit --omit=dev
-npm audit
 ```
 
 ### Git Branch Strategy
@@ -550,8 +524,7 @@ npm audit
     ```
 *   Review ordinary UI work with `npm run dev` at
     <http://localhost:5173>.
-*   Before pushing, run `npm test`, `npm run lint`, `npm run check:edge`, both
-    dependency audits, `npm run build`, then `npm run preview`.
+*   Before pushing, run `npm run lint`, `npm run build`, then `npm run preview`.
     Preview normally runs at <http://localhost:4173> and includes the production
     security headers that `npm run dev` does not.
 *   Merge the branch into `main` through a GitHub Pull Request. Vercel deploys
@@ -586,14 +559,12 @@ no error explaining why. Keep both readers going through `lib/events.js` — tha
 split is exactly the kind that produces a silent failure at a live meeting.
 
 ### 2.5 `leaderboard` (view)
-Read by `Events.jsx` and `PublicLeaderboard.jsx`. The two-column privacy revision
-of `supabase/leaderboard-view.sql` was applied 2026-07-30; the current branch's
-database-level top-ten cap is not applied yet. The view exposes exactly
-`first_name` and a **distinct-event** `count`. It previously also returned
-`last_name_dotnum` and `dotnum`, which were rendered onto a public page. Do not
-add columns: the view runs with owner privileges and bypasses RLS on
-`attendance`, so anything added here is published with no policy change to
-review.
+Read by `Events.jsx` and `PublicLeaderboard.jsx`. `supabase/leaderboard-view.sql`
+(applied 2026-07-30) redefines it to expose exactly two columns — `first_name`
+and a **distinct-event** `count`. It previously also returned `last_name_dotnum`
+and `dotnum`, which were rendered onto a public page. Do not add columns: the
+view runs with owner privileges and bypasses RLS on `attendance`, so anything
+added here is published with no policy change to review.
 
 ---
 
@@ -603,11 +574,7 @@ Do this from a feature/fix/docs branch unless the project owner explicitly
 authorized work directly on `main`.
 
 ```bash
-npm test
 npm run lint     # must be clean — it is now a real gate (was 93 errors)
-npm run check:edge
-npm audit --omit=dev
-npm audit
 npm run build
 npm run preview  # serves dist/ WITH the production headers from vercel.json
 ```
@@ -628,29 +595,10 @@ confirm the browser Network panel shows Vercel's same-origin analytics request.
 The current CSP already permits the Vercel-managed same-origin endpoint; do not
 add a broad external script or connection source without evidence it is needed.
 
-The app lazily loads the admin dashboard, recruiter dashboard, and
-professional-development page. Preserve that boundary and investigate the
-build output if a change collapses them back into one eager bundle.
-
-### Protected-submission release order
-
-The authoritative command-by-command checklist is in `supabase/README.md`.
-At a high level:
-
-1. Back up/inventory production and rehearse on staging. Prove the gateway IP
-   behavior, exact origins/hostnames, real Turnstile, and EmailJS template.
-2. Apply additive `attendance-submit.sql`, then `resume-edge-submit.sql`.
-3. Deploy all three Edge Functions with real server-only secrets and exercise
-   them before changing the browser.
-4. Deploy the matching frontend, verify all three forms, then immediately apply
-   `attendance-lockdown.sql` and `resume-lockdown.sql` so the legacy anonymous
-   paths are gone.
-5. Require EmailJS private-key authentication and prove the historical public
-   IDs fail without it. Never weaken that setting as a rollback; roll the
-   frontend/Edge deployment back while keeping the safer provider boundary.
-6. Re-run anonymous-denial, admin/sponsor authorization, duplicate/idempotency,
-   leaderboard-shape, Storage, rate-limit, and provider probes before merging
-   or declaring production complete.
+The app now lazily loads the admin dashboard, recruiter dashboard, and
+professional-development page. A local build on 2026-08-30 produced an initial
+JavaScript chunk of about 484 KB and a separate admin chunk of about 456 KB. Do
+not collapse these back into one eager bundle.
 
 ### Project subagents
 

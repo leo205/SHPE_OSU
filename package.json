@@ -3,25 +3,21 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "engines": {
-    "node": "^20.19.0 || >=22.12.0"
-  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "check:edge": "node scripts/check-edge.mjs",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
-    "test": "vitest run",
     "preview": "vite preview",
     "qr": "node scripts/make-qr.mjs"
   },
   "dependencies": {
+    "@emailjs/browser": "^4.4.1",
     "@supabase/supabase-js": "^2.104.0",
     "@vercel/analytics": "^2.0.1",
     "lucide-react": "^1.24.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-router-dom": "^7.18.3",
+    "react-router-dom": "^6.30.3",
     "recharts": "^3.8.1"
   },
   "devDependencies": {
@@ -36,9 +32,7 @@
     "eslint-plugin-react-refresh": "^0.4.3",
     "postcss": "^8.5.10",
     "qrcode": "^1.5.4",
-    "supabase": "^2.117.0",
     "tailwindcss": "^3.4.19",
-    "vite": "^7.3.6",
-    "vitest": "^4.1.11"
+    "vite": "^4.4.5"
   }
 }

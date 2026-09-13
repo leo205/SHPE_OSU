@@ -1,20 +1,108 @@
 import { useState, useRef, useEffect } from 'react';
+import emailjs from '@emailjs/browser';
 import ImagePlaceholder from '../components/ImagePlaceholder';
-import TurnstileWidget from '../components/TurnstileWidget';
 import { scrollToAnchor } from '../lib/scroll';
-import { supabase } from '../lib/supabase';
-import {
-  prepareInquiryDraft,
-  SPONSOR_TIERS,
-  SPONSOR_TIER_LABELS,
-  sponsorInquiryErrorMessage,
-  submitSponsorInquiry,
-} from '../lib/sponsorInquiry';
-import { TURNSTILE_SITE_KEY } from '../lib/turnstile';
 
-// Pricing cards and their exact inquiry labels share one immutable definition
-// in sponsorInquiry.js. "Custom" is the only non-card option.
-const TIER_OPTIONS = SPONSOR_TIER_LABELS;
+/*
+ * ══════════════════════════════════════════════════════════════
+ *  EmailJS Setup — Quick 3-step process (takes ~5 minutes):
+ *
+ *  1. Go to https://emailjs.com and create a free account
+ *  2. Add an Email Service (Gmail works great) — copy the Service ID
+ *  3. Create an Email Template with these variables:
+ *       {{company_name}}, {{contact_name}}, {{reply_to}}, {{tier}}, {{message}}
+ *     Set the "To email" to: santosmartinez.2@osu.edu
+ *     Copy the Template ID and your Public Key (Account > API Keys)
+ *  4. Paste all three IDs below:
+ * ══════════════════════════════════════════════════════════════
+ */
+const EMAILJS_SERVICE_ID = 'service_2mxh4lk';
+const EMAILJS_TEMPLATE_ID = 'template_5ngu58z';
+const EMAILJS_PUBLIC_KEY = 'crKODcgRV-tKTx-Ha';
+
+/*
+ * ── Sponsor Tiers ─────────────────────────────────────────────
+ * Update prices, names, and benefits as needed.
+ */
+const tiers = [
+  {
+    name: 'Buckeye',
+    price: '$500',
+    accent: 'secondary',
+    benefits: [
+      'Networking Brunch Invitation',
+      'Resume Book Access',
+      'Feature on SHPE OSU Website',
+    ],
+  },
+  {
+    name: 'Carmen',
+    price: '$1,000',
+    accent: 'secondary',
+    benefits: [
+      'Networking Brunch Invitation',
+      'Resume Book Access',
+      'Feature on SHPE OSU Website',
+      'Industry Competition Invitation',
+      'Company Logo on Merch',
+      'Social Media Feature',
+      'Workshop Session',
+    ],
+  },
+  {
+    name: 'Scarlet & Gray',
+    price: '$1,500',
+    accent: 'secondary',
+    benefits: [
+      'Networking Brunch Invitation',
+      'Resume Book Access',
+      'Feature on SHPE OSU Website',
+      'Industry Competition Invitation',
+      'Company Logo on Merch',
+      'Social Media Feature',
+      'Workshop Session',
+      'Sponsor National Convention Attendance',
+      'Tabling at a General Meeting',
+    ],
+  },
+  {
+    name: 'Platinum',
+    price: '$2,000',
+    accent: 'primary',
+    // No `premium: true` — the Platinum card used to render in inverted
+    // colours, which read as an ad rather than as one option among four.
+    benefits: [
+      'Networking Brunch Invitation',
+      'Resume Book Access',
+      'Feature on SHPE OSU Website',
+      'Industry Competition Invitation',
+      'Company Logo on Merch',
+      'Social Media Feature',
+      'Workshop Session',
+      'Sponsor National Convention Attendance',
+      'Tabling at a General Meeting',
+      'Community Outreach Invitation (K-12)',
+      'SHPEasada Invitation',
+      'Primary Sponsor Status',
+    ],
+  },
+];
+
+/**
+ * The exact string stored in the inquiry's `tier` field and emailed to the
+ * E-Board, e.g. "Carmen ($1,000)".
+ *
+ * Derived from `tiers` rather than written out again in the <select>. The
+ * options used to be four hardcoded <option> literals duplicating the names and
+ * prices above, so repricing a tier left the dropdown — and therefore the email
+ * the E-Board receives — silently disagreeing with the pricing table on the same
+ * page.
+ */
+const tierLabel = (tier) => `${tier.name} (${tier.price})`;
+
+// "Custom" has no price and is not a purchasable tier, so it is appended rather
+// than derived.
+const TIER_OPTIONS = [...tiers.map(tierLabel), 'Custom'];
 
 /*
  * ── Current & Past Sponsors ────────────────────────────────────
@@ -24,7 +112,7 @@ const TIER_OPTIONS = SPONSOR_TIER_LABELS;
 /*
  * Current sponsors, grouped by the tier they actually purchased.
  *
- * The tier names here match `SPONSOR_TIERS` — the levels we actually
+ * The tier names here match the `tiers` array above — the levels we actually
  * sell. They used to be "platinum / gold / bronze", which are not levels this
  * chapter offers, so a company that bought Scarlet & Gray ($1,500) was being
  * displayed under a "Platinum" heading. Grouping by the real tier keeps the
@@ -108,13 +196,15 @@ const EMPTY_FORM = {
   company_name: '',
   contact_name: '',
   reply_to: '',
-  tier: SPONSOR_TIERS[0].label,
+  tier: tierLabel(tiers[0]),
   message: '',
 };
 
-// These mirror the server caps for quick feedback. The Edge Function remains
-// authoritative because browser validation is always bypassable.
+// Field caps — the EmailJS public key ships in the bundle, so anyone can post
+// to our template. Bounding input size limits how much a scripted abuser can
+// push through our monthly quota in one request.
 const MAX_LEN = { company_name: 150, contact_name: 120, reply_to: 254, message: 2000 };
+const RESEND_COOLDOWN_MS = 60 * 1000;
 
 /**
  * `pick` is `{ label, seq }` from the parent. The sequence number matters: after
@@ -123,10 +213,9 @@ const MAX_LEN = { company_name: 150, contact_name: 120, reply_to: 254, message: 
  * the wrong one selected. Bumping `seq` on every click makes each one distinct.
  */
 function ContactForm({ pick }) {
+  const formRef = useRef(null);
   const [status, setStatus] = useState('idle'); // idle | sending | success | error
   const [errorMsg, setErrorMsg] = useState('');
-  const [turnstileToken, setTurnstileToken] = useState('');
-  const [turnstileResetKey, setTurnstileResetKey] = useState(0);
   const [formData, setFormData] = useState(() => {
     try {
       const saved = sessionStorage.getItem(DRAFT_KEY);
@@ -138,10 +227,9 @@ function ContactForm({ pick }) {
     return EMPTY_FORM;
   });
 
-  // The UUID survives an ambiguous manual retry so duplicate emails can be
-  // recognized. Editing the draft starts a new inquiry identity.
-  const inquiryDraftRef = useRef(null);
+  // Guards against double-submit (fast double-click) and rapid resubmission.
   const sendingRef = useRef(false);
+  const lastSentAtRef = useRef(0);
 
   useEffect(() => {
     try {
@@ -156,22 +244,25 @@ function ContactForm({ pick }) {
   // draft survives a plain page reload.
   useEffect(() => {
     if (!pick?.seq || !pick.label) return;
-    inquiryDraftRef.current = null;
     setFormData((prev) => ({ ...prev, tier: pick.label }));
   }, [pick?.seq, pick?.label]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     const cap = MAX_LEN[name];
-    inquiryDraftRef.current = null;
-    setStatus('idle');
-    setErrorMsg('');
     setFormData((prev) => ({ ...prev, [name]: cap ? value.slice(0, cap) : value }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (sendingRef.current) return;
+
+    // Honeypot: a real user never sees this field, so a filled value means a bot.
+    // Report success so the bot doesn't learn it was filtered.
+    if (formRef.current?.elements?.company_website?.value) {
+      setStatus('success');
+      return;
+    }
 
     const company = formData.company_name.trim();
     const contact = formData.contact_name.trim();
@@ -187,56 +278,42 @@ function ContactForm({ pick }) {
       setErrorMsg('That email address doesn’t look right. Please double-check it.');
       return;
     }
-    if (!TIER_OPTIONS.includes(formData.tier)) {
-      setStatus('error');
-      setErrorMsg('Please choose a valid sponsorship tier.');
-      return;
-    }
-    if (!turnstileToken) {
-      setStatus('error');
-      setErrorMsg(sponsorInquiryErrorMessage('verification_required'));
-      return;
-    }
 
-    const fields = {
-      company_name: company,
-      contact_name: contact,
-      reply_to: email.toLowerCase(),
-      tier: formData.tier,
-      message: formData.message.trim(),
-    };
-    inquiryDraftRef.current = prepareInquiryDraft(inquiryDraftRef.current, fields);
-    const inquiryId = inquiryDraftRef.current.id;
+    const sinceLast = Date.now() - lastSentAtRef.current;
+    if (lastSentAtRef.current && sinceLast < RESEND_COOLDOWN_MS) {
+      setStatus('error');
+      setErrorMsg(
+        `We already received your inquiry. Please wait ${Math.ceil((RESEND_COOLDOWN_MS - sinceLast) / 1000)}s before sending another.`
+      );
+      return;
+    }
 
     sendingRef.current = true;
     setStatus('sending');
     setErrorMsg('');
 
     try {
-      const result = await submitSponsorInquiry(supabase, {
-        fields,
-        inquiryId,
-        turnstileToken,
-      });
-      if (!result.ok) {
-        setStatus('error');
-        setErrorMsg(sponsorInquiryErrorMessage(result.reason));
-        return;
-      }
-
+      await emailjs.sendForm(
+        EMAILJS_SERVICE_ID,
+        EMAILJS_TEMPLATE_ID,
+        formRef.current,
+        { publicKey: EMAILJS_PUBLIC_KEY }
+      );
+      lastSentAtRef.current = Date.now();
       setStatus('success');
       sessionStorage.removeItem(DRAFT_KEY);
-      inquiryDraftRef.current = null;
       setFormData(EMPTY_FORM);
-    } catch {
+    } catch (err) {
+      // EmailJS rejects with { status, text } rather than an Error instance.
+      console.error('[Sponsors] EmailJS error:', err);
       setStatus('error');
-      setErrorMsg(sponsorInquiryErrorMessage('delivery_unconfirmed'));
+      setErrorMsg(
+        err?.status === 0 || err?.name === 'TypeError'
+          ? 'We couldn’t reach our email service — this is usually a network or ad-blocker issue.'
+          : 'Something went wrong while sending your inquiry.'
+      );
     } finally {
       sendingRef.current = false;
-      // Turnstile tokens are single-use. Require a fresh challenge after every
-      // real Edge request, regardless of whether its response was successful.
-      setTurnstileToken('');
-      setTurnstileResetKey((key) => key + 1);
     }
   };
 
@@ -277,8 +354,21 @@ function ContactForm({ pick }) {
           </div>
         )}
 
-        <form onSubmit={handleSubmit}>
-          <fieldset disabled={status === 'sending'} className="space-y-6">
+        <form ref={formRef} className="space-y-6" onSubmit={handleSubmit}>
+          {/* Honeypot — hidden from humans, irresistible to bots. Not `display:none`,
+              which some bots detect and skip. Never remove the aria-hidden/tabIndex. */}
+          <div aria-hidden="true" className="absolute w-px h-px -left-[9999px] overflow-hidden">
+            <label htmlFor="company_website">Company website (leave blank)</label>
+            <input
+              id="company_website"
+              name="company_website"
+              type="text"
+              tabIndex={-1}
+              autoComplete="off"
+              defaultValue=""
+            />
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label
@@ -379,17 +469,10 @@ function ContactForm({ pick }) {
             />
           </div>
 
-          <TurnstileWidget
-            siteKey={TURNSTILE_SITE_KEY}
-            action="sponsor_inquiry"
-            onToken={setTurnstileToken}
-            resetKey={turnstileResetKey}
-          />
-
           <div className="pt-4 flex justify-center">
             <button
               type="submit"
-              disabled={status === 'sending' || !turnstileToken}
+              disabled={status === 'sending'}
               className="bg-primary text-on-primary px-14 py-4 rounded-full font-bold text-lg hover:bg-primary-fixed-dim transition-all shadow-md active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-3"
             >
               {status === 'sending' ? (
@@ -404,7 +487,6 @@ function ContactForm({ pick }) {
               )}
             </button>
           </div>
-          </fieldset>
         </form>
       </div>
     </section>
@@ -542,7 +624,7 @@ export default function Sponsors() {
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {SPONSOR_TIERS.map((tier) => (
+            {tiers.map((tier) => (
               <div
                 key={tier.name}
                 className="rounded-xl p-8 flex flex-col transition-all bg-surface-container hover:bg-surface-container-highest"
@@ -575,7 +657,7 @@ export default function Sponsors() {
                 <a
                   href="#become-a-sponsor"
                   onClick={(e) => {
-                    setTierPick((p) => ({ label: tier.label, seq: p.seq + 1 }));
+                    setTierPick((p) => ({ label: tierLabel(tier), seq: p.seq + 1 }));
                     scrollToAnchor(e, 'become-a-sponsor');
                   }}
                   aria-label={`Get started with the ${tier.name} sponsorship tier`}

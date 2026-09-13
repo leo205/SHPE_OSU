@@ -1,21 +1,27 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { formatMajor } from '../lib/majors';
-import {
-  MAX_RESUME_BYTES,
-  MIN_RESUME_BYTES,
-  buildGraduationYears,
-  createResumeDraftKey,
-  formatFileSize,
-  isOSUEmail,
-  isValidPDF,
-  resumeErrorMessage,
-  submitResume,
-} from '../lib/resume';
-import { TURNSTILE_SITE_KEY } from '../lib/turnstile';
-import TurnstileWidget from '../components/TurnstileWidget';
 
 // ── Constants ───────────────────────────────────────────────────────────────
+// Ceiling keeps the free-tier storage bucket sustainable. Measured against the
+// resumes already on file (n=9): median 168 KB, max 305 KB — so 250 KB accepts
+// the clear majority while still rejecting image-heavy exports. 200 KB was
+// considered and rejects exactly the same files, so 250 KB is the safer pick.
+const MAX_FILE_SIZE_BYTES = 250 * 1024; // 250 KB
+// Floor only rules out truncated/empty files.
+const MIN_FILE_SIZE_BYTES = 10 * 1024; // 10 KB
+const PDF_MAGIC = [0x25, 0x50, 0x44, 0x46]; // %PDF
+
+/** Human-readable file size — resumes are KB-scale, so MB reads as "0.13 MB". */
+function formatFileSize(bytes) {
+  return bytes >= 1024 * 1024
+    ? `${(bytes / 1024 / 1024).toFixed(1)} MB`
+    : `${Math.round(bytes / 1024)} KB`;
+}
+
+// OSU email domains accepted (members + alumni graduate addresses)
+const VALID_EMAIL_DOMAINS = ['@osu.edu', '@alumni.osu.edu', '@buckeyemail.osu.edu'];
+
 /**
  * Graduation years, derived from the current date rather than hardcoded.
  *
@@ -26,6 +32,13 @@ import TurnstileWidget from '../components/TurnstileWidget';
  *
  * Spans the current year through +5, which covers a first-year starting now.
  */
+function buildGraduationYears(now = new Date()) {
+  const current = now.getFullYear();
+  return [
+    ...Array.from({ length: 6 }, (_, i) => String(current + i)),
+    'Alumni',
+  ];
+}
 const GRADUATION_YEARS = buildGraduationYears();
 
 const MAJORS = [
@@ -47,6 +60,37 @@ const MAJORS = [
   'Other',
 ];
 
+// ── Helpers ─────────────────────────────────────────────────────────────────
+/**
+ * Reads the first 4 bytes of a File and checks for the PDF magic number %PDF.
+ * This prevents MIME-type spoofing (e.g., renaming malware.exe -> resume.pdf).
+ */
+async function isValidPDF(file) {
+  const buf = await file.slice(0, 4).arrayBuffer();
+  const bytes = new Uint8Array(buf);
+  return PDF_MAGIC.every((b, i) => bytes[i] === b);
+}
+
+function isOSUEmail(email) {
+  const lower = email.toLowerCase().trim();
+  return VALID_EMAIL_DOMAINS.some((domain) => lower.endsWith(domain));
+}
+
+/**
+ * Maps errors from submit_resume() to something a student can act on.
+ * The function raises these deliberately; anything else is unexpected and gets
+ * the generic message so internals never leak into the UI.
+ */
+function friendlyError(err) {
+  const msg = String(err?.message ?? '');
+  if (msg.includes('invalid_email')) return 'Please use your OSU email address (e.g. name.1@osu.edu).';
+  if (msg.includes('invalid_name')) return 'Please enter your full name.';
+  if (msg.includes('invalid_major')) return 'Please select or describe your major.';
+  if (msg.includes('invalid_year')) return 'Please select your graduation year.';
+  if (msg.includes('too_soon')) return 'We just received a submission for this email. Please wait a moment before uploading again.';
+  return 'Something went wrong. Please try again or contact an E-Board member.';
+}
+
 // ── Component ────────────────────────────────────────────────────────────────
 export default function ResumeUpload() {
   const [formData, setFormData] = useState({
@@ -59,67 +103,73 @@ export default function ResumeUpload() {
   const [file, setFile] = useState(null);
   const [status, setStatus] = useState('idle'); // idle | uploading | success | error
   const [errorMsg, setErrorMsg] = useState('');
-  const [submissionKey, setSubmissionKey] = useState(null);
-  const [turnstileToken, setTurnstileToken] = useState('');
-  const [turnstileResetKey, setTurnstileResetKey] = useState(0);
-  const submittingRef = useRef(false);
+
+  // Set after a successful submit when the server replaced an existing entry.
+  const [replacedExisting, setReplacedExisting] = useState(false);
 
   // ── Core upload logic ──────────────────────────────────────────────────────
-  const doUpload = async (draftKey) => {
+  const doUpload = async () => {
     setStatus('uploading');
     setErrorMsg('');
 
+    // Build a safe, user-independent filename — never trust file.name (C4).
+    // The pattern is also enforced server-side by submit_resume().
+    const filePath = `submissions/${Date.now()}_${crypto.randomUUID()}.pdf`;
+
     try {
-      const result = await submitResume(supabase, {
-        fields: {
-          full_name: formData.full_name.trim(),
-          email: formData.email.trim().toLowerCase(),
-          major: formatMajor(formData.major, customMajor),
-          graduation_year: formData.graduation_year,
-        },
-        file,
-        submissionId: draftKey.id,
-        submissionStartedAt: draftKey.startedAt,
-        turnstileToken,
+      // 1. Upload the file FIRST. Nothing the student already has is touched
+      //    until this succeeds, so a failed upload can never cost them the
+      //    resume they already had on file.
+      const { error: uploadError } = await supabase.storage
+        .from('resumes')
+        .upload(filePath, file, { contentType: 'application/pdf' });
+
+      if (uploadError) throw uploadError;
+
+      // 2. Hand off to the database, which does the lookup-and-upsert itself.
+      //
+      //    This used to be a client-side "SELECT by email, then UPDATE or
+      //    INSERT". Both halves were broken: the SELECT only saw approved rows
+      //    (so pending resumes produced duplicates), and anon has no UPDATE
+      //    policy, so replacements silently affected zero rows while still
+      //    reporting success. The function runs with the privileges the
+      //    operation actually needs and validates its own input.
+      const { data, error: rpcError } = await supabase.rpc('submit_resume', {
+        p_full_name: formData.full_name.trim(),
+        p_email: formData.email.trim().toLowerCase(),
+        p_major: formatMajor(formData.major, customMajor),
+        p_graduation_year: formData.graduation_year,
+        p_resume_path: filePath,
       });
 
-      if (!result.ok) {
-        if (result.reason === 'idempotency_conflict') setSubmissionKey(null);
-        setTurnstileToken('');
-        setTurnstileResetKey((key) => key + 1);
-        setErrorMsg(resumeErrorMessage(result.reason));
-        setStatus('error');
-        return;
+      if (rpcError) {
+        // Roll back the now-orphaned upload so storage doesn't accumulate junk.
+        await supabase.storage.from('resumes').remove([filePath]);
+        throw rpcError;
       }
 
+      // The previous file is intentionally left in storage so a bad replacement
+      // stays recoverable by an admin; see supabase/resume-submit.sql.
+      setReplacedExisting(data?.[0]?.action === 'replaced');
       setStatus('success');
     } catch (err) {
       console.error('[ResumeUpload] Upload error:', err);
-      setTurnstileToken('');
-      setTurnstileResetKey((key) => key + 1);
-      setErrorMsg(resumeErrorMessage('service_unavailable'));
+      setErrorMsg(friendlyError(err));
       setStatus('error');
     }
-  };
-
-  const markDraftChanged = () => {
-    if (submissionKey) setSubmissionKey(null);
-    if (status === 'error') setStatus('idle');
-    setErrorMsg('');
   };
 
   // ── Form submit handler ────────────────────────────────────────────────────
   const handleUpload = async (e) => {
     e.preventDefault();
-    if (submittingRef.current) return;
 
     if (!file) { setErrorMsg('Please select a PDF file.'); return; }
-    if (file.size < MIN_RESUME_BYTES) { setErrorMsg('That file looks empty or incomplete. Please upload your full resume PDF.'); return; }
-    if (file.size > MAX_RESUME_BYTES) {
+    if (file.size < MIN_FILE_SIZE_BYTES) { setErrorMsg('That file looks empty or incomplete. Please upload your full resume PDF.'); return; }
+    if (file.size > MAX_FILE_SIZE_BYTES) {
       // Say the actual size and a concrete next step — a student with a
       // 300 KB Canva export otherwise has no idea what to do about it.
       setErrorMsg(
-        `Your file is ${formatFileSize(file.size)}, and resumes must be under ${formatFileSize(MAX_RESUME_BYTES)}. ` +
+        `Your file is ${formatFileSize(file.size)}, and resumes must be under ${formatFileSize(MAX_FILE_SIZE_BYTES)}. ` +
         'Large files are usually caused by embedded images or a photo — try re-exporting as a text-based PDF, ' +
         'or run it through a free PDF compressor. Still stuck? Send it to an E-Board member and we\'ll upload it for you.'
       );
@@ -129,39 +179,13 @@ export default function ResumeUpload() {
     if (formData.major === 'Other' && !customMajor.trim()) { setErrorMsg('Please describe your major.'); return; }
     if (formData.major === 'Other' && customMajor.trim().length > 150) { setErrorMsg('Major description is too long.'); return; }
 
-    if (!turnstileToken) {
-      setErrorMsg('Please complete the security check before submitting.');
-      return;
-    }
+    const pdfValid = await isValidPDF(file);
+    if (!pdfValid) { setErrorMsg('The selected file does not appear to be a valid PDF. Only PDF files are accepted.'); return; }
 
-    // Set this before the first await. A rapid double click would otherwise
-    // send the same single-use challenge twice and could show a false failure
-    // even though the first request was accepted.
-    submittingRef.current = true;
-    setStatus('uploading');
-    try {
-      const pdfValid = await isValidPDF(file);
-      if (!pdfValid) {
-        setErrorMsg('The selected file does not appear to be a valid PDF. Only PDF files are accepted.');
-        setStatus('error');
-        return;
-      }
-
-      // The timestamp/UUID pair is created only when the first real request is
-      // ready. Exact retries retain it; editing any draft field clears it.
-      const draftKey = submissionKey ?? createResumeDraftKey();
-      if (!submissionKey) setSubmissionKey(draftKey);
-
-      // No client-side duplicate lookup any more. It could only see approved
-      // rows, so a pending resume produced a duplicate instead of a replacement.
-      // The protected Edge endpoint queues the submission server-side.
-      await doUpload(draftKey);
-    } catch {
-      setErrorMsg('The selected file could not be read. Please choose the PDF again.');
-      setStatus('error');
-    } finally {
-      submittingRef.current = false;
-    }
+    // No client-side duplicate lookup any more. It could only see approved
+    // rows, so a pending resume produced a duplicate instead of a replacement.
+    // submit_resume() does the lookup server-side where it can see everything.
+    await doUpload();
   };
 
   // ── Success screen ─────────────────────────────────────────────────────────
@@ -174,17 +198,15 @@ export default function ResumeUpload() {
           </div>
           <h2 className="font-headline text-3xl font-bold mb-4 text-on-surface">Upload Successful</h2>
           <p className="text-on-surface-variant mb-8">
-            Your resume has been submitted to the E-Board for review. If a resume
-            under this email is already approved, it stays available until an
-            admin reviews and approves this submission.
+            {replacedExisting
+              ? 'We replaced the resume previously submitted under this email. It goes back to the E-Board for review, then appears in the Corporate Resume Book.'
+              : 'Your resume has been submitted to the E-Board for review. Once approved, it will be visible in the Corporate Resume Book.'}
           </p>
           <button
             onClick={() => {
               setStatus('idle');
+              setReplacedExisting(false);
               setFile(null);
-              setSubmissionKey(null);
-              setTurnstileToken('');
-              setTurnstileResetKey((key) => key + 1);
               setCustomMajor('');
               setFormData({ full_name: '', email: '', major: '', graduation_year: '' });
             }}
@@ -220,8 +242,7 @@ export default function ResumeUpload() {
           </div>
         )}
 
-        <form onSubmit={handleUpload} aria-busy={status === 'uploading'}>
-          <fieldset disabled={status === 'uploading'} className="space-y-6">
+        <form onSubmit={handleUpload} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label htmlFor="full-name" className="block text-sm font-bold text-on-surface mb-2">Full Name</label>
@@ -231,10 +252,7 @@ export default function ResumeUpload() {
                 type="text"
                 maxLength={200}
                 value={formData.full_name}
-                onChange={(e) => {
-                  markDraftChanged();
-                  setFormData({ ...formData, full_name: e.target.value });
-                }}
+                onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
                 className="w-full px-4 py-3 rounded-xl border border-outline-variant bg-surface-bright focus:outline-none focus:ring-2 focus:ring-primary/50"
                 placeholder="Brutus Buckeye"
               />
@@ -249,10 +267,7 @@ export default function ResumeUpload() {
                 type="email"
                 maxLength={254}
                 value={formData.email}
-                onChange={(e) => {
-                  markDraftChanged();
-                  setFormData({ ...formData, email: e.target.value });
-                }}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 className="w-full px-4 py-3 rounded-xl border border-outline-variant bg-surface-bright focus:outline-none focus:ring-2 focus:ring-primary/50"
                 placeholder="buckeye.1@osu.edu"
               />
@@ -266,10 +281,7 @@ export default function ResumeUpload() {
                 id="major"
                 required
                 value={formData.major}
-                onChange={(e) => {
-                  markDraftChanged();
-                  setFormData({ ...formData, major: e.target.value });
-                }}
+                onChange={(e) => setFormData({ ...formData, major: e.target.value })}
                 className="w-full px-4 py-3 rounded-xl border border-outline-variant bg-surface-bright focus:outline-none focus:ring-2 focus:ring-primary/50"
               >
                 <option value="" disabled>Select Major</option>
@@ -288,10 +300,7 @@ export default function ResumeUpload() {
                     maxLength={150}
                     required
                     value={customMajor}
-                    onChange={(e) => {
-                      markDraftChanged();
-                      setCustomMajor(e.target.value);
-                    }}
+                    onChange={(e) => setCustomMajor(e.target.value)}
                     placeholder="e.g. Environmental Engineering"
                     className="w-full px-4 py-3 rounded-xl border border-outline-variant bg-surface focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                   />
@@ -304,10 +313,7 @@ export default function ResumeUpload() {
                 id="grad-year"
                 required
                 value={formData.graduation_year}
-                onChange={(e) => {
-                  markDraftChanged();
-                  setFormData({ ...formData, graduation_year: e.target.value });
-                }}
+                onChange={(e) => setFormData({ ...formData, graduation_year: e.target.value })}
                 className="w-full px-4 py-3 rounded-xl border border-outline-variant bg-surface-bright focus:outline-none focus:ring-2 focus:ring-primary/50"
               >
                 <option value="" disabled>Select Year</option>
@@ -331,9 +337,7 @@ export default function ResumeUpload() {
                 onChange={(e) => {
                   setErrorMsg('');
                   if (status === 'error') setStatus('idle');
-                  const selectedFile = e.target.files[0] || null;
-                  setFile(selectedFile);
-                  setSubmissionKey(null);
+                  setFile(e.target.files[0] || null);
                 }}
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
               />
@@ -343,9 +347,9 @@ export default function ResumeUpload() {
               {file ? (
                 <div>
                   <p className="font-bold text-primary">{file.name}</p>
-                  <p className={`text-xs mt-1 ${file.size > MAX_RESUME_BYTES ? 'text-error font-bold' : 'text-on-surface-variant'}`}>
+                  <p className={`text-xs mt-1 ${file.size > MAX_FILE_SIZE_BYTES ? 'text-error font-bold' : 'text-on-surface-variant'}`}>
                     {formatFileSize(file.size)}
-                    {file.size > MAX_RESUME_BYTES && ` — over the ${formatFileSize(MAX_RESUME_BYTES)} limit`}
+                    {file.size > MAX_FILE_SIZE_BYTES && ` — over the ${formatFileSize(MAX_FILE_SIZE_BYTES)} limit`}
                   </p>
                 </div>
               ) : (
@@ -356,16 +360,9 @@ export default function ResumeUpload() {
             </div>
           </div>
 
-          <TurnstileWidget
-            siteKey={TURNSTILE_SITE_KEY}
-            action="resume_submit"
-            onToken={setTurnstileToken}
-            resetKey={turnstileResetKey}
-          />
-
           <button
             type="submit"
-            disabled={status === 'uploading' || !turnstileToken}
+            disabled={status === 'uploading'}
             className="w-full bg-primary text-on-primary py-4 rounded-xl font-bold text-lg hover:bg-primary-fixed-dim transition-all shadow-md flex items-center justify-center gap-2 disabled:opacity-70"
           >
             {status === 'uploading' ? (
@@ -375,7 +372,6 @@ export default function ResumeUpload() {
               'Submit Resume'
             )}
           </button>
-          </fieldset>
         </form>
       </div>
     </div>

@@ -1,26 +1,17 @@
 -- ============================================================================
 --  Sponsor logins — close the resume book
 -- ============================================================================
---  STATUS: THE ORIGINAL SPONSOR-AUTH MIGRATION WAS APPLIED 2026-08-03.
---  THIS BRANCH COPY HAS NOT BEEN RE-APPLIED. It was made safe for the final
---  protected-submission state by removing every anonymous resume write grant.
---  Do not rerun it before submit-resume is deployed and verified: the current
---  production browser still depends on the legacy submission path and would
---  stop accepting resumes. Use resume-edge-submit.sql + resume-lockdown.sql for
---  the staged rollout instead of treating this historical file as a migration.
---
---  The 2026-08-03 version was verified afterwards from an anonymous client:
---  resumes and company_access returned nothing, Storage signed URLs were
---  denied, and direct anon INSERT into resumes was refused (42501).
+--  STATUS: APPLIED to production 2026-08-03. Verified afterwards from an
+--  anonymous client: resumes and company_access return nothing, storage signed
+--  URLs are denied, and direct anon INSERT into resumes is refused (42501).
 --
 --  Public signup has since been DISABLED in the dashboard
 --  (/auth/v1/settings now reports disable_signup: true), so the note in §7
 --  describing it as ON is historical. The explicit role gate below remains the
 --  actual control — do not weaken it on the strength of that toggle.
 --
---  This is the historical sponsor-role baseline. The canonical public-write
---  state is completed by attendance-lockdown.sql and resume-lockdown.sql. This
---  file must never recreate the anonymous submission paths they remove.
+--  Kept as the canonical definition of the current policy set. If you change a
+--  policy through the Supabase UI, update this file too.
 --
 --  This replaces the access-code system with real Supabase Auth users, and
 --  closes the exposure verified in production on 2026-07-30:
@@ -133,12 +124,15 @@ GRANT EXECUTE ON FUNCTION public.has_book_access() TO anon, authenticated;
 -- ─────────────────────────────────────────────────────────────────────────────
 DROP POLICY IF EXISTS "Public can read approved resumes" ON public.resumes;
 DROP POLICY IF EXISTS "Public can insert resumes"        ON public.resumes;
-DROP POLICY IF EXISTS "resumes public insert"             ON public.resumes;
 DROP POLICY IF EXISTS "Admins can manage resumes"        ON public.resumes;
 
--- Students submit through the Turnstile-protected submit-resume Edge Function,
--- which calls a service-only RPC. Never restore a direct anon INSERT policy.
-REVOKE INSERT ON TABLE public.resumes FROM anon;
+-- Students upload without an account. approved is pinned false so a crafted
+-- request cannot publish itself into the recruiter-visible book — previously
+-- WITH CHECK was `true`, which allowed exactly that.
+CREATE POLICY "resumes public insert"
+  ON public.resumes FOR INSERT
+  TO anon, authenticated
+  WITH CHECK (approved = false);
 
 -- Sponsors see approved rows only. Admins see everything, including the
 -- pending queue they need in order to approve anything.
@@ -157,8 +151,11 @@ CREATE POLICY "resumes admin delete"
   TO authenticated
   USING (public.is_admin());
 
--- New uploads remain separate pending revisions. approve_resume_submission()
--- atomically switches the recruiter-visible version after an admin verifies it.
+-- NOTE: the upload form's "replace my resume" path performs an UPDATE as anon,
+-- which the policies above no longer permit. That flow needs a SECURITY DEFINER
+-- function keyed on the submitter's email before it will work again. Until then
+-- a student replacing a resume gets the generic error and should contact the
+-- E-Board. Tracked in HANDOFF.md.
 
 
 -- ─────────────────────────────────────────────────────────────────────────────
@@ -185,11 +182,15 @@ CREATE POLICY "company_access admin all"
 DROP POLICY IF EXISTS "Public can read resumes"            ON storage.objects;
 DROP POLICY IF EXISTS "Admins can manage resumes bucket"   ON storage.objects;
 DROP POLICY IF EXISTS "Public can upload to resumes bucket" ON storage.objects;
-DROP POLICY IF EXISTS "resumes bucket public upload"        ON storage.objects;
 
--- Only submit-resume's server secret uploads student PDFs. A submissions/
--- prefix is organization, not authorization; do not restore anon upload.
-REVOKE INSERT ON TABLE storage.objects FROM anon;
+-- Students still upload without an account, but only into submissions/.
+CREATE POLICY "resumes bucket public upload"
+  ON storage.objects FOR INSERT
+  TO anon, authenticated
+  WITH CHECK (
+    bucket_id = 'resumes'
+    AND (storage.foldername(name))[1] = 'submissions'
+  );
 
 -- A sponsor can only read the file if its row is approved. Without the EXISTS
 -- check, any signed-in sponsor could fetch pending resumes by guessing paths.
@@ -232,8 +233,8 @@ CREATE POLICY "attendance admin write"
   TO authenticated
   USING (public.is_admin()) WITH CHECK (public.is_admin());
 
--- Attendance writes are defined by attendance-submit.sql and locked to its
--- Edge Function by attendance-lockdown.sql. Never restore a public INSERT.
+-- `Allow public inserts` (check-in) stays as-is. The public leaderboard is
+-- served by the `leaderboard` view — see supabase/leaderboard-view.sql.
 
 
 -- ─────────────────────────────────────────────────────────────────────────────
@@ -312,8 +313,6 @@ CREATE POLICY "events bucket admin delete"
 --    select * from resumes
 --    select * from company_access
 --    createSignedUrl on any resume path
---    direct upload into resumes/submissions
---    submit_resume(...)
 --
 --  Signed in AS A SPONSOR:
 --    select * from resumes           -> approved rows only, no pending

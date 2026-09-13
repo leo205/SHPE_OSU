@@ -3,13 +3,6 @@ import { supabase } from '../lib/supabase';
 import { formatMajor } from '../lib/majors';
 import { fetchEvents, mergeEvents, eventOptionLabel, sortForCheckIn } from '../lib/events';
 import { buildFallbackUrl } from '../lib/attendanceFallback';
-import {
-  attendanceErrorMessage,
-  shouldOfferAttendanceFallback,
-  submitAttendance,
-} from '../lib/attendance';
-import TurnstileWidget from '../components/TurnstileWidget';
-import { TURNSTILE_SITE_KEY } from '../lib/turnstile';
 
 // ── Whitelisted enum values (C2, M2) ────────────────────────────────────────
 const YEARS = ['1st Year', '2nd Year', '3rd Year', '4th Year', '5th Year', 'Graduate Student', 'Professional'];
@@ -83,14 +76,11 @@ export default function Attendance() {
   // H1: Double-submit guard
   const isSubmittingRef = useRef(false);
 
-  // Holds the payload only when the protected submission service is unavailable,
-  // so the backup form can be offered prefilled. Deliberately not set for input,
-  // verification, or rate-limit rejections; otherwise the backup becomes a way
-  // around the exact control that rejected the request.
+  // Holds the payload of a check-in the DATABASE rejected, so the backup form
+  // can be offered prefilled with it. Deliberately not set for validation
+  // errors — "you forgot to pick an event" is fixed on this page, and sending
+  // someone to a backup form for it would create a row nobody needs to merge.
   const [failedPayload, setFailedPayload] = useState(null);
-  const [serviceFailureCount, setServiceFailureCount] = useState(0);
-  const [turnstileToken, setTurnstileToken] = useState('');
-  const [turnstileResetKey, setTurnstileResetKey] = useState(0);
 
   // Clear the cooldown ticker if the student closes the form mid-countdown.
   useEffect(() => () => clearInterval(cooldownTimer.current), []);
@@ -105,7 +95,7 @@ export default function Attendance() {
   // meeting. Seeding first means the worst case is a slightly stale list rather
   // than a room full of people who cannot check in.
   const [eventOptions, setEventOptions] = useState(() =>
-    sortForCheckIn(mergeEvents([]))
+    sortForCheckIn(mergeEvents([])).map(eventOptionLabel)
   );
 
   useEffect(() => {
@@ -113,8 +103,8 @@ export default function Attendance() {
     fetchEvents()
       .then((all) => {
         if (cancelled) return;
-        const options = sortForCheckIn(all);
-        if (options.length > 0) setEventOptions(options);
+        const labels = sortForCheckIn(all).map(eventOptionLabel);
+        if (labels.length > 0) setEventOptions(labels);
       })
       .catch((err) => {
         // fetchEvents swallows its own errors; this only guards against a throw
@@ -139,12 +129,6 @@ export default function Attendance() {
 
   const handleChange = (e) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
-  };
-
-  const handleFirstMeetingChange = (value) => {
-    setIsFirst(value);
-    setTurnstileToken('');
-    setTurnstileResetKey((key) => key + 1);
   };
 
   // ── Cooldown ticker ─────────────────────────────────────────────────────────
@@ -208,18 +192,9 @@ export default function Attendance() {
     }
 
     // C2/M2: Whitelist validation before hitting the DB
-    const eventLabels = eventOptions.map(eventOptionLabel);
-    const validationError = validatePayload(form, isFirst, customMajor, eventLabels);
+    const validationError = validatePayload(form, isFirst, customMajor, eventOptions);
     if (validationError) {
       setError(validationError);
-      return;
-    }
-
-    const selectedEvent = eventOptions.find(
-      (event) => eventOptionLabel(event) === form.event_name
-    );
-    if (!selectedEvent) {
-      setError('Invalid event selection.');
       return;
     }
 
@@ -245,35 +220,18 @@ export default function Attendance() {
       how_heard: isFirst ? form.how_heard : null,
     };
 
-    const result = await submitAttendance(supabase, {
-      payload,
-      event: selectedEvent,
-      turnstileToken,
-    });
+    const { error: dbError } = await supabase.from('attendance').insert([payload]);
 
     isSubmittingRef.current = false;
     setSubmitting(false);
 
-    if (!result.ok) {
-      // Turnstile tokens are single-use. Every rejected attempt must get a new
-      // challenge, whether the rejection came from Turnstile, validation, the
-      // rate limiter, or an availability failure.
-      setTurnstileToken('');
-      setTurnstileResetKey((key) => key + 1);
-
-      // The backup form is intentionally reserved for outages. Showing it for
-      // an invalid or throttled request would turn it into a security bypass.
-      const nextServiceFailureCount = result.reason === 'service_unavailable'
-        ? serviceFailureCount + 1
-        : 0;
-      setServiceFailureCount(nextServiceFailureCount);
-      if (shouldOfferAttendanceFallback(result.reason, nextServiceFailureCount)) {
-        console.error('[Attendance] Protected submission service unavailable.');
-        setFailedPayload(payload);
-      }
-      setError(attendanceErrorMessage(result.reason));
+    if (dbError) {
+      console.error('[Attendance] Insert error:', dbError);
+      // Nothing was saved. Hold the payload so the backup form can be offered
+      // prefilled — see lib/attendanceFallback.js.
+      setFailedPayload(payload);
+      setError('Something went wrong. Please try again or let an E-Board member know.');
     } else {
-      setServiceFailureCount(0);
       startCooldown();
       setStep(3);
     }
@@ -345,8 +303,8 @@ export default function Attendance() {
       {fallbackUrl && (
         <div className="bg-error-container text-on-error-container rounded-xl p-4 space-y-3">
           <p className="text-sm font-medium leading-relaxed">
-            We still could not confirm your check-in after the retry. Use our backup
-            form and an E-Board member will check for a duplicate before adding it.
+            Your check-in was <strong>not saved</strong>. Use our backup form and an
+            E-Board member will add you in — it opens already filled out.
           </p>
           <a
             href={fallbackUrl}
@@ -417,14 +375,9 @@ export default function Attendance() {
                 <option value="">
                   {eventOptions.length === 0 ? 'No events available' : 'Select an event…'}
                 </option>
-                {eventOptions.map((event) => {
-                  const label = eventOptionLabel(event);
-                  return (
-                    <option key={`${event.date}-${event.id ?? label}`} value={label}>
-                      {label}
-                    </option>
-                  );
-                })}
+                {eventOptions.map((opt) => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
               </select>
               {eventOptions.length === 0 && (
                 <p id="event-empty-help" role="alert" className="text-xs text-error font-bold mt-2">
@@ -521,7 +474,7 @@ export default function Attendance() {
                   <button
                     key={label}
                     type="button"
-                    onClick={() => handleFirstMeetingChange(value)}
+                    onClick={() => setIsFirst(value)}
                     className={`flex-1 py-3 rounded-xl font-bold border-2 transition-all ${
                       isFirst === value
                         ? 'bg-primary text-on-primary border-primary'
@@ -534,20 +487,11 @@ export default function Attendance() {
               </div>
             </div>
 
-            {isFirst === false && (
-              <TurnstileWidget
-                siteKey={TURNSTILE_SITE_KEY}
-                action="attendance_submit"
-                onToken={setTurnstileToken}
-                resetKey={turnstileResetKey}
-              />
-            )}
-
             {errorBlock}
 
             <button
               type="submit"
-              disabled={submitting || isCoolingDown || (isFirst === false && !turnstileToken)}
+              disabled={submitting || isCoolingDown}
               className="w-full bg-primary text-on-primary py-4 rounded-full font-bold text-lg hover:bg-primary-fixed-dim transition-all shadow-lg active:scale-95 disabled:opacity-60"
             >
               {isCoolingDown
@@ -629,13 +573,6 @@ export default function Attendance() {
               </select>
             </div>
 
-            <TurnstileWidget
-              siteKey={TURNSTILE_SITE_KEY}
-              action="attendance_submit"
-              onToken={setTurnstileToken}
-              resetKey={turnstileResetKey}
-            />
-
             {errorBlock}
 
             <div className="flex gap-3">
@@ -648,7 +585,7 @@ export default function Attendance() {
               </button>
               <button
                 type="submit"
-                disabled={submitting || isCoolingDown || !turnstileToken}
+                disabled={submitting || isCoolingDown}
                 className="flex-1 bg-primary text-on-primary py-4 rounded-full font-bold hover:bg-primary-fixed-dim transition-all shadow-lg active:scale-95 disabled:opacity-60"
               >
                 {isCoolingDown ? `Please wait ${cooldownSec}s…` : submitting ? 'Submitting…' : 'Submit'}

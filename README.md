@@ -36,38 +36,28 @@ Dashboard.
     *   **National Convention Guide**: Step-by-step prep timeline (Registration, Resume, Company Research, Elevator Pitch, Business Attire, Follow-up) and logistics overview.
     *   **SponsorSHPE Call to Action**: Invites corporate partners to collaborate and redirects them to the Sponsors portal.
 *   **E-Board Roster (`/eboard`)**: Displays student leaders in a custom, Loteria-styled grid layout. Cards use dynamic Tailwind CSS grids and flexbox centering fallbacks to align the orphaned last row cleanly on all screen sizes, showcasing standardized `.webp` headshots.
-*   **Corporate Sponsor Portal (`/sponsors`)**: Partner benefits and tiers (Buckeye $500, Carmen $1,000, Scarlet & Gray $1,500, Platinum $2,000). Current sponsors are grouped by the tier they actually purchased, and empty tiers hide themselves. Each tier's **Get Started** button preselects that tier in the contact form. Inquiries go through a Turnstile-protected Supabase Edge Function; EmailJS credentials and traffic never enter the browser.
+*   **Corporate Sponsor Portal (`/sponsors`)**: Partner benefits and tiers (Buckeye $500, Carmen $1,000, Scarlet & Gray $1,500, Platinum $2,000). Current sponsors are grouped by the tier they actually purchased, and empty tiers hide themselves. Each tier's **Get Started** button preselects that tier in the contact form, so an enquiry arrives labelled with the level the recruiter clicked. Powered by EmailJS.
 *   **Resource Hub (`/resources`)**: Provides study tips, tutoring links, and a direct link to view and read the official chapter **First-Year Guide PDF** (`/photos/First-Year-Guide.pdf`).
 
 ---
 
 ### 🗃 Chapter Operations & Security Portal (Hidden Routes)
-These pages are omitted from the Navbar to avoid clutter, not as a security
-control. Their URLs are public; Edge validation, RLS, Storage policies, and role
-claims protect the operations behind them.
+These pages are not listed in the Navbar to maintain security and avoid clutter. They are accessed via QR codes, direct URLs, or distributed credentials.
 
 #### 1. Student Check-In (`/attendance`)
 *   **Mobile-First Check-In**: Quick check-in page for chapter events. Options come from the same shared source as the public calendar (`src/lib/events.js`), so an event added in the Admin Dashboard is immediately checkinable. The list is seeded from the bundled fallback at first paint, so a slow or failed network can never leave students staring at an empty dropdown mid-meeting.
 *   **First-Time Meeting Logic**: Prompts first-time attendees for how they heard about SHPE and their major. The historical `pronouns` database column is retained, but the form no longer collects it.
 *   **Custom Major Entry**: If a student selects "Other" as their major, a text input appears allowing them to type their exact major (limited to 150 characters, saved in the database as `Other – [custom text]`, formatted by the shared helper in `src/lib/majors.js` so the check-in form and the resume portal cannot drift apart).
-*   **Protected Submission**: The browser has no direct table-write path. A
-    Supabase Edge Function validates the event and every field, verifies an
-    action-bound Cloudflare Turnstile token, and calls a service-only RPC with
-    durable HMAC-keyed network and identity limits. The local cooldown remains
-    only as double-click feedback, not as the security boundary.
-*   **Privacy-Safe Outage Fallback**: Only after repeated service failures, the
-    page can link to a separate Google Form. No attendee identity or demographic
-    value is placed in the URL. The Sheet is untrusted/manual-only and must never
-    be auto-imported into attendance or the leaderboard.
+*   **Spam Prevention**: Implements a 30-second submit cooldown to prevent accidental double-submits or database flooding.
 
 #### 2. Student Resume Upload (`/resume-upload`)
 *   **Secure Student Uploads**: Members can upload a PDF copy of their resume to be compiled into the official resume book.
-*   **MIME-Type Spoofing Check**: Both client and Edge validate that the file starts with the PDF signature `0x25, 0x50, 0x44, 0x46`; the private bucket also restricts MIME type and size.
-*   **OSU Email Domain Lock**: Restricts uploads to the exact `osu.edu`, `buckeyemail.osu.edu`, and `alumni.osu.edu` domains. The Edge Function and database both enforce it; suffixes such as `osu.edu.evil.example` are rejected.
-*   **Server-Side Submission**: A Turnstile-protected Edge Function validates the multipart body, reserves an idempotent submission, generates the Storage path, uploads privately, and queues a separate pending revision. A new submission cannot de-list an already approved resume; approval and deletion use atomic admin RPCs.
+*   **MIME-Type Spoofing Check**: Utilizes a magic-byte checker (verifying the file starts with the PDF signature `0x25, 0x50, 0x44, 0x46` before upload) to prevent malicious files from being uploaded as `.pdf`.
+*   **OSU Email Domain Lock**: Restricts uploads to `@osu.edu` and its subdomains. Enforced **inside the database** by `submit_resume()`, not only in the browser — the client-side check is bypassable by anyone posting to the API directly.
+*   **Server-Side Submission**: Uploads go through a single `SECURITY DEFINER` function that validates every field, pins `approved` to `false` so nothing can publish itself past E-Board review, and upserts on email so re-uploading replaces a student's entry instead of creating a duplicate.
 *   **File Size Ceiling**: PDFs must be between 10 KB and 250 KB. The form shows the file's size the moment it is picked and explains how to shrink an oversized one.
 *   **Custom Major Integration**: Prompts students selecting 'Other' to specify their major in detail.
-*   **Safe File Naming**: Discards the original filename and uses a server-generated `submissions/<timestamp>_<uuid>.pdf` path to prevent traversal, collision, and client-selected object replacement.
+*   **Safe File Naming**: Re-encrypts filenames on upload to `submissions/${Date.now()}_${crypto.randomUUID()}.pdf` to avoid directory traversal and filename collision vulnerabilities.
 
 #### 3. Recruiter Portal (`/company` & `/company/dashboard`)
 *   **Operational status**: The portal is implemented, but no sponsor accounts exist yet.
@@ -108,15 +98,14 @@ claims protect the operations behind them.
 
 | Layer | Technology | Purpose |
 |---|---|---|
-| **Frontend** | React 18 & Vite 7 | Interactive rendering & fast bundling; explicit Safari 14 target |
-| **Routing** | React Router DOM v7 | Navigation, nested layouts, and admin route guards |
+| **Frontend** | React 18 & Vite | Interactive rendering & fast bundling |
+| **Routing** | React Router DOM v6 | Navigation, nested layouts, and admin route guards |
 | **Styling** | Tailwind CSS | Modern styling system with custom SHPE palette |
 | **Data Viz** | Recharts | Graphs, pie charts, and trends for the Admin Dashboard |
 | **Database** | Supabase (PostgreSQL) | Stores attendance, resumes, and company access records |
 | **Storage** | Supabase Storage Buckets | Stores student resume PDF files securely |
 | **Authentication** | Supabase Auth | Handles role-gated Email/Password logins for E-Board admins and sponsors |
-| **Public-write gateway** | Supabase Edge Functions + Cloudflare Turnstile | Validates and rate-limits attendance, resume, and sponsor submissions server-side |
-| **Emails** | EmailJS REST API | Sends one server-routed sponsor notification from Edge; no provider key in the current browser bundle |
+| **Emails** | EmailJS | Directly handles corporate sponsor contact inquiries from the frontend |
 | **Analytics** | Vercel Web Analytics | Counts privacy-friendly visitors and page views after deployment |
 | **Hosting** | Vercel | Automatic deployments connected to GitHub |
 
@@ -147,7 +136,6 @@ Fill in the credentials:
 # Supabase Project URL & Anon/Publishable Key
 VITE_SUPABASE_URL=https://your-project-id.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key-here
-VITE_TURNSTILE_SITE_KEY=your-public-turnstile-site-key
 ```
 *Note: The Supabase publishable key is safe to expose in frontend environment files since data accessibility is strictly guarded by Row-Level Security (RLS).*
 
@@ -169,10 +157,9 @@ git pull --ff-only
 git switch -c feature/your-change
 ```
 
-Use Node `^20.19.0` or `>=22.12.0`. Use `npm run dev` and open
-[http://localhost:5173](http://localhost:5173) for ordinary UI review. Before
-merging, run `npm test`, `npm run lint`, `npm run check:edge`, `npm run build`,
-both npm audits, and `npm run preview`; the preview URL is normally
+Use `npm run dev` and open [http://localhost:5173](http://localhost:5173) for
+ordinary UI review. Before merging, run `npm run lint`, `npm run build`, and
+`npm run preview`; the preview URL is normally
 [http://localhost:4173](http://localhost:4173) and includes the production CSP
 and security headers.
 
@@ -208,9 +195,6 @@ shpe-osu/
 │   │   ├── events.js     # Single source of truth for events: DB + bundled fallback
 │   │   ├── calendar.js   # Google Calendar / .ics export builders
 │   │   ├── majors.js     # Shared "Other – major" formatting
-│   │   ├── attendance.js # Protected attendance Edge client
-│   │   ├── resume.js     # Protected resume Edge client + validation
-│   │   ├── sponsorInquiry.js # Protected sponsor Edge client
 │   │   ├── navigation.js # Nav links — shared by Navbar AND Footer
 │   │   └── scroll.js     # Smooth in-page anchor scrolling (opt-in)
 │   ├── pages/            # Core page components (Home, Events, Eboard, Sponsors, Resources, etc.)
@@ -221,14 +205,9 @@ shpe-osu/
 ├── REWRITE.md            # Plan for the ports-and-adapters rewrite
 ├── supabase/             # Database security model — READ supabase/README.md FIRST
 │   ├── README.md         # Security model, run order, and how to check live state
-│   ├── leaderboard-view.sql   # privacy fix applied; top-10 revision NOT APPLIED
+│   ├── leaderboard-view.sql   # (applied) public leaderboard view
 │   ├── sponsor-auth.sql       # (applied) sponsor logins + RLS lockdown
-│   ├── resume-submit.sql      # (applied legacy path; superseded on rollout)
-│   ├── attendance-submit.sql  # NOT APPLIED: limiter + service-only RPC
-│   ├── attendance-lockdown.sql # NOT APPLIED: removes anonymous table writes
-│   ├── resume-edge-submit.sql # NOT APPLIED: reservations/admin RPCs
-│   ├── resume-lockdown.sql    # NOT APPLIED: removes legacy public upload path
-│   └── functions/             # Three protected Edge submission functions
+│   └── resume-submit.sql      # (applied) server-side resume submission
 ├── tailwind.config.js    # Customized color system (SHPE branding palette)
 ├── vercel.json           # Vercel deployment headers & Content Security Policy (CSP)
 └── package.json          # Node dependencies
@@ -251,13 +230,10 @@ shpe-osu/
     `is_sponsor()`) rather than on merely being signed in. Public signup is
     currently disabled, but `authenticated` still is not a permission: the role
     gate must remain safe if signup is enabled again later.
-    *   `attendance`: reads are admin-only; the public leaderboard is served by
-        a two-column, top-ten view. The top-ten database revision and staged
-        lockdown are not applied yet; lockdown removes anonymous INSERT after
-        the protected Edge path is verified.
+    *   `attendance`: public INSERT (check-in) only. Reads are admin-only; the
+        public leaderboard is served by a two-column view instead.
     *   `resumes`: no public read. Sponsors see approved rows; admins see all.
-        The staged Edge path makes all public writes service-only and retires
-        the legacy `submit_resume()` browser RPC.
+        Writes go through `submit_resume()`.
     *   `company_access`, `events`: admin-only writes; `events` is publicly
         readable so the calendar works logged out.
     *   Storage: resume PDFs are readable only by an admin, or by a sponsor when
@@ -274,41 +250,20 @@ shpe-osu/
 *   **File Safeguards**:
     *   PDFs between 10 KB and 250 KB.
     *   Magic-byte validation (`%PDF`) read from the byte buffer.
-    *   User filenames are discarded; the server reserves
-        `submissions/<13-digit timestamp>_<uuid>.pdf`, so a caller cannot choose
-        a path or point metadata at another object.
+    *   Filenames replaced with `submissions/<timestamp>_<uuid>.pdf`; the path is
+        also pinned server-side so a caller cannot point a row at another object.
     *   Signed URLs expire after 60 seconds.
 *   **CSV Injection Mitigation**: exported cells beginning with `=`, `+`, `-`,
     `@`, tab, or carriage return are prefixed with a single quote.
 
-### Staged security rollout
-
-The protected-submission SQL and Edge files on this branch are **not applied to
-production yet**. Do not merge only the frontend. Follow `supabase/README.md`:
-apply/probe additive SQL, configure Edge-only secrets and exact origins, deploy
-and test all three functions, switch the frontend, then immediately apply the
-lockdown SQL. For the current EmailJS Free account, rotate the EmailJS public key
-during cutover, update the Edge secret immediately, and keep the replacement out
-of Vite; old public IDs remain recoverable from caches/history but become invalid.
-If EmailJS later exposes private-key enforcement, enable and verify it as an
-additional control.
-
 ### Known residual risk
 
-Turnstile proves a challenge was completed, not ownership or physical presence.
-Canonical event validation, duplicate suppression, and durable limits slow
-attendance abuse, but someone can still invent an identity or claim another dot
-number; strong leaderboard integrity needs an approved OSU SSO, event-scoped
-secret, or admin-review design. The staged resume design prevents an unreviewed
-revision from replacing or de-listing an approved one, but an impersonated
-pending submission could still mislead an admin. Sponsor `reply_to` addresses
-are also unverified. E-Board must independently verify resume identity and any
-sponsorship/payment request until an identity flow is approved.
-
-The project owner explicitly re-approved the original GroupMe invitation on
-2026-09-03. Its exact destination appears on Home, in the Footer, and after a
-first attendee checks in. Do not replace that destination or add invitation QR
-codes/equivalent join routes without another explicit project-owner approval.
+Resume submissions are keyed on email with no proof of ownership, so someone who
+knows a classmate's OSU address could overwrite their entry. A replacement always
+returns to `approved = false`, so it drops *out* of the recruiter book pending
+review rather than showing sponsors false content, and the previous PDF is
+retained so an admin can restore it. Closing this properly needs emailed
+confirmation links.
 
 ---
 
