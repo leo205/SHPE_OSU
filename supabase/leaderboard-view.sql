@@ -1,12 +1,12 @@
 -- ============================================================================
 --  Fix the public `leaderboard` view
 -- ============================================================================
---  STATUS: TOP-10 REVISION NOT YET APPLIED.
+--  STATUS: APPLIED TO PRODUCTION 2026-09-13.
 --  The two-column privacy fix was applied to production 2026-07-30 and verified
 --  anonymously: `dotnum` and `last_name_dotnum` both return 42703 (column does
---  not exist), and the anon SELECT grant survived the DROP. This branch keeps
+--  not exist), and the anon SELECT grant survived the DROP. This definition keeps
 --  that privacy boundary and additionally caps the public view itself at ten
---  rows. Production still needs the current definition applied and probed.
+--  rows. Production was probed as exactly ten rows with only first_name/count.
 --
 --  Kept in the repo as the canonical definition of the view — do not edit the
 --  view through the Supabase UI without updating this file, or the next person

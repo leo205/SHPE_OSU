@@ -221,13 +221,13 @@ shpe-osu/
 ├── REWRITE.md            # Plan for the ports-and-adapters rewrite
 ├── supabase/             # Database security model — READ supabase/README.md FIRST
 │   ├── README.md         # Security model, run order, and how to check live state
-│   ├── leaderboard-view.sql   # privacy fix applied; top-10 revision NOT APPLIED
+│   ├── leaderboard-view.sql   # applied: two public columns, top-ten cap
 │   ├── sponsor-auth.sql       # (applied) sponsor logins + RLS lockdown
-│   ├── resume-submit.sql      # (applied legacy path; superseded on rollout)
-│   ├── attendance-submit.sql  # NOT APPLIED: limiter + service-only RPC
-│   ├── attendance-lockdown.sql # NOT APPLIED: removes anonymous table writes
-│   ├── resume-edge-submit.sql # NOT APPLIED: reservations/admin RPCs
-│   ├── resume-lockdown.sql    # NOT APPLIED: removes legacy public upload path
+│   ├── resume-submit.sql      # superseded legacy path; execution revoked
+│   ├── attendance-submit.sql  # applied: limiter + service-only RPC
+│   ├── attendance-lockdown.sql # applied: no anonymous table writes
+│   ├── resume-edge-submit.sql # applied: reservations/admin RPCs
+│   ├── resume-lockdown.sql    # applied: no legacy public upload path
 │   └── functions/             # Three protected Edge submission functions
 ├── tailwind.config.js    # Customized color system (SHPE branding palette)
 ├── vercel.json           # Vercel deployment headers & Content Security Policy (CSP)
@@ -252,12 +252,11 @@ shpe-osu/
     currently disabled, but `authenticated` still is not a permission: the role
     gate must remain safe if signup is enabled again later.
     *   `attendance`: reads are admin-only; the public leaderboard is served by
-        a two-column, top-ten view. The top-ten database revision and staged
-        lockdown are not applied yet; lockdown removes anonymous INSERT after
-        the protected Edge path is verified.
+        a two-column, top-ten view. Anonymous table writes are revoked; public
+        submissions go through the protected Edge path.
     *   `resumes`: no public read. Sponsors see approved rows; admins see all.
-        The staged Edge path makes all public writes service-only and retires
-        the legacy `submit_resume()` browser RPC.
+        The live Edge path makes all public writes service-only, and the legacy
+        `submit_resume()` browser RPC is revoked.
     *   `company_access`, `events`: admin-only writes; `events` is publicly
         readable so the calendar works logged out.
     *   Storage: resume PDFs are readable only by an admin, or by a sponsor when
@@ -281,17 +280,15 @@ shpe-osu/
 *   **CSV Injection Mitigation**: exported cells beginning with `=`, `+`, `-`,
     `@`, tab, or carriage return are prefixed with a single quote.
 
-### Staged security rollout
+### Protected-submission production status
 
-The protected-submission SQL and Edge files on this branch are **not applied to
-production yet**. Do not merge only the frontend. Follow `supabase/README.md`:
-apply/probe additive SQL, configure Edge-only secrets and exact origins, deploy
-and test all three functions, switch the frontend, then immediately apply the
-lockdown SQL. For the current EmailJS Free account, rotate the EmailJS public key
-during cutover, update the Edge secret immediately, and keep the replacement out
-of Vite; old public IDs remain recoverable from caches/history but become invalid.
-If EmailJS later exposes private-key enforcement, enable and verify it as an
-additional control.
+The coordinated rollout was completed and smoke-tested on **2026-09-13**.
+`submit-attendance`, `submit-resume`, and `submit-sponsor-inquiry` are deployed;
+the additive and lockdown SQL is applied; Turnstile and durable limits are
+active; and the top-ten leaderboard cap is enforced by the database view. The
+EmailJS Free account does not expose a private key, so its public key was rotated
+during cutover and the replacement exists only in Supabase Edge secrets. See
+`supabase/README.md` for the recorded evidence and safe redeployment order.
 
 ### Known residual risk
 
@@ -299,7 +296,7 @@ Turnstile proves a challenge was completed, not ownership or physical presence.
 Canonical event validation, duplicate suppression, and durable limits slow
 attendance abuse, but someone can still invent an identity or claim another dot
 number; strong leaderboard integrity needs an approved OSU SSO, event-scoped
-secret, or admin-review design. The staged resume design prevents an unreviewed
+secret, or admin-review design. The resume design prevents an unreviewed
 revision from replacing or de-listing an approved one, but an impersonated
 pending submission could still mislead an admin. Sponsor `reply_to` addresses
 are also unverified. E-Board must independently verify resume identity and any

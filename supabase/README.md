@@ -1,49 +1,38 @@
 # Supabase — database and public-submission security
 
-_State reviewed on branch `security/harden-public-submissions`: 2026-09-03._
+_Production state reviewed and probed: 2026-09-13._
 
 Everything that authorizes access to attendance, resumes, sponsor data, or
 uploaded PDFs must be enforced by Supabase or another trusted server. The anon
 key is present in the public JavaScript bundle, so a React check controls what is
 rendered, never what an attacker can call directly.
 
-## Production truth versus this branch
+## Production state
 
-This branch contains a staged replacement for every anonymous public-write
-path. **None of the new migrations or Edge Functions in the table below has
-been applied or deployed from this branch.** Production has not changed merely
-because these files exist.
+The protected public-submission rollout was completed on **2026-09-13** against
+Supabase project `ekuaqbelulybowihmact`, followed by controlled browser smoke
+tests and anonymous denial probes. Repository files still are not proof of live
+state; query the catalog and endpoint behavior after every future change.
 
-Historical production facts and current branch state are deliberately separate:
-
-| File or component | Production/live status | Current branch meaning |
+| File or component | Production/live status | Verified evidence |
 |---|---|---|
-| `leaderboard-view.sql` | The two-column privacy revision was **applied 2026-07-30** and verified as exactly `first_name` plus distinct-event `count`; dot numbers were removed. | The new database-level top-ten cap is **NOT APPLIED**. It preserves the same two public columns but prevents direct callers from requesting the rest of the aggregate rows. |
-| `sponsor-auth.sql` | An earlier revision was **applied 2026-08-03** to replace recruiter access codes with Auth roles, close anonymous reads of `resumes`, `company_access`, and resume Storage, and prevent sponsors from editing events. Public signup was later disabled. | The branch copy also avoids recreating legacy anonymous resume-upload paths. Those later edits have **not** been rerun in production. |
-| `resume-submit.sql` | The original `submit_resume()` design was **applied 2026-08-03** and its validation was checked anonymously. | The branch copy is marked **SUPERSEDED** and revokes the old routine. Those retirement statements are **not applied** until the staged rollout below. Do not grant or call this routine from new browser code. |
-| `attendance-submit.sql` | **NOT APPLIED.** | Additive stage: creates the shared durable limiter and service-only `submit_attendance()` RPC while leaving the legacy browser path available during cutover. |
-| `attendance-lockdown.sql` | **NOT APPLIED.** | Final stage: removes all anonymous attendance-table policies and leaves authenticated admin access only. Running it before the protected client is live breaks check-in. |
-| `resume-edge-submit.sql` | **NOT APPLIED.** | Additive stage: creates private-upload constraints, retry reservations, service-only queue RPCs, and authenticated admin approval/deletion RPCs. It depends on `attendance-submit.sql`. |
-| `resume-lockdown.sql` | **NOT APPLIED.** | Final stage: removes anonymous resume metadata inserts, anonymous Storage uploads, and browser execution of legacy `submit_resume()`. Running it before the protected client is live breaks resume submission. |
-| `submit-attendance`, `submit-resume`, `submit-sponsor-inquiry` | **NOT DEPLOYED from this branch.** | Staged Edge Functions. `supabase/config.toml` sets `verify_jwt = false` because students and prospective sponsors are not signed in; each handler enforces its own Turnstile, validation, origin, size, and durable-rate controls before privileged work. |
+| `leaderboard-view.sql` | **Applied 2026-09-13.** | Anonymous result is capped at ten rows and exposes exactly `first_name` plus distinct-event `count`; raw attendance remains private. |
+| `sponsor-auth.sql` | **Applied 2026-08-03.** | Recruiter codes were replaced by explicit Auth roles; anonymous resume/company reads and public resume-file reads remain closed. Public signup is disabled. |
+| `resume-submit.sql` | **Superseded.** | The historical browser RPC remains defined for migration compatibility, but anonymous/authenticated execution was revoked by `resume-lockdown.sql`. |
+| `attendance-submit.sql` | **Applied 2026-09-13.** | The shared durable limiter and service-only `submit_attendance()` RPC are live; a rolled-back service probe returned `accepted`. |
+| `attendance-lockdown.sql` | **Applied 2026-09-13.** | Direct anonymous attendance insertion is denied with PostgreSQL `42501`; the protected form succeeded again after lockdown and admin access remained available. |
+| `resume-edge-submit.sql` | **Applied 2026-09-13.** | A live PDF completed upload, private admin view, approval, and deletion; the test row and object were removed afterward. |
+| `resume-lockdown.sql` | **Applied 2026-09-13.** | Anonymous resume metadata insertion has no grant, legacy RPC execution returns `42501`, direct resume-bucket upload is denied by Storage RLS, and no anonymous Storage INSERT policy remains. |
+| `submit-attendance`, `submit-resume`, `submit-sponsor-inquiry` | **Deployed and active 2026-09-13** with `verify_jwt = false`. | Turnstile-protected attendance succeeded; resume lifecycle succeeded; sponsor inquiry reached EmailJS and delivered. Each endpoint performs its own validation, exact-origin handling, action check, and durable limits. |
 
-The last documented anonymous-client verification of that historical live
-baseline was 2026-08-16: `resumes`, `company_access`, and resume Storage returned
-nothing; signed-URL creation and direct resume-row insertion were denied;
-`submit_resume()` rejected a non-OSU email and a path-traversal value; and the
-leaderboard returned only `first_name` and `count`. This is evidence about that
-date, not proof of the current live state.
+The rollout used transaction-wrapped migrations, catalog inventories, controlled
+production smoke tests, and cleanup because the account's Free plan did not
+permit a second Supabase project. A disposable staging project remains preferred
+for future security changes. Network/IP buckets are still defense in depth: the
+gateway's handling of conflicting caller-supplied forwarding headers has not
+been proved in a separate staging environment.
 
-Until the rollout is completed and proved against the live project, assume the
-legacy anonymous attendance write and legacy resume submission/upload routes
-remain reachable. Confirm with the live policy and routine-grant inventories;
-do not infer production state from this repository.
-
-After any rollout, update this table with the exact date and the evidence from
-the post-deploy probes. Do not change `NOT APPLIED` to `Applied` merely because a
-pull request was merged or a frontend was deployed.
-
-## Target public-submission design
+## Current public-submission design
 
 The three browser forms invoke public Edge endpoints. The Edge Functions hold
 the server secret, verify the request, and use only narrowly scoped server-side
@@ -202,11 +191,14 @@ This fallback helps when Supabase is unavailable but the internet still works.
 For a venue-wide network outage, use a paper sheet and apply the same manual
 verification before reconciliation.
 
-## Staged deployment and rollback order
+## Safe redeployment and rollback order
 
-Use a staging Supabase project and a preview deployment first. Take a schema,
-policy, grant, bucket, and relevant-row inventory before changing anything.
-Apply one numbered stage at a time and record its evidence.
+The sequence below is the one used for the completed 2026-09-13 production
+cutover and must be preserved if the boundary is rebuilt. Prefer a staging
+Supabase project and preview deployment first. Take a schema, policy, grant,
+bucket, and relevant-row inventory before changing anything. Apply one numbered
+stage at a time and record its evidence; do not rerun every historical SQL file
+as an unordered bundle.
 
 1. Run the local gates: `npm test`, `npm run check:edge`,
    `npm run lint`, `npm run build`, and `git diff --check`.
@@ -228,7 +220,7 @@ Apply one numbered stage at a time and record its evidence.
    preview origins and Turnstile hostnames. Prepare the EmailJS public-key
    rotation, or private-key enforcement when the account supports it, before
    sponsor cutover.
-6. Deploy all three Edge Functions with the staged `config.toml`. Probe rejected
+6. Deploy all three Edge Functions with the reviewed `config.toml`. Probe rejected
    origin, malformed/oversized body, bad and replayed Turnstile token, exhausted
    rate bucket, provider failure, and one valid request for each function.
    Confirm no sensitive values enter logs.
@@ -246,7 +238,7 @@ Apply one numbered stage at a time and record its evidence.
     metadata insert, and legacy `submit_resume()` denial. Re-probe protected
     upload, private-file access, pending review, approval, and deletion.
 11. Remove temporary preview origins, review EmailJS and rate-limit usage, and
-    update the status table above with dates and probe results.
+    update the production-status table above with dates and probe results.
 
 Before either lockdown, rollback is straightforward: restore the previous
 browser/function deployment and leave the additive SQL in place while the cause
@@ -316,7 +308,7 @@ canonical migration.
 Admins and sponsors are both Supabase Auth users. Access requires an explicit
 claim read by `public.is_admin()` or `public.is_sponsor()`. The claim must live in
 `app_metadata`, which a user cannot rewrite, never `user_metadata`, which they
-can. No sponsor accounts existed at the last documented review. To provision
+can. No sponsor accounts existed as of 2026-09-13. To provision
 one, create and auto-confirm the Auth user, then set the server-controlled claim:
 
 ```sql

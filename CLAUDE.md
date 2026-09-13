@@ -59,8 +59,9 @@ current one. **Click the thing you changed.**
 
 ## Current state
 
-The first list is the verified production baseline on `main`. The second list is
-staged on `security/harden-public-submissions` and **is not deployed yet**.
+This is the verified production baseline as of **2026-09-13**. The protected
+submission rollout is complete in the Supabase project and the matching Vercel
+frontend is live from `main`.
 
 ### Live production baseline
 
@@ -68,8 +69,11 @@ staged on `security/harden-public-submissions` and **is not deployed yet**.
   fetching a real student's PDF anonymously. Recruiters now sign in with real
   Supabase Auth accounts; access is gated on an explicit role claim, not on
   merely being signed in.
-- **Sponsor contact form works**, but production still uses the older direct
-  browser-to-EmailJS route until the staged security rollout below is complete.
+- **Sponsor contact form works through Edge.** The browser no longer contacts
+  EmailJS or contains its provider key. The current EmailJS Free account does
+  not provide a private key, so non-browser API access is enabled, strict/private
+  key mode is off, the public key was rotated during cutover, and the replacement
+  is held only in Supabase Edge secrets.
 - **Resume replacement works**, for the first time. The old client issued an
   `UPDATE` no policy permitted, which under RLS affects zero rows and *returns
   success*, so students saw "Upload Successful" while nothing changed.
@@ -85,10 +89,7 @@ staged on `security/harden-public-submissions` and **is not deployed yet**.
   production visit; localhost is for integration testing, not traffic data.
 - **Sponsors** are Honda, Burns & McDonnell, Lincoln Electric, Whiting-Turner and
   Gresham Smith, grouped by the tiers the chapter actually sells.
-
-### Staged security branch — not applied/deployed
-
-- Attendance, resume upload, and sponsor inquiry now enter through separate
+- **Attendance, resume upload, and sponsor inquiry** enter through separate
   Supabase Edge Functions. Each verifies an action-bound Turnstile token and
   uses service-only RPCs plus HMAC-keyed durable rate limits. The browser no
   longer has a direct attendance/resume write or EmailJS provider route.
@@ -108,15 +109,17 @@ staged on `security/harden-public-submissions` and **is not deployed yet**.
   Vite still targets Safari 14 explicitly. The automated suite covers browser,
   Edge, SQL-contract, and regression behavior, with a separate Edge bundle
   check.
-
-Rollout is deliberately staged. Apply and probe the additive SQL first, set
-Edge-only secrets and exact origins, deploy/test all functions, then switch the
-frontend and immediately apply the lockdown SQL. For sponsor mail, enable
-EmailJS Account → Security → private-key-required in the same release window.
-Do not merge the frontend alone; it would make public forms unavailable.
-The two clients already request ten leaderboard rows; the branch revision of
-`leaderboard-view.sql` also enforces that cap at the public database boundary
-and is not applied until the staged rollout.
+- **The public leaderboard is capped at ten in Postgres**, exposes exactly
+  `first_name` and distinct-event `count`, and cannot be expanded by asking the
+  API for more rows.
+- **The final attendance and resume lockdowns are active.** Anonymous direct
+  attendance writes, resume metadata writes, resume Storage uploads, and the
+  legacy `submit_resume()` RPC are denied. Authenticated admin operations remain
+  available.
+- **Live smoke tests passed.** Attendance succeeded before and after lockdown;
+  sponsor inquiry delivered through EmailJS; and a real resume completed the
+  upload, admin view, approval, and deletion lifecycle. The disposable rows and
+  file were removed afterward.
 
 ## What is open
 
@@ -136,9 +139,10 @@ and is not applied until the staged rollout.
    displace an approved row automatically, but admins must still verify identity
    before approval. Full closure needs OSU SSO or an emailed OTP.
 5. `PublicLeaderboard.jsx` is committed but imported nowhere. Delete or mount.
-6. **The security migrations/functions have not been tested against staging.**
-   Static SQL tests are not a substitute for applying them to a disposable or
-   staging project and probing real RLS, Storage, rate-limit, and IP-header behavior.
+6. **Gateway client-IP provenance is not fully proved.** Network limits are
+   defense in depth until a future staging environment can demonstrate which
+   forwarding header Supabase overwrites and ignores when conflicting values
+   are supplied.
 7. `AdminDashboard.jsx` still contains five tabs in one large file. Splitting it
    remains worthwhile, but is not an emergency.
 
@@ -156,10 +160,11 @@ and is not applied until the staged rollout.
 - **Cloudflare dummy keys are local-only.** Edge rejects the official test
   secrets when `SUPABASE_URL` is hosted. Never work around that check or copy
   `dummy-key-pass` into a deployed hostname allowlist.
-- **EmailJS private authorization is a dashboard switch.** Supplying a private
-  key from Edge is not enough; Account → Security must require it or old public
-  IDs from git/browser caches remain directly usable. Never fix an outage by
-  turning that requirement back off.
+- **EmailJS Free has no private key in this account.** Production therefore has
+  non-browser API access on and private-key/strict mode off. The public key was
+  rotated at cutover, exists only in Edge secrets, and the retired browser key
+  was verified invalid. If EmailJS later exposes private-key enforcement, add
+  the private key and enable strict mode together.
 - **The Google fallback is quarantined.** It is public and independently
   callable. Never auto-import its Sheet; manually validate the canonical event
   and de-duplicate rows. Only an event label may ever be placed in its URL.
@@ -198,7 +203,7 @@ src/
 └── data/events.js bundled fallback when Supabase is unreachable
 supabase/
 ├── functions/     protected attendance, resume, and sponsor Edge handlers
-└── *.sql          applied history + explicitly staged/NOT-APPLIED migrations
+└── *.sql          applied production definitions and historical migrations
 .claude/agents/    three read-only reviewers (see below)
 ```
 

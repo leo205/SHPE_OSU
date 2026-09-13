@@ -1,9 +1,11 @@
 -- ============================================================================
 --  Protected attendance submission — server-only RPC + durable rate limits
 -- ============================================================================
---  STATUS: NOT YET APPLIED.
+--  STATUS: APPLIED TO PRODUCTION 2026-09-13.
 --
---  This is rollout stage 1 of 3. Run this file first. It is additive and leaves
+--  Original rollout stage 1 of 3; prerequisites were satisfied before the
+--  production application. When rebuilding, run this file first. It is
+--  additive and leaves
 --  the current anonymous table INSERT in place so the production form keeps
 --  working while the Edge Function and frontend are deployed.
 --

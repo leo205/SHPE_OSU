@@ -12,13 +12,14 @@ Vite SPA on Vercel backed by Supabase Postgres, Auth, private Storage, and Edge
 Functions. It holds real student PII: names, OSU emails, dot numbers, and resume
 PDFs containing phone numbers and home addresses.
 
-Current branch baseline (reviewed 2026-09-03): public signup is disabled, but
+Current production baseline (reviewed 2026-09-13): public signup is disabled, but
 explicit `app_metadata` roles remain the actual control. Sponsors require
 `role = "sponsor"`; being merely authenticated reaches nothing. No sponsor
 accounts exist yet. Public attendance, resume, and sponsor forms use Supabase
-Edge Functions as their security boundary. Their SQL files are intentionally
-staged and may still say `STATUS: NOT YET APPLIED`, so never describe the branch
-design as the live database state without proving it against staging/live.
+Edge Functions as their security boundary. The additive migrations, leaderboard
+cap, and attendance/resume lockdowns were applied and probed on 2026-09-13.
+Never describe repository state as live database state without proving it against
+the deployed project.
 
 ## The one mistake this codebase keeps making
 
@@ -150,11 +151,12 @@ the relevant directive — but note that `<a href target=_blank>` links are
 top-level navigation and are not governed by `connect-src`, so they are not
 findings.
 
-## Protected-submission rollout audit
+## Protected-submission live-state and redeployment audit
 
-The migration headers are authoritative. Seeing a `.sql` file in Git does not
-mean it was applied. Record the target project and query live catalogs before and
-after every stage. Use a staging/preview environment and a backup first.
+Migration headers record the 2026-09-13 rollout, but seeing a `.sql` file in Git
+still does not prove current live state. Record the target project and query live
+catalogs before and after every future stage. Use a staging/preview environment
+and a backup first.
 
 **Attendance:** apply `supabase/attendance-submit.sql` first (it creates the
 shared service-only limiter and `submit_attendance` while leaving the legacy

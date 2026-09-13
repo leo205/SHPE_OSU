@@ -1,6 +1,6 @@
 # SHPE OSU Website — Engineering Handoff
 
-_Last updated: 2026-09-03_
+_Last updated: 2026-09-13_
 
 Developer documentation for the Digital Operations Chair and anyone maintaining
 the SHPE chapter website at The Ohio State University. Covers architecture,
@@ -11,9 +11,9 @@ database design, the security model, maintenance protocols, and deployment.
 ## 0. Where the site stands today
 
 **Live at https://www.shpeosu.com, deployed from `main` via Vercel.** The
-security changes described as _staged_ below exist only on
-`security/harden-public-submissions`; they have not been applied to Supabase or
-deployed to production.
+protected attendance, resume, and sponsor submission architecture is deployed
+and its additive and final-lockdown migrations were applied to production on
+2026-09-13.
 
 The site is in good working order. A security review in July–August 2026 found
 and closed a set of real problems; the notes below are deliberately blunt about
@@ -24,7 +24,7 @@ what was wrong, because the same mistakes are easy to repeat.
 | Area | What was wrong | State |
 |---|---|---|
 | **Resume book** | Approved resumes (names + OSU emails), recruiter access codes, and the resume PDFs themselves were readable by **anyone**, with no login and no code. Verified by downloading a real 130 KB resume anonymously. | ✅ Closed. Sponsors now sign in; access is enforced by Postgres. |
-| **Sponsor contact form** | Every inquiry had been silently failing. The Content-Security-Policy omitted `api.emailjs.com`, so the browser blocked the request — invisible locally, because those headers only apply on Vercel. | ✅ The original browser path was repaired in production; its protected Edge replacement is staged below. |
+| **Sponsor contact form** | Every inquiry had been silently failing. The Content-Security-Policy omitted `api.emailjs.com`, so the browser blocked the request — invisible locally, because those headers only apply on Vercel. | ✅ Now delivered through a protected Edge Function; the browser has no EmailJS route or provider key. |
 | **Resume replacement** | Never worked. The client issued an `UPDATE` no policy permitted, which under RLS affects zero rows and *returns success* — students saw "Upload Successful" while nothing changed. | ✅ Moved into the database. |
 | **Leaderboard** | The public `leaderboard` view exposed every member's OSU dot number, and the Events page printed them on a public page. Views bypass RLS, so this read straight through the protection on `attendance`. | ✅ View reduced to first name + count. |
 | **Check-in** | Events added through the Admin Dashboard appeared on the calendar but could not be checked into — the check-in form read a different source. | ✅ One shared source. |
@@ -42,22 +42,21 @@ what was wrong, because the same mistakes are easy to repeat.
 | **Sponsor tier buttons** | All four "Get Started" buttons scrolled to a form that always defaulted to Buckeye ($500), so a Platinum enquiry arrived labelled as the cheapest tier. | ✅ Preselects |
 | **Sponsors hero** | A ~16:9 photo in a 4:3 frame; `object-cover` discarded 27% of the width and cut people out of the group shot. | ✅ Matched |
 
-### Security hardening staged on this branch
+### Security hardening live in production
 
-This is the code state under review, **not the current production state**. The
-SQL files say `STATUS: NOT YET APPLIED` intentionally. Follow their order; an
-out-of-order rollout can either break a live form or leave the old anonymous
-endpoint open.
+The coordinated cutover completed on **2026-09-13**. Future changes must retain
+the same order documented in `supabase/README.md`; source files alone never
+prove that the corresponding live policy or function still exists.
 
-| Surface | Staged design | Status |
+| Surface | Production design | Status |
 |---|---|---|
-| **Attendance** | Browser calls `submit-attendance`; Edge verifies Turnstile, validates the canonical event, and invokes a service-only RPC with durable network and identity limits. Direct anonymous table inserts are then revoked. | Code/tests ready; SQL and Edge rollout pending |
-| **Resume upload** | Browser sends one bounded multipart request to `submit-resume`; Edge validates the PDF, reserves a server-generated path, uploads privately, and queues a pending revision. Approval/deletion are atomic admin RPCs. | Code/tests ready; SQL and Edge rollout pending |
-| **Sponsor inquiry** | Browser sends no EmailJS credentials. `submit-sponsor-inquiry` verifies Turnstile and durable quotas, then makes exactly one bounded EmailJS REST attempt with a server-only private key. | Code/tests ready; Edge, secrets, template, and EmailJS account setting pending |
-| **Outage fallback** | The Google Form URL never contains attendee identity, demographics, or feedback. It is offered only after two genuine service failures, never after a validation, verification, or rate-limit rejection. | Code/tests ready; form remains public/untrusted |
+| **Attendance** | Browser calls `submit-attendance`; Edge verifies Turnstile, validates the canonical event, and invokes a service-only RPC with durable network and identity limits. Direct anonymous table inserts are revoked. | ✅ Live; browser submission passed before and after lockdown; direct anon insert denied |
+| **Resume upload** | Browser sends one bounded multipart request to `submit-resume`; Edge validates the PDF, reserves a server-generated path, uploads privately, and queues a pending revision. Approval/deletion are atomic admin RPCs. | ✅ Live; upload/view/approve/delete passed; legacy RPC and direct Storage upload denied |
+| **Sponsor inquiry** | Browser sends no EmailJS credentials. `submit-sponsor-inquiry` verifies Turnstile and durable quotas, then makes exactly one bounded EmailJS REST attempt. | ✅ Live; provider accepted and delivered a website inquiry |
+| **Outage fallback** | The Google Form URL never contains attendee identity, demographics, or feedback. It is offered only after two genuine service failures, never after a validation, verification, or rate-limit rejection. | ✅ Live; form remains public/untrusted |
 | **GroupMe invitation** | The project owner explicitly re-approved the original GroupMe invitation on 2026-09-03. | Exact original link restored on Home, Footer, and the first-attendance success screen; regression contract prevents silent destination drift |
-| **Dependencies** | React Router and Vite were updated without `--force`; the production and full dependency audits are clean. Safari 14 remains an explicit build target. | Code/tests ready |
-| **Public leaderboard** | Both clients request ten rows, and the canonical view now enforces the same top-ten cap so a direct caller cannot enumerate the remaining aggregates. It still exposes only `first_name` and distinct-event `count`. | Client ready; revised view SQL pending |
+| **Dependencies** | React Router and Vite were updated without `--force`; the production and full dependency audits are clean. Safari 14 remains an explicit build target. | ✅ Live |
+| **Public leaderboard** | Both clients request ten rows, and the canonical view enforces the same top-ten cap so a direct caller cannot enumerate the remaining aggregates. It exposes only `first_name` and distinct-event `count`. | ✅ Applied and anonymously verified |
 
 ### What is still open
 
@@ -76,10 +75,10 @@ endpoint open.
     secret, or explicit admin review would be a separate product decision. The
     previously discussed form-lock workflow remains deferred.
 *   **`PublicLeaderboard.jsx`** is committed but imported nowhere. Delete or mount.
-*   **Security rollout.** Apply the staged migrations and Edge Functions in the
-    documented order, test them in staging, and only then deploy the matching
-    frontend and final lockdown. The branch is not a deployable all-at-once SQL
-    bundle; see `supabase/README.md`.
+*   **Gateway IP provenance.** The protected endpoints are live, but network
+    limits remain defense in depth until a future staging environment proves
+    which forwarding header Supabase supplies or overwrites when callers send
+    conflicting values.
 *   **Admin maintainability.** `AdminDashboard.jsx` is still one large five-tab
     file. The heavy admin, company, and professional-development routes are now
     code-split, but the dashboard itself should eventually be divided by tab.
@@ -105,7 +104,7 @@ graph TD
     public reads and authenticated admin/sponsor work. Unauthenticated writes
     for attendance, resumes, and sponsor inquiries cross an Edge Function,
     Turnstile, strict validation, and durable rate limits. The browser never
-    receives the Supabase service role or EmailJS private key.
+    receives the Supabase service role or EmailJS provider credential.
 *   **Non-Coders Can Update Content**: Events are added through the Admin Dashboard into the Supabase `events` table — no code, no deploy. `src/data/events.js` remains as a bundled fallback so the calendar and check-in still work if Supabase is unreachable. Both readers go through `src/lib/events.js`; keep it that way.
 *   **Roles, Not Just Logins**: Admins and sponsors are both Supabase Auth users, so "signed in" is not a permission. Every policy checks an explicit role claim.
 *   **Analytics**: `src/main.jsx` mounts `@vercel/analytics/react` once at the
@@ -122,7 +121,7 @@ graph TD
 
 The live application utilizes five tables/views and one storage bucket in
 Supabase. (`events` and `leaderboard` were added after the original draft of
-this document — see §2.4 and §2.5.) The staged migrations also add the internal,
+this document — see §2.4 and §2.5.) The security migrations also add the internal,
 RLS-locked `public_submission_rate_limits` and
 `resume_submission_reservations` tables. They are service-only implementation
 details, not browser APIs.
@@ -157,8 +156,8 @@ CREATE TABLE resumes (
   graduation_year text NOT NULL,
   resume_path text NOT NULL, -- Format: submissions/timestamp_uuid.pdf
   approved boolean DEFAULT false NOT NULL,
-  submission_id uuid,                  -- staged idempotency key
-  submission_fingerprint text          -- staged SHA-256 request binding
+  submission_id uuid,                  -- idempotency key
+  submission_fingerprint text          -- SHA-256 request binding
 );
 ```
 
@@ -205,18 +204,7 @@ RLS runs per-row inside Postgres and cannot see browser JavaScript, so the polic
 was effectively `USING (true)`. Public. The `sessionStorage` token in
 `CompanyDashboard.jsx` protected nothing.
 
-**What production enforces before this branch is rolled out**
-
-| Table / bucket | anon | sponsor | admin |
-|---|---|---|---|
-| `attendance` | INSERT only (check-in) | — | full |
-| `resumes` | via `submit_resume()` only | approved rows | full |
-| `company_access` | — | — | full |
-| `events` | SELECT | SELECT | full |
-| storage `resumes` | INSERT to `submissions/` | approved files only | full |
-| `leaderboard` view | SELECT (first name + count) | SELECT | SELECT |
-
-**What the staged lockdown enforces after the full rollout**
+**What production enforces after the 2026-09-13 rollout**
 
 | Table / bucket | anon | Edge `service_role` | sponsor | admin |
 |---|---|---|---|---|
@@ -303,13 +291,14 @@ Rename them `⚠️ OLD — DO NOT RUN`.
     `src/lib/companySession.js` no longer exists. Enforcement is in the database.
 
 5.  **Sponsor inquiry delivery**:
-    EmailJS service, template, public, and private credentials exist only in
+    EmailJS service, template, and public credentials exist only in
     Edge secrets. The request schema rejects unknown fields and client-supplied
     routing, and the server makes one timed provider attempt with no automatic
     retry. Ambiguous delivery tells the visitor to email directly instead of
-    risking a duplicate. EmailJS must also be configured to require its private
-    key; putting the key on Edge alone does not disable the historical public
-    browser route.
+    risking a duplicate. This Free EmailJS account does not expose a private
+    key: non-browser API access is enabled, strict/private-key mode is disabled,
+    and the public key rotated at cutover is stored only in Supabase Edge
+    secrets. Enable private-key enforcement if the provider later offers it.
 
 6.  **CSV Injection Prevention**:
     When exporting check-in tables, cells starting with formula triggers (`=`, `+`, `-`, `@`, tab, or carriage returns) are automatically prefixed with a single-quote `'` to mitigate spreadsheet software hijack attacks.
@@ -421,13 +410,15 @@ talks to EmailJS. Configure its secrets from `supabase/functions/.env.example`.
 Do not create `VITE_EMAILJS_*` variables or add `api.emailjs.com` to browser
 `connect-src`.
 
-Before rollout:
+Current production configuration:
 
-1. Set the real EmailJS service, template, public, and private keys in Edge
-   secrets. Never deploy the example Turnstile secret or `dummy-key-pass` host.
-2. In EmailJS **Account → Security**, require the private key. Sending an
-   `accessToken` from Edge is insufficient while the historical public-key-only
-   route remains enabled.
+1. The EmailJS service ID, template ID, and rotated public key are Supabase Edge
+   secrets. The current Free plan does not expose a private key. Never put these
+   values in Vite or deploy the example Turnstile secret/`dummy-key-pass` host.
+2. In EmailJS **Account → Security**, non-browser API access is enabled and
+   **Use Private Key** is disabled because no private key exists on this plan.
+   If the feature becomes available, add `EMAILJS_PRIVATE_KEY` to Edge and turn
+   strict mode on in the same maintenance window.
 3. Keep recipient, sender, and subject fixed in the provider template. Render
    visitor values with escaped double braces, not raw triple braces; include the
    generated `inquiry_id` in the admin-visible message so an ambiguous delivery
@@ -587,8 +578,8 @@ split is exactly the kind that produces a silent failure at a live meeting.
 
 ### 2.5 `leaderboard` (view)
 Read by `Events.jsx` and `PublicLeaderboard.jsx`. The two-column privacy revision
-of `supabase/leaderboard-view.sql` was applied 2026-07-30; the current branch's
-database-level top-ten cap is not applied yet. The view exposes exactly
+of `supabase/leaderboard-view.sql` was applied 2026-07-30, and the database-level
+top-ten cap was applied and anonymously verified 2026-09-13. The view exposes exactly
 `first_name` and a **distinct-event** `count`. It previously also returned
 `last_name_dotnum` and `dotnum`, which were rendered onto a public page. Do not
 add columns: the view runs with owner privileges and bypasses RLS on
@@ -632,10 +623,11 @@ The app lazily loads the admin dashboard, recruiter dashboard, and
 professional-development page. Preserve that boundary and investigate the
 build output if a change collapses them back into one eager bundle.
 
-### Protected-submission release order
+### Protected-submission redeployment order
 
 The authoritative command-by-command checklist is in `supabase/README.md`.
-At a high level:
+The production cutover completed on 2026-09-13. Preserve this order if rebuilding
+or materially changing the boundary:
 
 1. Back up/inventory production and rehearse on staging. Prove the gateway IP
    behavior, exact origins/hostnames, real Turnstile, and EmailJS template.
@@ -645,9 +637,10 @@ At a high level:
 4. Deploy the matching frontend, verify all three forms, then immediately apply
    `attendance-lockdown.sql` and `resume-lockdown.sql` so the legacy anonymous
    paths are gone.
-5. Require EmailJS private-key authentication and prove the historical public
-   IDs fail without it. Never weaken that setting as a rollback; roll the
-   frontend/Edge deployment back while keeping the safer provider boundary.
+5. Rotate the EmailJS public key and prove the historical key fails. On the
+   current Free plan, keep non-browser API access enabled and strict/private-key
+   mode disabled; if EmailJS later provides a private key, enable and verify it
+   as an additional control.
 6. Re-run anonymous-denial, admin/sponsor authorization, duplicate/idempotency,
    leaderboard-shape, Storage, rate-limit, and provider probes before merging
    or declaring production complete.

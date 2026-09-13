@@ -1,9 +1,10 @@
 -- ============================================================================
 --  Protected resume submissions — reservation, private upload, pending queue
 -- ============================================================================
---  STATUS: NOT YET APPLIED.
+--  STATUS: APPLIED TO PRODUCTION 2026-09-13.
 --
---  Rollout stage 1 of 3. Apply AFTER attendance-submit.sql (which creates the
+--  Original rollout stage 1 of 3; prerequisites were satisfied before the
+--  production application. Apply AFTER attendance-submit.sql (which creates the
 --  shared service-only rate limiter). This migration is additive: the current
 --  browser upload remains functional until submit-resume and its frontend are
 --  deployed. Apply resume-lockdown.sql immediately after that smoke test.

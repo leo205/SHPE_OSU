@@ -1,9 +1,10 @@
 -- ============================================================================
 --  Protected attendance submission — final direct-write lockdown
 -- ============================================================================
---  STATUS: NOT YET APPLIED.
+--  STATUS: APPLIED TO PRODUCTION 2026-09-13.
 --
---  RUN ONLY AFTER all of the following are true:
+--  Original rollout prerequisites (satisfied 2026-09-13). RUN ONLY AFTER all
+--  of the following are true when rebuilding:
 --    1. supabase/attendance-submit.sql is applied;
 --    2. submit-attendance Edge Function is deployed with its secrets;
 --    3. the production browser is verified calling that Edge Function only.

@@ -13,7 +13,7 @@ TypeScript, no PropTypes (`react/prop-types` is deliberately disabled in
 `.eslintrc.cjs`; do not suggest re-enabling it without a real typing strategy).
 The Edge Functions and their shared modules are TypeScript.
 
-Current branch baseline (reviewed 2026-09-03): events are shared through
+Current production baseline (reviewed 2026-09-13): events are shared through
 `src/lib/events.js`; the static list is an intentional outage fallback. The
 admin, recruiter-dashboard, and professional-development routes are lazy-loaded.
 The attendance form no longer collects pronouns, though the historical database
@@ -31,9 +31,9 @@ enforce `public.is_admin()` in Postgres. Never replace that flow with an
 anonymous table/Storage write, a browser-only throttle, or direct browser
 EmailJS traffic.
 
-The SQL files for that architecture may still say `STATUS: NOT YET APPLIED`.
-Source code is not evidence that a migration or Edge Function is live. Treat the
-staged rollout order in those file headers as part of the implementation, and
+The canonical SQL files record a production application date of 2026-09-13.
+Source code is not evidence that a migration or Edge Function remains live.
+Treat the redeployment order in those file headers as part of the implementation, and
 flag any change that could leave the old anonymous path open or take the live
 form down between stages.
 

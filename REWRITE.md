@@ -3,10 +3,10 @@
 _Written 2026-08-03, against the codebase as it stood after the July–August
 security work._
 
-_Status reviewed 2026-09-03. Phase 0's Vitest safety net is complete on
-`security/harden-public-submissions`; the architectural rewrite has not started.
-Protected public-write Edge paths were built independently and must be
-preserved. Their SQL/Edge rollout is staged, not applied or deployed._
+_Status reviewed 2026-09-13. Phase 0's Vitest safety net is complete; the
+architectural rewrite has not started. Protected public-write Edge paths were
+built independently, deployed to production, smoke-tested, and locked down.
+They must be preserved._
 
 This is the working document for rebuilding the site on a hexagonal
 (ports-and-adapters) architecture. It is written to be handed to someone starting
@@ -430,7 +430,7 @@ an event date, build the string from `getFullYear()/getMonth()/getDate()`.
 ### 6.5 Database schema
 
 Tables: `attendance`, `resumes`, `company_access` (vestigial), `events`,
-`leaderboard` (view), plus staged internal
+`leaderboard` (view), plus internal
 `public_submission_rate_limits`/`resume_submission_reservations`. Full schema
 and rollout state are in `HANDOFF.md` §2 and `supabase/README.md`. Do not change
 these security migrations as an incidental part of the architecture rewrite.
@@ -456,8 +456,11 @@ these security migrations as an incidental part of the architecture rewrite.
 - Resume submission reserves a server path before Storage and queues a pending
   revision. Admin approve/delete are atomic RPCs; a browser update returning no
   error but zero rows is not success.
-- EmailJS credentials/routing are Edge-only, one delivery attempt is made, and
-  the provider account must require its private key.
+- EmailJS credentials/routing are Edge-only and one delivery attempt is made.
+  The current Free account has no private key: non-browser API access is on,
+  strict/private-key mode is off, and the key rotated at cutover is held only
+  in Edge secrets. Enable private-key enforcement if the provider later makes it
+  available.
 - The Google fallback URL contains no attendee identity and its Sheet is
   unauthenticated quarantine, never an automatic source for metrics.
 
@@ -541,5 +544,5 @@ Phases 1–3. Real benefit, real cost, no urgency.
 **Skip unless it's actually a problem:** Phase 5.
 
 Do the rewrite because a well-separated codebase is easier to hand to the next
-Digital Operations Chair—not as a reason to bypass or redesign the staged
-security boundary. Complete and verify that rollout independently first.
+Digital Operations Chair—not as a reason to bypass or redesign the deployed
+security boundary. Verify that boundary after every affected phase.

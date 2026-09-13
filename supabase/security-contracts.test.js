@@ -78,11 +78,16 @@ describe('public submission SQL security contracts', () => {
     );
   });
 
-  it('removes direct resume metadata, Storage, and legacy upsert access', () => {
+  it('removes direct resume metadata, bucket upload policy, and legacy upsert access', () => {
     const lockdown = sql('./resume-lockdown.sql');
 
     expect(lockdown).toContain('REVOKE INSERT ON TABLE public.resumes FROM anon;');
-    expect(lockdown).toContain('REVOKE INSERT ON TABLE storage.objects FROM anon;');
+    expect(lockdown).toContain(
+      'DROP POLICY IF EXISTS "resumes bucket public upload" ON storage.objects;',
+    );
+    expect(lockdown).toContain("AND cmd IN ('INSERT', 'ALL')");
+    expect(lockdown).toContain("roles @> ARRAY['anon']::name[]");
+    expect(lockdown).not.toContain('REVOKE INSERT ON TABLE storage.objects FROM anon;');
     expect(lockdown).toContain(
       'REVOKE ALL ON FUNCTION public.submit_resume(text, text, text, text, text)',
     );
