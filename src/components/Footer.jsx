@@ -80,6 +80,7 @@ export default function Footer() {
           >
             <span className="material-symbols-outlined text-xl">chat</span>
           </a>
+
         </div>
       </div>
     </footer>

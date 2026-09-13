@@ -1,10 +1,12 @@
 # SHPE OSU Website — Rewrite Plan
 
-_Written 2026-08-03, against the codebase as it stands after the July–August
+_Written 2026-08-03, against the codebase as it stood after the July–August
 security work._
 
-_Status reviewed 2026-08-30. The rewrite phases have not started. Route-level
-code splitting was completed independently and should be preserved._
+_Status reviewed 2026-09-03. Phase 0's Vitest safety net is complete on
+`security/harden-public-submissions`; the architectural rewrite has not started.
+Protected public-write Edge paths were built independently and must be
+preserved. Their SQL/Edge rollout is staged, not applied or deployed._
 
 This is the working document for rebuilding the site on a hexagonal
 (ports-and-adapters) architecture. It is written to be handed to someone starting
@@ -28,13 +30,14 @@ the old code keeps running until the new path is proven.
 
 ### Is this worth doing at all?
 
-Honestly: the site works today. Nothing here is urgent. Do it if you want the
-codebase to be teachable and survivable across E-Board turnover — those are good
-reasons. Don't do it because the current code is "bad." It isn't; it's just
-arranged so that every page talks directly to the database.
+The presentation layer works today. Do this rewrite if you want the codebase to
+be teachable and survivable across E-Board turnover — those are good reasons.
+Do not use it to redesign the protected submission boundary. Attendance, resume,
+and sponsor public writes now intentionally go through Edge Functions, not
+directly from pages to the database or email provider.
 
-The one measurable argument: **Supabase calls are spread across 9 files, 15 of
-them in `AdminDashboard.jsx` alone.** That is the coupling this fixes.
+The measurable problem remains concentrated coupling: Supabase calls are spread
+through pages, especially `AdminDashboard.jsx`. That is what this plan fixes.
 
 ### The single most important thing in this document
 
@@ -65,40 +68,28 @@ that look fine until someone runs a report. Read it before you write any code.
 | `/admin/resumes` | redirect → `/admin?tab=resume` | admin |
 | `*` | falls through to Home | — |
 
-### File sizes — where the weight is
+### Where the weight is
 
-```
-1741  pages/AdminDashboard.jsx     ← 5 tabs, 15 Supabase calls, still the main split target
- 648  pages/Events.jsx
- 678  pages/Sponsors.jsx
- 653  pages/ProfessionalDevelopment.jsx
- 599  pages/Attendance.jsx
- 412  pages/Eboard.jsx
- 379  pages/ResumeUpload.jsx
- 373  pages/Home.jsx
- 259  pages/Resources.jsx
- 257  components/PublicLeaderboard.jsx   ← imported nowhere; dead
-```
+`pages/AdminDashboard.jsx` still contains five tabs and remains the main split
+target. `components/PublicLeaderboard.jsx` remains imported nowhere. Re-measure
+with `wc -l`/the production bundle before using file or chunk sizes to make a
+decision; the old point-in-time numbers were removed because they drifted.
 
-### Every data operation in the app
+### Data-operation boundary
 
-This is the complete surface the new architecture has to cover:
-
-```
-10 .from('resumes')          7  .from('events')
-4  auth.signOut()            3  storage.from('resumes')
-3  auth.getSession()         4  .from('attendance')
-2  auth.signInWithPassword() 2  auth.onAuthStateChange()
-2  .from('leaderboard')      2  .from('company_access')   ← vestigial
-1  auth.updateUser()         1  .rpc('submit_resume')
-```
-
-Twelve distinct operations. That is the whole job — it is smaller than it feels.
+Inventory the exact operations with `rg` before each rewrite phase. The browser
+currently contains public reads, authenticated admin/sponsor operations, and
+three protected Edge invocations. The three public submission paths are
+security boundaries, not ordinary repositories: preserve the named Edge
+Functions and never reintroduce direct anonymous table/Storage writes or
+browser-side EmailJS.
 
 ### External services
 
 - **Supabase** — Postgres, Auth, Storage
-- **EmailJS** — sponsor contact form only
+- **Cloudflare Turnstile** — action-bound automation challenge for public writes
+- **Supabase Edge Functions** — protected attendance, resume, and sponsor writes
+- **EmailJS REST API** — sponsor email provider, called only from Edge
 - **Vercel Web Analytics** — root-mounted React component for page views
 - **Recharts** — admin analytics
 - **lucide-react** + Material Symbols — icons
@@ -132,10 +123,16 @@ Supabase exists.**
 ┌───────────────────────▼─────────────────────────────────┐
 │  Infrastructure                                          │
 │  SupabaseResumeRepository · SupabaseEventRepository      │
-│  EmailJsNotifier · SupabaseAuthGateway                   │
-│  The ONLY files that import @supabase/supabase-js.       │
+│  EdgeAttendanceGateway · EdgeResumeGateway               │
+│  EdgeSponsorInquiryGateway · SupabaseAuthGateway         │
+│  Browser adapters hold no service/provider secrets.      │
 └─────────────────────────────────────────────────────────┘
 ```
+
+The Edge Functions form a second composition boundary. Turnstile verification,
+service-role RPCs/private Storage access, durable rate limits, and EmailJS REST
+delivery stay server-side in `supabase/functions/`. A clean browser port must
+not collapse that boundary by wrapping a direct anonymous write.
 
 ### The test that tells you it's working
 
@@ -160,6 +157,8 @@ src/
 │   ├── attendance/
 │   │   ├── CheckIn.js
 │   │   └── major.js               # "Other – x" formatting (§6.2)
+│   ├── sponsor/
+│   │   └── SponsorInquiry.js       # strict client shape; no provider routing
 │   └── shared/
 │       └── localDate.js           # local calendar date, NEVER toISOString (§6.4)
 │
@@ -170,7 +169,7 @@ src/
 │   │   ├── AttendanceRepository.js
 │   │   ├── FileStore.js
 │   │   ├── AuthGateway.js
-│   │   └── Notifier.js
+│   │   └── SponsorInquiryGateway.js
 │   └── usecases/
 │       ├── submitResume.js
 │       ├── recordCheckIn.js
@@ -186,7 +185,10 @@ src/
 │   │   ├── SupabaseAttendanceRepository.js
 │   │   ├── SupabaseFileStore.js
 │   │   └── SupabaseAuthGateway.js
-│   ├── emailjs/EmailJsNotifier.js
+│   ├── edge/
+│   │   ├── EdgeAttendanceGateway.js
+│   │   ├── EdgeResumeGateway.js
+│   │   └── EdgeSponsorInquiryGateway.js
 │   └── static/StaticEventRepository.js   # the bundled fallback
 │
 ├── ui/
@@ -210,14 +212,18 @@ const deps = {
   attendance: new SupabaseAttendanceRepository(supabase),
   files:      new SupabaseFileStore(supabase),
   auth:       new SupabaseAuthGateway(supabase),
-  notifier:   new EmailJsNotifier(EMAILJS_CONFIG),
+  checkIns:   new EdgeAttendanceGateway(supabase.functions),
+  uploads:    new EdgeResumeGateway(supabase.functions),
+  inquiries:  new EdgeSponsorInquiryGateway(supabase.functions),
 };
 
 <DependencyProvider value={deps}><App /></DependencyProvider>
 ```
 
 Tests pass in-memory fakes instead. That is the entire payoff: **you can test the
-whole application layer with no database and no network.**
+whole application layer with no database and no network.** Server provider IDs,
+private keys, rate-limit HMAC material, and the Supabase service role never
+appear in this browser composition root.
 
 ---
 
@@ -256,14 +262,15 @@ whole application layer with no database and no network.**
 Each phase ends with a working, deployable site. **Never have both old and new
 paths live for the same feature.**
 
-### Phase 0 — Set up the safety net (do this first, do not skip)
+### Phase 0 — Set up the safety net (completed on the security branch)
 
 Nothing else in this plan is safe without it.
 
-1. `npm i -D vitest` and add `"test": "vitest run"`.
-2. Write the tests in §5 **against the current code**, before moving anything.
-   They must pass on today's codebase.
-3. Add `npm test` to your pre-push routine alongside lint and build.
+1. `vitest` and the `npm test` script are installed.
+2. The original regressions plus protected-submission, fallback-privacy, Edge,
+   and static security-contract tests are present.
+3. The pre-push routine is now `npm test`, lint, `check:edge`, production/full
+   audits, build, and a clicked production-header preview.
 
 Rationale: these tests encode bugs that already shipped to production once. They
 are the specification. If the rewrite passes them, it preserves the fixes; if you
@@ -294,10 +301,13 @@ before doing the other four.**
 
 In this order, easiest first:
 
-1. **Attendance** — one insert, one view read
+1. **Attendance** — protected Edge gateway + one view read; never restore a
+   browser `attendance.insert()` path
 2. **Auth** — session + role checks (`AuthGateway`)
-3. **Resumes** — the RPC, file upload, signed URLs
-4. **Sponsor inquiry** — EmailJS behind `Notifier`
+3. **Resumes** — protected Edge gateway for public submission; authenticated
+   repository/RPCs and signed URLs for admin/sponsor work
+4. **Sponsor inquiry** — Edge inquiry gateway; EmailJS remains an Edge-only
+   provider adapter, never a browser `Notifier`
 
 ### Phase 4 — Split AdminDashboard
 
@@ -362,11 +372,10 @@ Every one of these is a bug that reached production. They are not hypothetical.
 ### Application — use cases (with in-memory fakes)
 
 ```
-✓ submitResume uploads the file BEFORE touching the existing record
-    Regression: old code deleted the student's file and row first, so any
-    later failure destroyed their resume.
-✓ submitResume rolls back the upload if the DB write fails
-✓ submitResume on an existing email replaces, does not duplicate
+✓ submitResume sends one bounded multipart request to the Edge gateway
+✓ an exact retry keeps its UUID; editing the draft rotates it
+✓ a claimed email queues a pending revision without de-listing its approved row
+✓ attendance/sponsor/resume never fall back to a direct anonymous write
 ✓ recordCheckIn rejects an event not in the current list
 ✓ listResumeBook returns only approved resumes
 ✓ every use case surfaces errors — none may fail silently
@@ -405,11 +414,12 @@ One shared formatter, both writers.
 ### 6.3 The resume storage path
 
 ```
-submissions/${Date.now()}_${crypto.randomUUID()}.pdf
+submissions/<13-digit server timestamp>_<UUID>.pdf
 ```
 
-Pinned server-side by `submit_resume()` (regex `^submissions/[A-Za-z0-9_.-]+\.pdf$`).
-Change the client format and every upload is rejected by the database.
+The reservation RPC generates and pins this exact shape server-side. The browser
+supplies an idempotency UUID and draft-start time, but it never chooses an object
+path. Do not move path construction back to the client.
 
 ### 6.4 Local dates, never `toISOString()`
 
@@ -420,8 +430,10 @@ an event date, build the string from `getFullYear()/getMonth()/getDate()`.
 ### 6.5 Database schema
 
 Tables: `attendance`, `resumes`, `company_access` (vestigial), `events`,
-`leaderboard` (view). Full schema in `HANDOFF.md` §2. The rewrite should not
-change the schema — that is a separate, riskier project.
+`leaderboard` (view), plus staged internal
+`public_submission_rate_limits`/`resume_submission_reservations`. Full schema
+and rollout state are in `HANDOFF.md` §2 and `supabase/README.md`. Do not change
+these security migrations as an incidental part of the architecture rewrite.
 
 ### 6.6 The security model
 
@@ -435,10 +447,19 @@ change the schema — that is a separate, riskier project.
 - Roles live in **`app_metadata`, never `user_metadata`** — users can rewrite
   their own `user_metadata` from the browser console.
 - The `leaderboard` view runs with owner privileges and **bypasses RLS by
-  design**. Any column added to it becomes public with no policy change to
-  review.
-- Resume submission goes through `submit_resume()`, which validates server-side.
-  The client check is a convenience; it is bypassable.
+  design**. It exposes only the top ten `first_name`/distinct-event `count`
+  rows; any column added to it becomes public with no policy change to review.
+- Attendance, resume, and sponsor submissions go through their named Edge
+  Functions. Turnstile is action-bound; validation is repeated server-side;
+  HMAC-keyed limits are durable; internal functions are executable only by
+  `service_role`; final lockdown removes the legacy anonymous paths.
+- Resume submission reserves a server path before Storage and queues a pending
+  revision. Admin approve/delete are atomic RPCs; a browser update returning no
+  error but zero rows is not success.
+- EmailJS credentials/routing are Edge-only, one delivery attempt is made, and
+  the provider account must require its private key.
+- The Google fallback URL contains no attendee identity and its Sheet is
+  unauthenticated quarantine, never an automatic source for metrics.
 
 ---
 
@@ -454,9 +475,10 @@ by anyone. In the new architecture the temptation is worse, because a clean
 `ResumeRepository` *looks* like a boundary. It is not. RLS is.
 
 **`vercel.json` headers only apply on Vercel.** A missing `connect-src` entry
-killed every sponsor inquiry for an unknown period while everything looked fine
-locally. Keep `vite.config.js` mirroring those headers onto `npm run preview`,
-and test the contact form there.
+once killed every sponsor inquiry while everything looked fine locally. Keep
+`vite.config.js` mirroring those headers onto `npm run preview`, and test there.
+EmailJS is now server-side, so `api.emailjs.com` must not be restored to the
+browser CSP.
 
 **Lint and build catch less than you think.** Both passed while the sponsor form
 was completely broken, while calendar exports emitted 2 AM events, and while
@@ -468,17 +490,21 @@ twelve data operations. If a port has one implementation and always will, it can
 be a plain function. The goal is that pages don't know about SQL — not maximum
 indirection.
 
-**Keep the fallback behaviour.** Check-in options are seeded synchronously from a
+**Keep the event fallback behaviour.** Check-in options are seeded synchronously from a
 bundled list because the Supabase client has no timeout, and gating the dropdown
 on a completed round-trip meant one stalled request left every phone in a
 basement lecture hall unable to check in. Preserve that in `listEvents`.
+
+**Do not confuse the event fallback with the Google Form outage link.** The
+latter appears only after two service failures, carries no attendee data in its
+URL, and produces quarantined/untrusted rows for manual review.
 
 ---
 
 ## 8. Suggested order of work
 
 ```
-[ ] Phase 0  Vitest + write §5 tests against CURRENT code
+[x] Phase 0  Vitest + regression/security tests
 [ ] Phase 1  Move lib/ → domain/, strip I/O
 [ ] Phase 2  Events slice: port, two adapters, use case, hook
 [ ]          ↑ STOP. Does the shape feel right? Fix it here.
@@ -492,7 +518,8 @@ Do it between semesters, not during recruiting season. **Always work on a branch
 unless the project owner explicitly authorizes work on `main`.** Each phase is a
 separate branch, and `npm test && npm run lint && npm run build` must pass before
 it merges. Use `npm run dev` at <http://localhost:5173> for UI review and
-`npm run preview` (normally <http://localhost:4173>) for production-header checks.
+`npm run preview` (normally <http://localhost:4173>) for production-header
+checks. Also run `npm run check:edge`, `npm audit --omit=dev`, and `npm audit`.
 
 Run the `security-auditor` agent after Phase 3 — that is where the auth and
 resume slices land, and it has already caught holes in work that had been
@@ -502,14 +529,17 @@ reviewed by hand.
 
 ## 9. Honest assessment
 
-**Worth doing:** Phase 0 (tests) and Phase 4 (splitting AdminDashboard). Those
-pay for themselves immediately regardless of architecture.
+**Already done:** Phase 0. Keep expanding the tests when a production bug is
+found.
+
+**Worth doing:** Phase 4 (splitting `AdminDashboard.jsx`). It pays for itself
+regardless of architecture.
 
 **Worth doing if you want to learn the pattern, or if turnover keeps hurting:**
 Phases 1–3. Real benefit, real cost, no urgency.
 
 **Skip unless it's actually a problem:** Phase 5.
 
-The current site is not in trouble. Do this because a well-separated codebase is
-easier to hand to the next Digital Operations Chair — that is a real problem for
-a student org, and it is the best reason on this list.
+Do the rewrite because a well-separated codebase is easier to hand to the next
+Digital Operations Chair—not as a reason to bypass or redesign the staged
+security boundary. Complete and verify that rollout independently first.
