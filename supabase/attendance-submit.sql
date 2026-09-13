@@ -130,9 +130,12 @@ DECLARE
   v_first_name text := pg_catalog.btrim(p_first_name);
   v_last_name_dotnum text := pg_catalog.btrim(p_last_name_dotnum);
   v_year text := pg_catalog.btrim(p_year);
-  v_feedback text := pg_catalog.nullif(pg_catalog.btrim(p_feedback), '');
-  v_major text := pg_catalog.nullif(pg_catalog.btrim(p_major), '');
-  v_how_heard text := pg_catalog.nullif(pg_catalog.btrim(p_how_heard), '');
+  -- NULLIF is SQL syntax rather than a pg_catalog function, so it must not be
+  -- schema-qualified. Qualifying it makes every otherwise-valid submission
+  -- fail when this block initializes after Turnstile verification.
+  v_feedback text := NULLIF(pg_catalog.btrim(p_feedback), '');
+  v_major text := NULLIF(pg_catalog.btrim(p_major), '');
+  v_how_heard text := NULLIF(pg_catalog.btrim(p_how_heard), '');
   v_network_allowed boolean;
   v_identity_allowed boolean;
 BEGIN
@@ -162,7 +165,7 @@ BEGIN
      OR pg_catalog.length(v_first_name) > 100
      OR pg_catalog.length(v_last_name_dotnum) > 100
      OR pg_catalog.length(v_year) > 40
-     OR pg_catalog.length(pg_catalog.coalesce(v_feedback, '')) > 2000
+     OR pg_catalog.length(COALESCE(v_feedback, '')) > 2000
      OR v_year <> ALL (ARRAY[
        '1st Year',
        '2nd Year',
@@ -274,9 +277,9 @@ BEGIN
   -- Preserve the production contract exactly: M/D - title, with no leading
   -- zero and no locale/UTC conversion.
   v_event_name := (
-    EXTRACT(month FROM v_event_date)::pg_catalog.integer::pg_catalog.text
+    EXTRACT(month FROM v_event_date)::pg_catalog.int4::pg_catalog.text
     || '/'
-    || EXTRACT(day FROM v_event_date)::pg_catalog.integer::pg_catalog.text
+    || EXTRACT(day FROM v_event_date)::pg_catalog.int4::pg_catalog.text
     || ' - '
     || v_event_title
   );
