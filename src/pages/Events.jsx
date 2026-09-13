@@ -3,6 +3,7 @@ import { categoryColors } from '../data/events';
 import { supabase } from '../lib/supabase';
 import { buildGoogleCalendarUrl, downloadICS } from '../lib/calendar';
 import { fetchEvents, mergeEvents, localDateString } from '../lib/events';
+import { publicLeaderboardName } from '../lib/leaderboard';
 
 /* ── Calendar helpers ──────────────────────────────────────── */
 function getDaysInMonth(year, month) {
@@ -256,23 +257,26 @@ export default function Events() {
 
   useEffect(() => {
     const fetchMembers = async () => {
-      // Only first_name and count — the view no longer exposes dot numbers,
-      // which were publicly readable through it even though the underlying
-      // `attendance` table is locked down.
+      // `last_initial` is derived inside the owner view. The stored surname and
+      // dot number never cross the public database boundary.
       const { data, error } = await supabase
         .from('leaderboard')
-        .select('first_name, count')
+        .select('first_name, last_initial, count')
         .order('count', { ascending: false })
         // Secondary sort: Postgres gives no ordering guarantee among ties, so
         // without this the top 10 reshuffles on every reload.
         .order('first_name', { ascending: true })
+        .order('last_initial', { ascending: true })
         // Keep a poisoned or unexpectedly large aggregate from turning the
         // public Events page into an unbounded download/render. This is UI
         // containment; the protected submission path is the integrity control.
         .limit(10);
 
       if (!error && data) {
-        setMembers(data.map(r => ({ firstName: r.first_name, count: r.count })));
+        setMembers(data.map(r => ({
+          displayName: publicLeaderboardName(r.first_name, r.last_initial),
+          count: r.count,
+        })));
       } else if (error) {
         console.error('[Events] Error fetching leaderboard view:', error);
       }
@@ -533,13 +537,10 @@ export default function Events() {
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {members?.map((m, index) => (
-                      <tr key={`${index}-${m.firstName}`} className="hover:bg-white/40 transition-colors">
+                      <tr key={`${index}-${m.displayName}`} className="hover:bg-white/40 transition-colors">
                         <td className="p-4 text-gray-800 font-medium whitespace-nowrap">
                           <span className="mr-3 text-gray-400">{index + 1}.</span>
-                          {/* First name only — this table used to print
-                              last_name_dotnum, publishing every member's OSU
-                              dot number on a public page. */}
-                          {m.firstName}
+                          {m.displayName}
                         </td>
                         <td className="p-4 text-right font-mono text-[#f26534] font-bold text-lg">
                           {m.count}

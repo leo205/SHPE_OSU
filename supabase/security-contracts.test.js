@@ -24,8 +24,18 @@ describe('public submission SQL security contracts', () => {
   it('caps the public leaderboard at ten rows inside the database view', () => {
     const leaderboard = sql('./leaderboard-view.sql');
 
-    expect(leaderboard).toMatch(/SELECT ranked\.first_name, ranked\.count[\s\S]*LIMIT 10;/);
+    expect(leaderboard).toMatch(
+      /SELECT ranked\.first_name,[\s\S]*AS last_initial,[\s\S]*ranked\.count[\s\S]*LIMIT 10;/,
+    );
     expect(leaderboard).not.toMatch(/SELECT ranked\.\*/);
+    expect(leaderboard).not.toMatch(/SELECT ranked\.first_name,\s*ranked\.member_key/);
+    expect(leaderboard).toContain(
+      'REVOKE ALL ON public.leaderboard FROM PUBLIC, anon, authenticated;',
+    );
+    expect(leaderboard).toContain(
+      'GRANT SELECT ON public.leaderboard TO anon, authenticated;',
+    );
+    expect(leaderboard).toMatch(/BEGIN;[\s\S]*DROP VIEW[\s\S]*COMMIT;/);
   });
 
   it('keeps EmailJS credentials and traffic out of the browser bundle', () => {

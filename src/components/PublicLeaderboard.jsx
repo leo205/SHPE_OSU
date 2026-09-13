@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { supabase } from '../lib/supabase';
+import { publicLeaderboardName } from '../lib/leaderboard';
 
 /**
  * PublicLeaderboard
@@ -14,8 +15,8 @@ import { supabase } from '../lib/supabase';
  *                                   dynamic changes without interrupting the user.
  *  4.1.2  Name, Role, Value       — Icons are aria-hidden; no interactive element lacks a label.
  *
- * Data source: the public `leaderboard` view, which exposes only a first name
- * and a distinct-event count.
+ * Data source: the public `leaderboard` view, which exposes only a first name,
+ * one derived surname initial, and a distinct-event count.
  *
  * This deliberately does NOT read the `attendance` table. That table has no
  * public SELECT policy — it holds dot numbers, pronouns, majors and free-text
@@ -46,11 +47,12 @@ export default function PublicLeaderboard() {
 
       const { data, error: dbErr } = await supabase
         .from('leaderboard')
-        .select('first_name, count')
+        .select('first_name, last_initial, count')
         .order('count', { ascending: false })
         // Secondary sort: Postgres gives no ordering guarantee among ties, so
         // without this a different subset appears in the top 10 each reload.
         .order('first_name', { ascending: true })
+        .order('last_initial', { ascending: true })
         .limit(10);
 
       if (cancelled) return;
@@ -63,7 +65,10 @@ export default function PublicLeaderboard() {
       }
 
       setLeaders(
-        (data ?? []).map((r) => ({ firstName: r.first_name, count: r.count }))
+        (data ?? []).map((r) => ({
+          displayName: publicLeaderboardName(r.first_name, r.last_initial),
+          count: r.count,
+        }))
       );
       setLoading(false);
     }
@@ -167,7 +172,7 @@ export default function PublicLeaderboard() {
                       <tr
                         // Rank is the stable identity here — the view no longer
                         // returns a dot number to key on, by design.
-                        key={`${idx}-${member.firstName}`}
+                        key={`${idx}-${member.displayName}`}
                         className={`hover:bg-surface-container-low transition-colors ${idx === 0 ? 'bg-tertiary-container/20' : ''}`}
                       >
                         {/* WCAG 1.3.1: scope="row" on the rank cell makes each
@@ -178,8 +183,7 @@ export default function PublicLeaderboard() {
                           </span>
                         </th>
                         <td className="px-6 py-4 font-medium text-on-surface">
-                          {member.firstName}
-                          {/* Only show first name publicly — dot# is considered private */}
+                          {member.displayName}
                         </td>
                         <td className="px-6 py-4">
                           <span className="inline-flex items-center gap-1.5">
@@ -234,7 +238,7 @@ export default function PublicLeaderboard() {
 
                 <div className="relative z-10 mt-2">
                   <p className="font-headline text-5xl font-black leading-none mb-1">
-                    {memberOfMonth.firstName}
+                    {memberOfMonth.displayName}
                   </p>
                   <p className="text-on-primary/80 text-sm font-medium">
                     {memberOfMonth.count} {memberOfMonth.count === 1 ? 'event' : 'events'} attended this semester

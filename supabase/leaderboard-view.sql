@@ -2,11 +2,12 @@
 --  Fix the public `leaderboard` view
 -- ============================================================================
 --  STATUS: APPLIED TO PRODUCTION 2026-09-13.
---  The two-column privacy fix was applied to production 2026-07-30 and verified
+--  The original two-column privacy fix was applied to production 2026-07-30 and verified
 --  anonymously: `dotnum` and `last_name_dotnum` both return 42703 (column does
 --  not exist), and the anon SELECT grant survived the DROP. This definition keeps
 --  that privacy boundary and additionally caps the public view itself at ten
---  rows. Production was probed as exactly ten rows with only first_name/count.
+--  rows. The 2026-09-13 revision keeps that boundary while adding one surname
+--  initial derived in SQL; the stored last-name/dot-number value stays private.
 --
 --  Kept in the repo as the canonical definition of the view — do not edit the
 --  view through the Supabase UI without updating this file, or the next person
@@ -15,10 +16,10 @@
 --  ORIGINAL DEPLOY NOTE (historical): run AFTER deploying the matching client
 --  change. Ordering is safe in that direction and unsafe in the other:
 --
---    client first  -> new client selects (first_name, count), which both the
---                     old and new view provide. Nothing breaks.
---    SQL first     -> old client still selects last_name_dotnum/dotnum, which
---                     the new view no longer has. Events page errors.
+--    SQL first     -> old client still selects (first_name, count), which the
+--                     new view continues to provide. Nothing breaks.
+--    client first  -> new client asks the old view for last_initial. PostgREST
+--                     rejects the query and the leaderboard appears empty.
 --
 --  WHAT WAS WRONG
 --  --------------
@@ -45,15 +46,18 @@
 --     outrank someone who genuinely attended more events.
 --
 --  The replacement exposes only what the leaderboard renders: the top ten first
---  names and their distinct-event counts. The private member key is used only to
---  aggregate and deterministically break exact public ties; it is not projected
---  by the view. Keeping the owner's privileges is intentional; it is what lets
---  an anonymous visitor see the leaderboard without opening the attendance
---  table itself.
+--  names, one surname initial, and their distinct-event counts. The initial is
+--  derived from the text before the first period in last_name_dotnum. The private
+--  member key is used only to aggregate and deterministically break exact public
+--  ties; it is not projected by the view. Keeping the owner's privileges is
+--  intentional; it is what lets an anonymous visitor see the leaderboard without
+--  opening the attendance table itself.
 -- ============================================================================
 
+BEGIN;
+
 -- CREATE OR REPLACE cannot drop columns from an existing view, so this must be
--- DROP + CREATE. The window is brief and only affects the leaderboard.
+-- DROP + CREATE. The transaction keeps the replacement atomic for readers.
 DROP VIEW IF EXISTS public.leaderboard;
 
 -- security_invoker = false is stated explicitly rather than relying on the
@@ -62,7 +66,9 @@ DROP VIEW IF EXISTS public.leaderboard;
 -- and should not rest on a version default.
 CREATE VIEW public.leaderboard
 WITH (security_invoker = false) AS
-  SELECT ranked.first_name, ranked.count
+  SELECT ranked.first_name,
+         upper(left(split_part(ranked.member_key, '.', 1), 1)) AS last_initial,
+         ranked.count
   FROM (
     SELECT
       lower(btrim(last_name_dotnum))                 AS member_key,
@@ -79,8 +85,10 @@ WITH (security_invoker = false) AS
            ranked.member_key ASC
   LIMIT 10;
 
--- DROP discards the old grants, so they must be reissued or the public
--- leaderboard silently returns nothing for logged-out visitors.
+-- Supabase default privileges can assign more privilege labels than this view
+-- needs. The aggregate is not inherently updatable, but make the API contract
+-- explicit anyway: anonymous and signed-in visitors may only read it.
+REVOKE ALL ON public.leaderboard FROM PUBLIC, anon, authenticated;
 GRANT SELECT ON public.leaderboard TO anon, authenticated;
 
 -- Records the bypass in-band, so a future maintainer adding a column here gets
@@ -88,7 +96,10 @@ GRANT SELECT ON public.leaderboard TO anon, authenticated;
 COMMENT ON VIEW public.leaderboard IS
   'PUBLIC + owner-privileged: readable by anon and bypasses RLS on attendance. '
   'Adding a column here publishes it with no policy change to review. '
-  'Previously exposed last_name_dotnum. Keep to top-ten first_name + count.';
+  'Previously exposed last_name_dotnum. Keep to top-ten first_name + '
+  'derived last_initial + count.';
+
+COMMIT;
 
 -- NOTE: DROP+CREATE resets the view owner to whoever runs this. The RLS bypass
 -- only works if that role is exempt from RLS on `attendance` (owns the table, or
@@ -97,12 +108,12 @@ COMMENT ON VIEW public.leaderboard IS
 -- rows to everyone.
 
 -- ── Verify ──────────────────────────────────────────────────────────────────
--- Should list exactly two columns: first_name, count
+-- Should list exactly three columns: first_name, last_initial, count
 --
 --   SELECT column_name FROM information_schema.columns
 --   WHERE table_name = 'leaderboard';
 --
--- Should show anon with SELECT
+-- Should show anon/authenticated with SELECT only
 --
 --   SELECT grantee, privilege_type FROM information_schema.role_table_grants
 --   WHERE table_name = 'leaderboard';

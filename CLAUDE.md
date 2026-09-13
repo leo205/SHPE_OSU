@@ -110,8 +110,9 @@ frontend is live from `main`.
   Edge, SQL-contract, and regression behavior, with a separate Edge bundle
   check.
 - **The public leaderboard is capped at ten in Postgres**, exposes exactly
-  `first_name` and distinct-event `count`, and cannot be expanded by asking the
-  API for more rows.
+  `first_name`, a SQL-derived one-character `last_initial`, and distinct-event
+  `count`, and cannot be expanded by asking the API for more rows. The stored
+  surname/dot number remains private.
 - **The final attendance and resume lockdowns are active.** Anonymous direct
   attendance writes, resume metadata writes, resume Storage uploads, and the
   legacy `submit_resume()` RPC are denied. Authenticated admin operations remain

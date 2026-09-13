@@ -252,7 +252,8 @@ shpe-osu/
     currently disabled, but `authenticated` still is not a permission: the role
     gate must remain safe if signup is enabled again later.
     *   `attendance`: reads are admin-only; the public leaderboard is served by
-        a two-column, top-ten view. Anonymous table writes are revoked; public
+        a top-ten view containing first name, one SQL-derived surname initial,
+        and distinct-event count. Anonymous table writes are revoked; public
         submissions go through the protected Edge path.
     *   `resumes`: no public read. Sponsors see approved rows; admins see all.
         The live Edge path makes all public writes service-only, and the legacy

@@ -447,8 +447,10 @@ these security migrations as an incidental part of the architecture rewrite.
 - Roles live in **`app_metadata`, never `user_metadata`** — users can rewrite
   their own `user_metadata` from the browser console.
 - The `leaderboard` view runs with owner privileges and **bypasses RLS by
-  design**. It exposes only the top ten `first_name`/distinct-event `count`
-  rows; any column added to it becomes public with no policy change to review.
+  design**. It exposes only the top ten `first_name`, SQL-derived
+  `last_initial`, and distinct-event `count` rows; any column added to it becomes
+  public with no policy change to review. The stored surname/dot number remains
+  private.
 - Attendance, resume, and sponsor submissions go through their named Edge
   Functions. Turnstile is action-bound; validation is repeated server-side;
   HMAC-keyed limits are durable; internal functions are executable only by

@@ -26,7 +26,7 @@ what was wrong, because the same mistakes are easy to repeat.
 | **Resume book** | Approved resumes (names + OSU emails), recruiter access codes, and the resume PDFs themselves were readable by **anyone**, with no login and no code. Verified by downloading a real 130 KB resume anonymously. | ✅ Closed. Sponsors now sign in; access is enforced by Postgres. |
 | **Sponsor contact form** | Every inquiry had been silently failing. The Content-Security-Policy omitted `api.emailjs.com`, so the browser blocked the request — invisible locally, because those headers only apply on Vercel. | ✅ Now delivered through a protected Edge Function; the browser has no EmailJS route or provider key. |
 | **Resume replacement** | Never worked. The client issued an `UPDATE` no policy permitted, which under RLS affects zero rows and *returns success* — students saw "Upload Successful" while nothing changed. | ✅ Moved into the database. |
-| **Leaderboard** | The public `leaderboard` view exposed every member's OSU dot number, and the Events page printed them on a public page. Views bypass RLS, so this read straight through the protection on `attendance`. | ✅ View reduced to first name + count. |
+| **Leaderboard** | The public `leaderboard` view exposed every member's OSU dot number, and the Events page printed them on a public page. Views bypass RLS, so this read straight through the protection on `attendance`. | ✅ View reduced to first name + derived surname initial + count. |
 | **Check-in** | Events added through the Admin Dashboard appeared on the calendar but could not be checked into — the check-in form read a different source. | ✅ One shared source. |
 | **Upload size** | A 2 MB *minimum* rejected essentially every real resume (a normal one is 50–250 KB). | ✅ Now 10 KB–250 KB. |
 | **Calendar exports** | `.ics` files were hardcoded to 06:00 UTC (2 AM Eastern) and the Google Calendar links produced unparseable dates. | ✅ Real times with an explicit timezone. |
@@ -56,7 +56,7 @@ prove that the corresponding live policy or function still exists.
 | **Outage fallback** | The Google Form URL never contains attendee identity, demographics, or feedback. It is offered only after two genuine service failures, never after a validation, verification, or rate-limit rejection. | ✅ Live; form remains public/untrusted |
 | **GroupMe invitation** | The project owner explicitly re-approved the original GroupMe invitation on 2026-09-03. | Exact original link restored on Home, Footer, and the first-attendance success screen; regression contract prevents silent destination drift |
 | **Dependencies** | React Router and Vite were updated without `--force`; the production and full dependency audits are clean. Safari 14 remains an explicit build target. | ✅ Live |
-| **Public leaderboard** | Both clients request ten rows, and the canonical view enforces the same top-ten cap so a direct caller cannot enumerate the remaining aggregates. It exposes only `first_name` and distinct-event `count`. | ✅ Applied and anonymously verified |
+| **Public leaderboard** | Both clients request ten rows, and the canonical view enforces the same top-ten cap so a direct caller cannot enumerate the remaining aggregates. It exposes only `first_name`, a SQL-derived one-character `last_initial`, and distinct-event `count`; the stored surname/dot number stays private and public roles receive `SELECT` only. | ✅ Applied and anonymously verified |
 
 ### What is still open
 
@@ -577,14 +577,15 @@ no error explaining why. Keep both readers going through `lib/events.js` — tha
 split is exactly the kind that produces a silent failure at a live meeting.
 
 ### 2.5 `leaderboard` (view)
-Read by `Events.jsx` and `PublicLeaderboard.jsx`. The two-column privacy revision
-of `supabase/leaderboard-view.sql` was applied 2026-07-30, and the database-level
-top-ten cap was applied and anonymously verified 2026-09-13. The view exposes exactly
-`first_name` and a **distinct-event** `count`. It previously also returned
-`last_name_dotnum` and `dotnum`, which were rendered onto a public page. Do not
-add columns: the view runs with owner privileges and bypasses RLS on
-`attendance`, so anything added here is published with no policy change to
-review.
+Read by `Events.jsx` and `PublicLeaderboard.jsx`. The original two-column privacy
+revision of `supabase/leaderboard-view.sql` was applied 2026-07-30, and the
+database-level top-ten cap plus the approved surname-initial display were applied
+and anonymously verified 2026-09-13. The view exposes exactly `first_name`, a
+SQL-derived one-character `last_initial`, and a **distinct-event** `count`. It
+previously also returned `last_name_dotnum` and `dotnum`, which were rendered
+onto a public page. Do not add more columns: the view runs with owner privileges
+and bypasses RLS on `attendance`, so anything added here is published with no
+policy change to review.
 
 ---
 

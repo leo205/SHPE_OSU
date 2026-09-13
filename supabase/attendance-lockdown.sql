@@ -53,7 +53,7 @@ COMMIT;
 -- 1. Anonymous direct POST to /rest/v1/attendance must now be permission-denied
 --    (42501), not reach a NOT NULL constraint (23502).
 -- 2. Anonymous SELECT from attendance must be permission-denied (42501). The
---    public leaderboard remains readable through its two-column owner view.
+--    privacy-limited public leaderboard remains readable through its owner view.
 -- 3. The protected Edge Function must still accept a real check-in.
 -- 4. Admin SELECT and UPDATE must still work.
 -- 5. This inventory should show only "attendance admin all" for attendance:

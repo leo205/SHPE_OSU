@@ -16,7 +16,7 @@ state; query the catalog and endpoint behavior after every future change.
 
 | File or component | Production/live status | Verified evidence |
 |---|---|---|
-| `leaderboard-view.sql` | **Applied 2026-09-13.** | Anonymous result is capped at ten rows and exposes exactly `first_name` plus distinct-event `count`; raw attendance remains private. |
+| `leaderboard-view.sql` | **Applied 2026-09-13.** | Anonymous result is capped at ten rows, exposes exactly `first_name`, a SQL-derived one-character `last_initial`, and distinct-event `count`, and grants public roles `SELECT` only; raw attendance remains private. |
 | `sponsor-auth.sql` | **Applied 2026-08-03.** | Recruiter codes were replaced by explicit Auth roles; anonymous resume/company reads and public resume-file reads remain closed. Public signup is disabled. |
 | `resume-submit.sql` | **Superseded.** | The historical browser RPC remains defined for migration compatibility, but anonymous/authenticated execution was revoked by `resume-lockdown.sql`. |
 | `attendance-submit.sql` | **Applied 2026-09-13.** | The shared durable limiter and service-only `submit_attendance()` RPC are live; a rolled-back service probe returned `accepted`. |
@@ -233,7 +233,7 @@ as an unordered bundle.
    through each flow and verify the database/Storage/email result.
 9. Immediately apply `attendance-lockdown.sql`, then probe direct anonymous
    attendance `SELECT` and `INSERT` denial, protected Edge acceptance, admin
-   access, and the two-column public leaderboard.
+   access, and the privacy-limited public leaderboard.
 10. Apply `resume-lockdown.sql`, then probe direct anonymous Storage upload,
     metadata insert, and legacy `submit_resume()` denial. Re-probe protected
     upload, private-file access, pending review, approval, and deletion.
@@ -326,7 +326,9 @@ checks must remain if that dashboard setting changes.
 The public leaderboard intentionally uses an owner-privileged view to expose an
 aggregate without opening the underlying attendance table. That is a standing
 RLS bypass: every added output column becomes public without another policy
-change. Keep the projection to `first_name` and distinct-event `count`.
+change. Keep the projection to `first_name`, the SQL-derived one-character
+`last_initial`, and distinct-event `count`. Never project the stored
+`last_name_dotnum` or internal member key.
 
 The discarded `policies.sql` design used recruiter access codes and an Edge
 Function to sign resume URLs. It was removed in favor of Auth roles because
