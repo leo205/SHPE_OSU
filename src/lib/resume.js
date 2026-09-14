@@ -93,6 +93,8 @@ export function resumeErrorMessage(reason) {
       return 'Too many resume attempts were received. Please wait before trying again.';
     case 'invalid_submission':
       return 'The server could not validate that submission. Check every field and PDF, then try again.';
+    case 'invalid_pdf':
+      return 'Please export your resume as a standard PDF without a password, forms, or attachments, then upload it again (up to 10 pages).';
     case 'idempotency_conflict':
       return 'Those details changed after an earlier upload attempt. Review them, then submit again to start a fresh upload.';
     default:

@@ -165,13 +165,31 @@ describe('protected sponsor inquiry Edge handler', () => {
     expect(dependencies.sendInquiry).not.toHaveBeenCalled();
   });
 
-  it('applies a durable ceiling before spending a Turnstile verification', async () => {
+  it('still blocks verified submissions when the durable network allowance is exhausted', async () => {
     const dependencies = setup({ rpc: vi.fn().mockResolvedValue({ data: false, error: null }) });
     const response = await dependencies.handler(request());
 
     expect(response.status).toBe(429);
-    expect(dependencies.verifyChallenge).not.toHaveBeenCalled();
+    expect(dependencies.verifyChallenge).toHaveBeenCalledTimes(1);
     expect(dependencies.sendInquiry).not.toHaveBeenCalled();
+  });
+
+  it('preserves the shared Wi-Fi allowance after more invalid attempts than the retired edge ceiling', async () => {
+    const dependencies = setup({ challenge: 'rejected' });
+    for (let attempt = 0; attempt < 101; attempt += 1) {
+      const response = await dependencies.handler(request({ ...body, turnstile_token: `invalid-${attempt}` }));
+      expect(response.status).toBe(403);
+    }
+
+    expect(dependencies.createAdmin).not.toHaveBeenCalled();
+    expect(dependencies.rpcMock).not.toHaveBeenCalled();
+    expect(dependencies.hmac).not.toHaveBeenCalled();
+    expect(dependencies.sendInquiry).not.toHaveBeenCalled();
+
+    dependencies.verifyChallenge.mockResolvedValue('valid');
+    expect((await dependencies.handler(request())).status).toBe(200);
+    expect(dependencies.sendInquiry).toHaveBeenCalledTimes(1);
+    expect(dependencies.rpcMock).toHaveBeenCalledTimes(5);
   });
 
   it('verifies the sponsor-specific action then enforces every durable bucket', async () => {
@@ -182,28 +200,29 @@ describe('protected sponsor inquiry Edge handler', () => {
     expect(await response.json()).toEqual({ status: 'accepted' });
     expect(dependencies.verifyChallenge).toHaveBeenCalledWith(expect.objectContaining({
       expectedAction: 'sponsor_inquiry',
+      allowedHostnames: new Set(['shpeosu.com', 'www.shpeosu.com']),
+      remoteIp: '203.0.113.10',
     }));
     expect(dependencies.hmac.mock.calls.map(([, value]) => value)).toEqual([
-      'sponsor:edge:203.0.113.10',
       'sponsor:network:203.0.113.10',
       'sponsor:email:jane@acme.example',
       'sponsor:global:provider:v1',
       'sponsor:global:daily:v1',
       'sponsor:global:monthly:v1',
     ]);
-    expect(dependencies.rpcMock).toHaveBeenCalledTimes(6);
+    expect(dependencies.rpcMock).toHaveBeenCalledTimes(5);
     expect(dependencies.rpcMock).toHaveBeenNthCalledWith(
-      4,
+      3,
       'consume_public_submission_rate_limit',
       expect.objectContaining({ p_max_requests: 1, p_window_seconds: 1 }),
     );
     expect(dependencies.rpcMock).toHaveBeenNthCalledWith(
-      5,
+      4,
       'consume_public_submission_rate_limit',
       expect.objectContaining({ p_max_requests: 20, p_window_seconds: 86_400 }),
     );
     expect(dependencies.rpcMock).toHaveBeenNthCalledWith(
-      6,
+      5,
       'consume_public_submission_rate_limit',
       expect.objectContaining({ p_max_requests: 150, p_window_seconds: 2_678_400 }),
     );
@@ -224,9 +243,9 @@ describe('protected sponsor inquiry Edge handler', () => {
     const rejectedChallenge = setup({ challenge: 'rejected' });
     expect((await rejectedChallenge.handler(request())).status).toBe(403);
     expect(rejectedChallenge.sendInquiry).not.toHaveBeenCalled();
+    expect(rejectedChallenge.rpcMock).not.toHaveBeenCalled();
 
     const postRateRpc = vi.fn()
-      .mockResolvedValueOnce({ data: true, error: null })
       .mockResolvedValueOnce({ data: true, error: null })
       .mockResolvedValueOnce({ data: false, error: null })
       .mockResolvedValue({ data: true, error: null });
@@ -237,7 +256,6 @@ describe('protected sponsor inquiry Edge handler', () => {
 
   it('paces the provider first and does not consume monthly budget after daily closes', async () => {
     const rpc = vi.fn()
-      .mockResolvedValueOnce({ data: true, error: null }) // pre-Siteverify
       .mockResolvedValueOnce({ data: true, error: null }) // network
       .mockResolvedValueOnce({ data: true, error: null }) // email
       .mockResolvedValueOnce({ data: true, error: null }) // provider pacing
@@ -247,9 +265,8 @@ describe('protected sponsor inquiry Edge handler', () => {
     const response = await dependencies.handler(request());
 
     expect(response.status).toBe(429);
-    expect(rpc).toHaveBeenCalledTimes(5);
+    expect(rpc).toHaveBeenCalledTimes(4);
     expect(dependencies.hmac.mock.calls.map(([, value]) => value)).toEqual([
-      'sponsor:edge:203.0.113.10',
       'sponsor:network:203.0.113.10',
       'sponsor:email:jane@acme.example',
       'sponsor:global:provider:v1',
@@ -260,7 +277,6 @@ describe('protected sponsor inquiry Edge handler', () => {
 
   it('does not consume daily or monthly budgets when provider pacing rejects', async () => {
     const rpc = vi.fn()
-      .mockResolvedValueOnce({ data: true, error: null }) // pre-Siteverify
       .mockResolvedValueOnce({ data: true, error: null }) // network
       .mockResolvedValueOnce({ data: true, error: null }) // email
       .mockResolvedValueOnce({ data: false, error: null }); // provider pacing
@@ -269,9 +285,8 @@ describe('protected sponsor inquiry Edge handler', () => {
     const response = await dependencies.handler(request());
 
     expect(response.status).toBe(429);
-    expect(rpc).toHaveBeenCalledTimes(4);
+    expect(rpc).toHaveBeenCalledTimes(3);
     expect(dependencies.hmac.mock.calls.map(([, value]) => value)).toEqual([
-      'sponsor:edge:203.0.113.10',
       'sponsor:network:203.0.113.10',
       'sponsor:email:jane@acme.example',
       'sponsor:global:provider:v1',
@@ -284,13 +299,16 @@ describe('protected sponsor inquiry Edge handler', () => {
     const challengeResponse = await challengeUnavailable.handler(request());
     expect(challengeResponse.status).toBe(503);
     expect(challengeUnavailable.sendInquiry).not.toHaveBeenCalled();
+    expect(challengeUnavailable.rpcMock).not.toHaveBeenCalled();
+    expect(challengeUnavailable.createAdmin).not.toHaveBeenCalled();
 
     const rateUnavailable = setup({
       rpc: vi.fn().mockResolvedValue({ data: null, error: { code: 'rpc_unavailable' } }),
     });
     const rateResponse = await rateUnavailable.handler(request());
     expect(rateResponse.status).toBe(503);
-    expect(rateUnavailable.verifyChallenge).not.toHaveBeenCalled();
+    expect(rateUnavailable.verifyChallenge).toHaveBeenCalledTimes(1);
+    expect(rateUnavailable.sendInquiry).not.toHaveBeenCalled();
     expect(JSON.stringify(rateUnavailable.logError.mock.calls)).not.toMatch(
       /Acme|Jane|jane@|203\.0\.113\.10|verified-token/,
     );

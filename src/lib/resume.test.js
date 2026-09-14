@@ -7,6 +7,7 @@ import {
   createResumeDraftKey,
   isOSUEmail,
   isValidPDF,
+  resumeErrorMessage,
   submitResume,
 } from './resume.js';
 
@@ -70,6 +71,9 @@ describe('resume validation contracts', () => {
 });
 
 describe('protected resume submission gateway', () => {
+  it('explains rejected PDF features without exposing parser diagnostics', () => {
+    expect(resumeErrorMessage('invalid_pdf')).toContain('without a password, forms, or attachments');
+  });
   it('sends one multipart Edge request and never writes storage/database directly', async () => {
     const invoke = vi.fn().mockResolvedValue({
       data: { status: 'accepted' },

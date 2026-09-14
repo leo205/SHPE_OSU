@@ -36,11 +36,7 @@ function request(payload = body, init = {}) {
 }
 
 function setup({ challenge = 'valid', rpc } = {}) {
-  const rpcMock = rpc ?? vi.fn(async (name) => (
-    name === 'consume_public_submission_rate_limit'
-      ? { data: true, error: null }
-      : { data: 'accepted', error: null }
-  ));
+  const rpcMock = rpc ?? vi.fn().mockResolvedValue({ data: 'accepted', error: null });
   const createAdmin = vi.fn(() => ({ rpc: rpcMock }));
   const verifyChallenge = vi.fn().mockResolvedValue(challenge);
   const hmac = vi.fn(async (_secret, value) => `hash:${value}`);
@@ -126,27 +122,37 @@ describe('protected attendance Edge handler', () => {
     expect(dependencies.createAdmin).not.toHaveBeenCalled();
   });
 
-  it('rate-limits before spending a Turnstile verification', async () => {
-    const rpc = vi.fn().mockResolvedValue({ data: false, error: null });
-    const { handler, verifyChallenge } = setup({ rpc });
-    const response = await handler(request());
+  it('preserves the shared Wi-Fi allowance after more invalid attempts than the retired edge ceiling', async () => {
+    const { handler, rpcMock, createAdmin, verifyChallenge, hmac } = setup({ challenge: 'rejected' });
+    for (let attempt = 0; attempt < 501; attempt += 1) {
+      const rejected = await handler(request({ ...body, turnstile_token: `invalid-${attempt}` }));
+      expect(rejected.status).toBe(403);
+    }
 
-    expect(response.status).toBe(429);
-    expect(await response.json()).toEqual({ error: 'rate_limited' });
-    expect(verifyChallenge).not.toHaveBeenCalled();
+    expect(rpcMock).not.toHaveBeenCalled();
+    expect(createAdmin).not.toHaveBeenCalled();
+    expect(hmac).not.toHaveBeenCalled();
+
+    verifyChallenge.mockResolvedValue('valid');
+    const accepted = await handler(request());
+    expect(accepted.status).toBe(200);
+    expect(rpcMock).toHaveBeenCalledTimes(1);
+    expect(rpcMock).toHaveBeenCalledWith('submit_attendance', expect.objectContaining({
+      p_network_rate_key: 'hash:attendance:network:203.0.113.10',
+    }));
   });
 
   it.each([
     ['rejected', 403, 'verification_failed'],
     ['unavailable', 503, 'service_unavailable'],
-  ])('maps a %s Turnstile result without calling the write RPC', async (challenge, status, error) => {
-    const { handler, rpcMock } = setup({ challenge });
+  ])('maps a %s Turnstile result without consuming quotas or writing attendance', async (challenge, status, error) => {
+    const { handler, rpcMock, createAdmin } = setup({ challenge });
     const response = await handler(request());
 
     expect(response.status).toBe(status);
     expect(await response.json()).toEqual({ error });
-    expect(rpcMock).toHaveBeenCalledTimes(1);
-    expect(rpcMock).toHaveBeenCalledWith('consume_public_submission_rate_limit', expect.any(Object));
+    expect(rpcMock).not.toHaveBeenCalled();
+    expect(createAdmin).not.toHaveBeenCalled();
   });
 
   it('passes only validated fields and HMAC keys to the service-only RPC', async () => {
@@ -161,6 +167,8 @@ describe('protected attendance Edge handler', () => {
     );
     expect(verifyChallenge).toHaveBeenCalledWith(expect.objectContaining({
       expectedAction: 'attendance_submit',
+      allowedHostnames: new Set(['shpeosu.com', 'www.shpeosu.com']),
+      remoteIp: '203.0.113.10',
     }));
     expect(rpcMock).toHaveBeenLastCalledWith('submit_attendance', expect.objectContaining({
       p_network_rate_key: 'hash:attendance:network:203.0.113.10',
@@ -173,14 +181,14 @@ describe('protected attendance Edge handler', () => {
 
   it('maps the database limiter and database outage separately', async () => {
     const limitedRpc = vi.fn()
-      .mockResolvedValueOnce({ data: true, error: null })
       .mockResolvedValueOnce({ data: 'rate_limited', error: null });
     const limited = setup({ rpc: limitedRpc });
     const limitedResponse = await limited.handler(request());
     expect(limitedResponse.status).toBe(429);
+    expect(limited.verifyChallenge).toHaveBeenCalledTimes(1);
+    expect(await limitedResponse.json()).toEqual({ error: 'rate_limited' });
 
     const failedRpc = vi.fn()
-      .mockResolvedValueOnce({ data: true, error: null })
       .mockResolvedValueOnce({ data: null, error: { code: 'rpc_unavailable' } });
     const failed = setup({ rpc: failedRpc });
     const failedResponse = await failed.handler(request());

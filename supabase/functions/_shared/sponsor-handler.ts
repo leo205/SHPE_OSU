@@ -184,6 +184,23 @@ export function createSponsorInquiryHandler(
     }
 
     const remoteIp = requestIp(request);
+
+    // Invalid tokens must not consume the allowance shared by campus users.
+    // Request floods before Siteverify require hosting-gateway protection.
+    const challenge = await dependencies.verifyChallenge({
+      token: inquiry.turnstile_token,
+      remoteIp,
+      secret: turnstileSecret,
+      allowedHostnames: allowedTurnstileHostnames(dependencies.env),
+      expectedAction: 'sponsor_inquiry',
+    });
+    if (challenge === 'unavailable') {
+      return jsonResponse({ error: 'service_unavailable' }, 503, origin);
+    }
+    if (challenge !== 'valid') {
+      return jsonResponse({ error: 'verification_failed' }, 403, origin);
+    }
+
     const admin = dependencies.createAdmin(supabaseUrl, secretKey);
 
     const consume = async (
@@ -203,30 +220,6 @@ export function createSponsorInquiryHandler(
       }
       return data === true ? 'allowed' : 'limited';
     };
-
-    // Reject automated token spraying before it can consume unlimited
-    // Cloudflare Siteverify requests.
-    const edgeRate = await consume(`sponsor:edge:${remoteIp}`, 100, 600);
-    if (edgeRate === 'unavailable') {
-      return jsonResponse({ error: 'service_unavailable' }, 503, origin);
-    }
-    if (edgeRate === 'limited') {
-      return jsonResponse({ error: 'rate_limited' }, 429, origin);
-    }
-
-    const challenge = await dependencies.verifyChallenge({
-      token: inquiry.turnstile_token,
-      remoteIp,
-      secret: turnstileSecret,
-      allowedHostnames: allowedTurnstileHostnames(dependencies.env),
-      expectedAction: 'sponsor_inquiry',
-    });
-    if (challenge === 'unavailable') {
-      return jsonResponse({ error: 'service_unavailable' }, 503, origin);
-    }
-    if (challenge !== 'valid') {
-      return jsonResponse({ error: 'verification_failed' }, 403, origin);
-    }
 
     const identityBuckets: Array<[string, number, number]> = [
       [`sponsor:network:${remoteIp}`, 10, 3600],

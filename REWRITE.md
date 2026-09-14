@@ -8,6 +8,10 @@ architectural rewrite has not started. Protected public-write Edge paths were
 built independently, deployed to production, smoke-tested, and locked down.
 They must be preserved._
 
+_September 14 follow-up is implemented locally, rollout pending: verified-only
+quotas, bounded static-PDF screening, and transactional retired-file cleanup.
+Preserve these contracts too; see `supabase/README.md` for deployment evidence._
+
 This is the working document for rebuilding the site on a hexagonal
 (ports-and-adapters) architecture. It is written to be handed to someone starting
 a fresh project with the existing UI, so it deliberately over-explains the parts
@@ -79,7 +83,8 @@ decision; the old point-in-time numbers were removed because they drifted.
 
 Inventory the exact operations with `rg` before each rewrite phase. The browser
 currently contains public reads, authenticated admin/sponsor operations, and
-three protected Edge invocations. The three public submission paths are
+three protected public Edge invocations plus an admin-only cleanup invocation.
+The three public submission paths are
 security boundaries, not ordinary repositories: preserve the named Edge
 Functions and never reintroduce direct anonymous table/Storage writes or
 browser-side EmailJS.
@@ -153,7 +158,7 @@ src/
 │   ├── resume/
 │   │   ├── Resume.js
 │   │   ├── osuEmail.js            # domain rule, mirrored in SQL
-│   │   └── fileConstraints.js     # 10KB–250KB, %PDF magic bytes
+│   │   └── fileConstraints.js     # 10KB–250KB; backend structural screen retained
 │   ├── attendance/
 │   │   ├── CheckIn.js
 │   │   └── major.js               # "Other – x" formatting (§6.2)
@@ -359,7 +364,9 @@ Every one of these is a bug that reached production. They are not hypothetical.
 ✓ accepts @osu.edu, @buckeyemail.osu.edu, @alumni.osu.edu
 ✓ REJECTS spoof@osu.edu.evil.com     ← classic suffix-match bypass
 ✓ rejects <10KB and >250KB
-✓ magic bytes: %PDF passes, anything else fails
+✓ client magic-byte feedback is not sufficient to authorize upload
+✓ backend rejects magic-only/truncated PDFs, active content, and excess budgets
+✓ complete supported static PDFs up to ten pages pass the backend screen
 ```
 
 ### Domain — major
@@ -376,6 +383,10 @@ Every one of these is a bug that reached production. They are not hypothetical.
 ✓ an exact retry keeps its UUID; editing the draft rotates it
 ✓ a claimed email queues a pending revision without de-listing its approved row
 ✓ attendance/sponsor/resume never fall back to a direct anonymous write
+✓ rejected/unavailable Turnstile cannot consume shared-IP/identity/global quotas
+✓ a valid same-IP request remains eligible after repeated invalid tokens
+✓ retired file cleanup is queued in the same transaction as approval/deletion
+✓ failed cleanup stays retryable; tombstones prevent retired-path resurrection
 ✓ recordCheckIn rejects an event not in the current list
 ✓ listResumeBook returns only approved resumes
 ✓ every use case surfaces errors — none may fail silently
@@ -431,7 +442,8 @@ an event date, build the string from `getFullYear()/getMonth()/getDate()`.
 
 Tables: `attendance`, `resumes`, `company_access` (vestigial), `events`,
 `leaderboard` (view), plus internal
-`public_submission_rate_limits`/`resume_submission_reservations`. Full schema
+`public_submission_rate_limits`/`resume_submission_reservations` and the pending
+`resume_file_cleanup` queue/tombstones. Full schema
 and rollout state are in `HANDOFF.md` §2 and `supabase/README.md`. Do not change
 these security migrations as an incidental part of the architecture rewrite.
 
@@ -455,9 +467,20 @@ these security migrations as an incidental part of the architecture rewrite.
   Functions. Turnstile is action-bound; validation is repeated server-side;
   HMAC-keyed limits are durable; internal functions are executable only by
   `service_role`; final lockdown removes the legacy anonymous paths.
+  All quota writes follow valid Turnstile; invalid-token traffic cannot exhaust
+  a campus NAT's allowance. Hosting-gateway protection is required for floods
+  before Siteverify; do not restore a shared-IP precheck during a rewrite.
 - Resume submission reserves a server path before Storage and queues a pending
   revision. Admin approve/delete are atomic RPCs; a browser update returning no
   error but zero rows is not success.
+  The backend structural PDF screen runs after verification/quotas and before
+  reservation/upload. Keep pinned parsers backend-only and preserve input,
+  expanded-stream, nesting, object, and page budgets; screening is not antivirus.
+- Retired resume paths are queued by a transactional delete trigger. Only the
+  admin-authenticated cleanup Edge handler may use service-only claim/finish
+  RPCs and remove server-selected detached objects. Retain lease checks and
+  permanent tombstones. Retries run on admin visits/actions, not a cron; do not
+  replace durable retry state with a disappearing frontend row.
 - EmailJS credentials/routing are Edge-only and one delivery attempt is made.
   The current Free account has no private key: non-browser API access is on,
   strict/private-key mode is off, and the key rotated at cutover is held only

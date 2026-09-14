@@ -1,5 +1,6 @@
 const KNOWN_REJECTION_REASONS = new Set([
   'invalid_submission',
+  'invalid_pdf',
   'idempotency_conflict',
   'delivery_unconfirmed',
   'rate_limited',

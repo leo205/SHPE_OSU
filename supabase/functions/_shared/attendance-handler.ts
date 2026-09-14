@@ -150,27 +150,9 @@ export function createAttendanceHandler(dependencies: AttendanceHandlerDependenc
     }
 
     const remoteIp = requestIp(request);
-    const supabaseAdmin = dependencies.createAdmin(supabaseUrl, secretKey);
-
-    // Coarse pre-verification ceiling: invalid tokens never reach attendance,
-    // but without this bucket they could consume unlimited Siteverify calls.
-    const edgeRateKey = await dependencies.hmac(rateLimitSecret, `attendance:edge:${remoteIp}`);
-    const { data: edgeAllowed, error: edgeRateError } = await supabaseAdmin.rpc(
-      'consume_public_submission_rate_limit',
-      {
-        p_rate_key: edgeRateKey,
-        p_max_requests: 500,
-        p_window_seconds: 600,
-      },
-    );
-    if (edgeRateError) {
-      logError('[submit-attendance] Edge rate-limit check failed.', edgeRateError.code);
-      return jsonResponse({ error: 'service_unavailable' }, 503, origin);
-    }
-    if (edgeAllowed !== true) {
-      return jsonResponse({ error: 'rate_limited' }, 429, origin);
-    }
-
+    // Verify before consuming any shared-network allowance. Invalid tokens
+    // must not lock legitimate students out of a campus NAT. Request floods
+    // before Siteverify require protection at the hosting gateway.
     const challengeResult = await dependencies.verifyChallenge({
       token: attendance.turnstile_token,
       remoteIp,
@@ -185,6 +167,7 @@ export function createAttendanceHandler(dependencies: AttendanceHandlerDependenc
       return jsonResponse({ error: 'verification_failed' }, 403, origin);
     }
 
+    const supabaseAdmin = dependencies.createAdmin(supabaseUrl, secretKey);
     const [networkRateKey, identityRateKey] = await Promise.all([
       dependencies.hmac(rateLimitSecret, `attendance:network:${remoteIp}`),
       dependencies.hmac(

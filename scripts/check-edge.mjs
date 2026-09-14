@@ -8,18 +8,20 @@ const result = await build({
     'supabase/functions/submit-attendance/index.ts',
     'supabase/functions/submit-resume/index.ts',
     'supabase/functions/submit-sponsor-inquiry/index.ts',
+    'supabase/functions/cleanup-resume-files/index.ts',
   ],
   bundle: true,
   format: 'esm',
   platform: 'neutral',
+  mainFields: ['module', 'main'],
   target: 'es2022',
   outdir: 'edge-build',
   write: false,
   logLevel: 'warning',
 });
 
-if (result.outputFiles.length !== 3 || result.outputFiles.some((file) => file.contents.length === 0)) {
-  throw new Error('Edge Function bundle check did not produce all three outputs.');
+if (result.outputFiles.length !== 4 || result.outputFiles.some((file) => file.contents.length === 0)) {
+  throw new Error('Edge Function bundle check did not produce all four outputs.');
 }
 
 console.log('Edge Function bundle check passed.');

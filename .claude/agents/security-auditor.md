@@ -21,6 +21,11 @@ cap, and attendance/resume lockdowns were applied and probed on 2026-09-13.
 Never describe repository state as live database state without proving it against
 the deployed project.
 
+The September 14 follow-up is implemented locally and awaits recorded rollout:
+verified-only quotas, bounded structural PDF screening, and transactional file
+cleanup. Read `supabase/README.md` for the current deployment status before
+describing those additions as live.
+
 ## The one mistake this codebase keeps making
 
 **Client-side checks are not enforcement.** Every real vulnerability found here
@@ -69,8 +74,9 @@ there isn't one, that is a finding regardless of how convincing the UI looks.
   approval/deletion RPCs are authenticated-admin-only and must re-check
   `public.is_admin()` inside Postgres.
 - The public leaderboard reads the owner-privileged `leaderboard` view, which
-  must expose no more than ten rows and exactly `first_name` plus distinct-event
-  `count`; any added column or removal of the database-level cap becomes public
+  must expose no more than ten rows and exactly `first_name`, the owner-approved
+  SQL-derived one-character `last_initial`, and distinct-event `count`; any
+  additional column or removal of the database-level cap becomes public
   and must be treated as a security change. Anonymous SELECT on raw
   `attendance` is a finding.
 - The `resumes` bucket is private. Server-generated object paths must match
@@ -80,6 +86,27 @@ there isn't one, that is a finding regardless of how convincing the UI looks.
   an already-approved resume. Turnstile reduces automated abuse but does not
   prove that the claimed OSU email belongs to the submitter; keep this residual
   risk visible until OSU SSO or email verification is implemented.
+- No durable shared-IP, identity/email, or global quota may be consumed before
+  valid server-side Turnstile. Repeated rejected/unavailable verification must
+  perform no database work and must leave a valid same-IP request eligible.
+  Verified requests remain limited. Pre-Siteverify volumetric protection needs
+  the hosting gateway; removing that shared-IP precheck is intentional, not a
+  missing application quota. Do not add unbounded per-token limiter rows.
+- Resume PDF acceptance requires the bounded backend structural/active-content
+  screen after verification and quotas, before reservation/upload. Magic bytes
+  alone are not enough. Keep pdf-lib 1.17.1/pako 2.1.0 backend-only, the 10–250 KB
+  input cap, one-to-ten-page static subset, and parser resource budgets. This is
+  not antivirus. Test malformed PDFs, active features, and compressed/deep input
+  alongside legitimate static exports; never claim all accepted files are safe.
+- `resume-cleanup.sql` queues deleted resume paths transactionally, including
+  siblings retired during approval. Its queue is private; claim/finish/count
+  RPCs are service-only. The `cleanup-resume-files` Edge endpoint requires a
+  bearer verified through Auth and server-owned admin metadata before any queue
+  or Storage work. Request bodies cannot choose paths/buckets. Check detached
+  metadata/reservation guards, lease tokens, permanent path tombstones, and
+  retry after a late upload. No direct deletion of `storage.objects` rows, no
+  automatic old-orphan backfill, and no tombstone truncation are permitted.
+  Retries require admin visits/actions/button; backoff is not a scheduled job.
 - Sponsor inquiry fields may reach EmailJS only from Edge using server-held
   provider values. The provider call is attempted exactly once:
   a timeout is ambiguous and must return `delivery_unconfirmed`, never trigger

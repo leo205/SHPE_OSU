@@ -1,3 +1,5 @@
+import { inspectStaticResumePdf } from './pdf-inspection.ts';
+
 export const MAX_RESUME_BYTES = 250 * 1024;
 export const MIN_RESUME_BYTES = 10 * 1024;
 
@@ -77,6 +79,13 @@ function validGraduationYear(value: string, now: number): boolean {
 async function hasPdfMagic(file: File): Promise<boolean> {
   const bytes = new Uint8Array(await file.slice(0, PDF_MAGIC.length).arrayBuffer());
   return PDF_MAGIC.every((byte, index) => bytes[index] === byte);
+}
+
+/** Run only AFTER valid Turnstile and durable quotas, before reservations/upload. */
+export async function validateResumePdf(file: File): Promise<boolean> {
+  if (file.type.toLowerCase() !== 'application/pdf'
+    || file.size < MIN_RESUME_BYTES || file.size > MAX_RESUME_BYTES) return false;
+  return inspectStaticResumePdf(new Uint8Array(await file.arrayBuffer()));
 }
 
 /**

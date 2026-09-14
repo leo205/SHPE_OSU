@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { MIN_RESUME_BYTES } from './resume-validation.ts';
+import { validResumePdfBytes } from './pdf-test-fixtures.ts';
 import { createResumeHandler } from './resume-handler.ts';
 
 const NOW = Date.parse('2026-09-02T16:00:00Z');
@@ -15,9 +15,7 @@ const environment = {
 };
 
 function pdf(): File {
-  const bytes = new Uint8Array(MIN_RESUME_BYTES);
-  bytes.set([0x25, 0x50, 0x44, 0x46, 0x2d]);
-  return new File([bytes], 'student-name.pdf', { type: 'application/pdf' });
+  return new File([validResumePdfBytes()], 'student-name.pdf', { type: 'application/pdf' });
 }
 
 function form(overrides: Record<string, string | File> = {}): FormData {
@@ -105,50 +103,67 @@ describe('protected resume Edge handler', () => {
     expect(createAdmin).not.toHaveBeenCalled();
   });
 
-  it('uses a pre-parse durable ceiling, then rejects malformed multipart input', async () => {
-    const { handler, rpcMock, verifyChallenge } = setup();
+  it('rejects malformed multipart input without consuming shared-network quotas', async () => {
+    const { handler, rpcMock, verifyChallenge, createAdmin } = setup();
     const response = await handler(request('not multipart', { 'content-type': 'text/plain' }));
 
     expect(response.status).toBe(400);
-    expect(rpcMock).toHaveBeenCalledTimes(1);
-    expect(rpcMock).toHaveBeenCalledWith('consume_public_submission_rate_limit', {
-      p_rate_key: 'hash:resume:edge:203.0.113.10',
-      p_max_requests: 100,
-      p_window_seconds: 600,
-    });
+    expect(rpcMock).not.toHaveBeenCalled();
+    expect(createAdmin).not.toHaveBeenCalled();
     expect(verifyChallenge).not.toHaveBeenCalled();
   });
 
   it.each([
     ['rejected', 403, 'verification_failed'],
     ['unavailable', 503, 'service_unavailable'],
-  ])('maps a %s challenge without privileged Storage work', async (challenge, status, error) => {
-    const { handler, verifyChallenge, uploadMock } = setup({ challenge });
+  ])('maps a %s challenge without database or Storage work', async (challenge, status, error) => {
+    const { handler, verifyChallenge, uploadMock, rpcMock, createAdmin } = setup({ challenge });
     const response = await handler(request());
 
     expect(response.status).toBe(status);
     expect(await response.json()).toEqual({ error });
     expect(verifyChallenge).toHaveBeenCalledWith(expect.objectContaining({
       expectedAction: 'resume_submit',
+      allowedHostnames: new Set(['shpeosu.com', 'www.shpeosu.com']),
+      remoteIp: '203.0.113.10',
     }));
+    expect(rpcMock).not.toHaveBeenCalled();
+    expect(createAdmin).not.toHaveBeenCalled();
     expect(uploadMock).not.toHaveBeenCalled();
+  });
+
+  it('preserves the shared Wi-Fi allowance after more invalid attempts than the retired edge ceiling', async () => {
+    const dependencies = setup({ challenge: 'rejected' });
+    for (let attempt = 0; attempt < 101; attempt += 1) {
+      const response = await dependencies.handler(request(form({ turnstile_token: `invalid-${attempt}` })));
+      expect(response.status).toBe(403);
+    }
+
+    expect(dependencies.createAdmin).not.toHaveBeenCalled();
+    expect(dependencies.rpcMock).not.toHaveBeenCalled();
+    expect(dependencies.hmac).not.toHaveBeenCalled();
+    expect(dependencies.uploadMock).not.toHaveBeenCalled();
+
+    dependencies.verifyChallenge.mockResolvedValue('valid');
+    expect((await dependencies.handler(request())).status).toBe(200);
+    expect(dependencies.uploadMock).toHaveBeenCalledTimes(1);
   });
 
   it('isolates resume network/email rate keys and blocks before reservation', async () => {
     const rpc = vi.fn()
       .mockResolvedValueOnce({ data: true, error: null })
-      .mockResolvedValueOnce({ data: true, error: null })
       .mockResolvedValueOnce({ data: false, error: null });
-    const { handler, uploadMock } = setup({ rpc });
+    const { handler, uploadMock, verifyChallenge } = setup({ rpc });
     const response = await handler(request());
 
     expect(response.status).toBe(429);
-    expect(rpc).toHaveBeenNthCalledWith(2, 'consume_public_submission_rate_limit', {
+    expect(verifyChallenge).toHaveBeenCalledTimes(1);
+    expect(rpc).toHaveBeenNthCalledWith(1, 'consume_public_submission_rate_limit', {
       p_rate_key: 'hash:resume:network:203.0.113.10',
       p_max_requests: 200,
       p_window_seconds: 3600,
     });
-    expect(rpc).toHaveBeenNthCalledWith(3, 'consume_public_submission_rate_limit', {
+    expect(rpc).toHaveBeenNthCalledWith(2, 'consume_public_submission_rate_limit', {
       p_rate_key: 'hash:resume:email:buckeye.1@osu.edu',
       p_max_requests: 5,
       p_window_seconds: 3600,
@@ -170,6 +185,21 @@ describe('protected resume Edge handler', () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ status: 'accepted' });
     expect(uploadMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects a header-only fake PDF after verification but before reservation or upload', async () => {
+    const bytes = new Uint8Array(12 * 1024);
+    bytes.set(new TextEncoder().encode('%PDF-1.7\nnot a document'));
+    const { handler, verifyChallenge, rpcMock, uploadMock, fingerprint } = setup();
+    const response = await handler(request(form({
+      file: new File([bytes], 'resume.pdf', { type: 'application/pdf' }),
+    })));
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: 'invalid_pdf' });
+    expect(verifyChallenge).toHaveBeenCalledTimes(1);
+    expect(rpcMock.mock.calls.every(([name]) => name === 'consume_public_submission_rate_limit')).toBe(true);
+    expect(uploadMock).not.toHaveBeenCalled();
+    expect(fingerprint).not.toHaveBeenCalled();
   });
 
   it('rejects a reused idempotency key bound to different content', async () => {

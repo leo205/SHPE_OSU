@@ -1,5 +1,5 @@
 import { resumeFingerprint } from './resume-fingerprint.ts';
-import { parseResumeFormData } from './resume-validation.ts';
+import { parseResumeFormData, validateResumePdf } from './resume-validation.ts';
 import {
   corsHeaders,
   isAllowedOrigin,
@@ -160,26 +160,14 @@ export function createResumeHandler(dependencies: ResumeHandlerDependencies) {
     }
 
     const remoteIp = requestIp(request);
-    const admin = dependencies.createAdmin(supabaseUrl, secretKey);
-    const edgeRateKey = await dependencies.hmac(
-      rateLimitSecret,
-      `resume:edge:${remoteIp}`,
-    );
-    const edgeRate = await consumeRateLimit(admin, edgeRateKey, 100, 600);
-    if (edgeRate === 'unavailable') {
-      logError('[submit-resume] Edge rate-limit check failed.');
-      return jsonResponse({ error: 'service_unavailable' }, 503, origin);
-    }
-    if (edgeRate === 'limited') {
-      return jsonResponse({ error: 'rate_limited' }, 429, origin);
-    }
-
     const form = await boundedFormData(request);
     const submission = form ? await parseResumeFormData(form, now()) : null;
     if (!submission) {
       return jsonResponse({ error: 'invalid_submission' }, 400, origin);
     }
 
+    // Invalid tokens must not consume the allowance shared by campus users.
+    // Request floods before Siteverify require hosting-gateway protection.
     const challenge = await dependencies.verifyChallenge({
       token: submission.turnstile_token,
       remoteIp,
@@ -194,6 +182,7 @@ export function createResumeHandler(dependencies: ResumeHandlerDependencies) {
       return jsonResponse({ error: 'verification_failed' }, 403, origin);
     }
 
+    const admin = dependencies.createAdmin(supabaseUrl, secretKey);
     const [networkRateKey, emailRateKey, globalRateKey] = await Promise.all([
       dependencies.hmac(rateLimitSecret, `resume:network:${remoteIp}`),
       dependencies.hmac(rateLimitSecret, `resume:email:${submission.email}`),
@@ -224,6 +213,12 @@ export function createResumeHandler(dependencies: ResumeHandlerDependencies) {
       return jsonResponse({ error: 'rate_limited' }, 429, origin);
     }
 
+    // Parse untrusted documents only after verification and durable quotas.
+    // Reject unsafe/unsupported PDFs before reserving a path or storing bytes.
+    if (!(await validateResumePdf(submission.file))) {
+      return jsonResponse({ error: 'invalid_pdf' }, 400, origin);
+    }
+
     const draftFingerprint = await fingerprint(submission);
     const { data: rawReservation, error: reservationError } = await admin.rpc(
       'reserve_resume_submission',
@@ -250,6 +245,7 @@ export function createResumeHandler(dependencies: ResumeHandlerDependencies) {
     const pathMatch = typeof resumePath === 'string' ? RESERVED_PATH.exec(resumePath) : null;
     if (
       reservation?.status !== 'reserved'
+      || typeof resumePath !== 'string'
       || !pathMatch
       || Number(pathMatch[1]) !== submission.submission_started_at
     ) {

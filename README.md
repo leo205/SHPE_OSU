@@ -62,7 +62,7 @@ claims protect the operations behind them.
 
 #### 2. Student Resume Upload (`/resume-upload`)
 *   **Secure Student Uploads**: Members can upload a PDF copy of their resume to be compiled into the official resume book.
-*   **MIME-Type Spoofing Check**: Both client and Edge validate that the file starts with the PDF signature `0x25, 0x50, 0x44, 0x46`; the private bucket also restricts MIME type and size.
+*   **PDF Screening**: Client checks provide quick size/type feedback. The September 14 follow-up adds bounded structural and active-content screening in Edge after verified Turnstile and quotas, before upload. It accepts static PDFs up to ten pages; scripts, attachments, encrypted files, and unsupported features are rejected. This is not antivirus. See the rollout status below.
 *   **OSU Email Domain Lock**: Restricts uploads to the exact `osu.edu`, `buckeyemail.osu.edu`, and `alumni.osu.edu` domains. The Edge Function and database both enforce it; suffixes such as `osu.edu.evil.example` are rejected.
 *   **Server-Side Submission**: A Turnstile-protected Edge Function validates the multipart body, reserves an idempotent submission, generates the Storage path, uploads privately, and queues a separate pending revision. A new submission cannot de-list an already approved resume; approval and deletion use atomic admin RPCs.
 *   **File Size Ceiling**: PDFs must be between 10 KB and 250 KB. The form shows the file's size the moment it is picked and explains how to shrink an oversized one.
@@ -99,6 +99,7 @@ claims protect the operations behind them.
     replacement is selected, and updates the shared calendar/check-in source.
 *   **Resume Book Admin Dashboard (`/admin/resumes`)**:
     *   **Review Pipeline**: Admins can view, approve, revoke, or delete pending resume submissions.
+    *   **Retired File Cleanup (pending rollout)**: Replaced/deleted files are queued transactionally and removed by an admin-only server endpoint. Failed work persists for the next admin visit or **Retry file cleanup** action.
     *   **Sponsor Onboarding**: Step-by-step instructions for creating a recruiter account and granting the `sponsor` role.
     *   **Inline Major Editing**: Admins can modify a student's major directly in the resume book table to fix spelling errors.
 
@@ -176,6 +177,10 @@ both npm audits, and `npm run preview`; the preview URL is normally
 [http://localhost:4173](http://localhost:4173) and includes the production CSP
 and security headers.
 
+`npm test` includes isolated PostgreSQL/PGlite tests for the real resume
+approval/deletion and cleanup SQL; those tests use synthetic local data and
+never contact production.
+
 Vercel Web Analytics is mounted once in `src/main.jsx` using
 `@vercel/analytics/react`. It does not collect development traffic. Enable Web
 Analytics in the Vercel project dashboard, deploy the reviewed branch through
@@ -221,14 +226,15 @@ shpe-osu/
 ├── REWRITE.md            # Plan for the ports-and-adapters rewrite
 ├── supabase/             # Database security model — READ supabase/README.md FIRST
 │   ├── README.md         # Security model, run order, and how to check live state
-│   ├── leaderboard-view.sql   # applied: two public columns, top-ten cap
+│   ├── leaderboard-view.sql   # applied: first_name, last_initial, count; top ten
 │   ├── sponsor-auth.sql       # (applied) sponsor logins + RLS lockdown
 │   ├── resume-submit.sql      # superseded legacy path; execution revoked
 │   ├── attendance-submit.sql  # applied: limiter + service-only RPC
 │   ├── attendance-lockdown.sql # applied: no anonymous table writes
 │   ├── resume-edge-submit.sql # applied: reservations/admin RPCs
+│   ├── resume-cleanup.sql     # pending rollout: private transactional cleanup
 │   ├── resume-lockdown.sql    # applied: no legacy public upload path
-│   └── functions/             # Three protected Edge submission functions
+│   └── functions/             # Three public submission functions + admin cleanup
 ├── tailwind.config.js    # Customized color system (SHPE branding palette)
 ├── vercel.json           # Vercel deployment headers & Content Security Policy (CSP)
 └── package.json          # Node dependencies
@@ -273,7 +279,7 @@ shpe-osu/
     sponsor contact form in production while everything looked fine locally.
 *   **File Safeguards**:
     *   PDFs between 10 KB and 250 KB.
-    *   Magic-byte validation (`%PDF`) read from the byte buffer.
+    *   Quick magic-byte feedback plus the pending backend structural PDF screen.
     *   User filenames are discarded; the server reserves
         `submissions/<13-digit timestamp>_<uuid>.pdf`, so a caller cannot choose
         a path or point metadata at another object.
@@ -291,6 +297,14 @@ EmailJS Free account does not expose a private key, so its public key was rotate
 during cutover and the replacement exists only in Supabase Edge secrets. See
 `supabase/README.md` for the recorded evidence and safe redeployment order.
 
+**September 14 follow-up is implemented locally and awaits rollout.** Invalid
+Turnstile attempts no longer consume shared Wi-Fi quotas; the backend adds
+structural PDF screening; and resume replacement/deletion persists a private
+cleanup queue. Deploy `resume-cleanup.sql`, all four Edge Functions, then the
+matching frontend in that order. There is no automatic orphan backfill or
+scheduled cleanup job. The authoritative rollout record is
+[`supabase/README.md`](./supabase/README.md).
+
 ### Known residual risk
 
 Turnstile proves a challenge was completed, not ownership or physical presence.
@@ -302,6 +316,12 @@ revision from replacing or de-listing an approved one, but an impersonated
 pending submission could still mislead an admin. Sponsor `reply_to` addresses
 are also unverified. E-Board must independently verify resume identity and any
 sponsorship/payment request until an identity flow is approved.
+
+Verified submissions can still consume shared-network limits. Removing the
+invalid-token precheck protects legitimate campus users' allowance, but
+volumetric traffic before Siteverify requires hosting-gateway protection.
+Structural PDF screening reduces unsupported/active content; it does not prove
+that every accepted document is harmless.
 
 The project owner explicitly re-approved the original GroupMe invitation on
 2026-09-03. Its exact destination appears on Home, in the Footer, and after a

@@ -1,6 +1,6 @@
 # SHPE OSU Website — Engineering Handoff
 
-_Last updated: 2026-09-13_
+_Last updated: 2026-09-14; September 14 follow-up rollout pending._
 
 Developer documentation for the Digital Operations Chair and anyone maintaining
 the SHPE chapter website at The Ohio State University. Covers architecture,
@@ -57,6 +57,22 @@ prove that the corresponding live policy or function still exists.
 | **GroupMe invitation** | The project owner explicitly re-approved the original GroupMe invitation on 2026-09-03. | Exact original link restored on Home, Footer, and the first-attendance success screen; regression contract prevents silent destination drift |
 | **Dependencies** | React Router and Vite were updated without `--force`; the production and full dependency audits are clean. Safari 14 remains an explicit build target. | ✅ Live |
 | **Public leaderboard** | Both clients request ten rows, and the canonical view enforces the same top-ten cap so a direct caller cannot enumerate the remaining aggregates. It exposes only `first_name`, a SQL-derived one-character `last_initial`, and distinct-event `count`; the stored surname/dot number stays private and public roles receive `SELECT` only. | ✅ Applied and anonymously verified |
+
+### September 14 follow-up — implemented locally, not yet marked live
+
+The focused fixes move all three forms' durable quotas after successful
+Turnstile verification, add bounded structural PDF screening before upload, and
+persist retired resume paths for cleanup after approval/deletion. Invalid tokens
+cannot consume a campus NAT's shared allowance. The existing identity and
+presence limitations remain; pre-Siteverify flood protection is a separate
+hosting-gateway concern.
+
+`resume-cleanup.sql` must be applied before deploying `cleanup-resume-files`
+and the matching frontend. The older frontend remains compatible with the
+transactional triggers. Deploy all four Edge Functions for this follow-up;
+local PGlite tests execute the actual SQL, but production status requires the
+live probes in `supabase/README.md`. No existing files/rows are removed or
+backfilled by the migration.
 
 ### What is still open
 
@@ -123,8 +139,10 @@ The live application utilizes five tables/views and one storage bucket in
 Supabase. (`events` and `leaderboard` were added after the original draft of
 this document — see §2.4 and §2.5.) The security migrations also add the internal,
 RLS-locked `public_submission_rate_limits` and
-`resume_submission_reservations` tables. They are service-only implementation
-details, not browser APIs.
+`resume_submission_reservations` tables. The pending cleanup migration adds
+`resume_file_cleanup`; its private rows include retry/lease state and permanent
+completed path tombstones. They are internal implementation details, not browser
+APIs; the cleanup worker uses service-only RPCs rather than direct table grants.
 
 ### 1. `attendance`
 Stores all student check-in records.
@@ -213,7 +231,7 @@ was effectively `USING (true)`. Public. The `sessionStorage` token in
 | storage `resumes` | — | reserved private upload | approved files only | read through signed URLs |
 | submission limiter/reservations | — | internal only | — | no direct client grant |
 | `events` | SELECT | SELECT | SELECT | full |
-| `leaderboard` view | two public aggregate columns | SELECT | SELECT | SELECT |
+| `leaderboard` view | `first_name`, derived `last_initial`, `count`; top ten | SELECT | SELECT | SELECT |
 
 Turnstile is an automation signal, not authentication. CORS is browser
 containment, not an anti-spam boundary. The security boundary is the combination
@@ -270,10 +288,15 @@ Rename them `⚠️ OLD — DO NOT RUN`.
     action-bound Turnstile token and consumes HMAC-keyed database counters;
     raw IP addresses and dot numbers are not stored in the limiter table.
 
-2.  **Magic-Byte PDF Verification**:
-    Both the browser and Edge read the first four bytes for `%PDF`; Edge also
-    enforces the exact PDF media type and 10–250 KB size range. A browser MIME
-    label or filename alone is never trusted.
+2.  **PDF screening (September 14 follow-up)**:
+    Cheap metadata/type/size/header checks precede Turnstile. Only a verified,
+    quota-allowed request reaches the backend structural/active-content parser,
+    which requires a complete static PDF with one to ten pages. Input remains
+    10–250 KB, expanded streams are capped at 8 MB, and nesting at 64. Scripts,
+    attachments, encryption, interactive forms, and unsupported features are
+    rejected with guidance to export a fresh static PDF. This is not antivirus
+    and does not rewrite or rescan existing uploads. Exact budgets and pinned
+    backend dependencies are documented in `supabase/README.md`.
 
 3.  **Safe resume retries and approval**:
     Edge binds a UUID to a SHA-256 fingerprint and a server-generated exact
@@ -281,7 +304,9 @@ Rename them `⚠️ OLD — DO NOT RUN`.
     converges on that reservation; changed content cannot reuse it. A claimed
     email always creates a pending revision and cannot de-list an existing
     approved resume. Admin approve/delete operations lock and re-check the row
-    in service-only atomic RPCs instead of trusting a zero-row browser update.
+    in authenticated-admin atomic RPCs instead of trusting a zero-row browser
+    update. The pending cleanup extension queues every deleted sibling path in
+    that same transaction. Cleanup never removes the replacement's active file.
 
 4.  **Sponsor Access — Supabase Auth**:
     Recruiters sign in with an email and password and are granted a `sponsor`
@@ -402,6 +427,24 @@ Before any manual import, check duplicates against existing attendance:
 SELECT event_name, first_name, last_name_dotnum, count(*)
 FROM attendance GROUP BY 1,2,3 HAVING count(*) > 1;
 ```
+
+### Retired resume file cleanup (after the September 14 rollout)
+
+Approval or deletion records retired file paths inside its database transaction.
+The `cleanup-resume-files` Edge endpoint verifies the admin bearer through Auth
+and server-controlled `app_metadata.role`, then claims up to five detached paths
+from the private queue. It deletes through the Storage API; browser requests
+cannot supply paths. Permanent tombstones and reference guards prevent retired
+paths from being reused, and late in-flight uploads become eligible again.
+
+The dashboard requests a pass on visits and successful approval/deletion. If
+**Some retired resume files still need removal** appears, the files remain
+private and the queue retains the work. **Retry file cleanup** requests another
+pass; failed attempts become eligible after 30 seconds, increasing up to one
+hour. Interrupted claims expire after two minutes. There is no scheduled worker:
+eligibility requires a later admin visit/action to run cleanup. Never truncate
+the queue, delete its completed tombstones, or turn this into an automatic
+backfill of unrelated old files.
 
 ### Sponsor inquiry operations
 

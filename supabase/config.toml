@@ -11,3 +11,10 @@ verify_jwt = false
 
 [functions.submit-sponsor-inquiry]
 verify_jwt = false
+
+# This endpoint requires a signed-in ADMIN. The handler verifies the bearer
+# token through Supabase Auth and checks server-controlled app_metadata.role.
+# Disabling the legacy gateway verifier supports current JWT signing keys;
+# missing/invalid/non-admin sessions are still rejected before any queue access.
+[functions.cleanup-resume-files]
+verify_jwt = false

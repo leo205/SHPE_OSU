@@ -41,6 +41,10 @@ Start with `git diff` (or `git diff main...HEAD`) and review what actually
 changed. Read enough surrounding code to judge the change in context, but do not
 re-audit the whole repo.
 
+The September 14 follow-up is implemented locally, rollout pending: verified-only
+quotas, structural PDF screening, and durable retired-file cleanup. The recorded
+state in `supabase/README.md` takes precedence over an assumption that it is live.
+
 ## Bug classes this codebase has actually shipped
 
 Weight these heavily — each one reached production here at least once.
@@ -97,6 +101,29 @@ existing object. A new pending resume revision must not de-list an already
 approved revision. Approval and deletion go through the authenticated admin RPCs
 so the row, sibling revisions, reservation, and Storage path cannot drift.
 
+The cleanup extension queues every deleted path in the same transaction,
+including sibling revisions retired during approval. A failed approval must
+roll back its cleanup intent. The admin-only cleanup Edge endpoint verifies Auth
+and `app_metadata.role`; service-only RPCs select detached paths and lease them
+before Storage API deletion. Never accept a path supplied by the browser.
+Completed tombstones remain permanently to prevent reuse; failed/late cleanup
+is retryable on admin visits/actions/button with backoff, not a cron. Check old
+frontend compatibility and deploy SQL → cleanup Edge → matching frontend.
+
+**Shared-network lockouts.** Only valid server-side Turnstile may reach durable
+network/identity/global quota writes. Invalid tokens must not lock out a campus
+NAT. Test repeated invalid attempts followed by a valid same-IP request, while
+verified requests still receive quota errors. Pre-Siteverify flood protection
+belongs at the hosting gateway; do not restore the retired shared-IP precheck or
+replace it with unbounded per-token database rows.
+
+**PDF prefixes are not file validation.** Keep the bounded structural screen
+after verification/quotas and before reservation/upload. The static PDF subset
+supports one to ten pages within 10–250 KB; reject active/unsupported features
+and excess parser budgets. Keep pdf-lib/pako pinned and backend-only. Screening
+is not antivirus, so avoid claiming a file is harmless or rendering untrusted
+PDFs in application HTML. Manual admin review remains required.
+
 Email delivery is different: a provider timeout may mean the sponsor inquiry was
 sent even when no response arrived. The Edge Function makes exactly one EmailJS
 attempt and the client reports `delivery_unconfirmed`; it must never retry
@@ -119,8 +146,9 @@ The `GroupMe` answer in the private "How did you hear about us?" enum is also
 valid historical data vocabulary.
 
 **Leaderboard scope.** Both public readers and the owner-privileged database
-view must cap the result at ten. The view may project only `first_name` and the
-distinct-event `count`; a client-only limit does not prevent direct enumeration.
+view must cap the result at ten. The view may project only `first_name`, the
+owner-approved SQL-derived one-character `last_initial`, and distinct-event
+`count`; a client-only limit does not prevent direct enumeration.
 
 ## Also check
 

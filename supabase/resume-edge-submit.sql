@@ -14,6 +14,12 @@
 --  path. Exact retries converge; changed payloads cannot overwrite that path.
 --  New submissions always enter a separate pending row, so an unverified email
 --  claim can never de-list an already-approved resume.
+--
+--  Lifecycle extension: apply resume-cleanup.sql after this file. Its trusted
+--  BEFORE DELETE trigger durably queues exact retired paths in the same
+--  approval/deletion transaction; cleanup-resume-files removes them through
+--  Storage afterward. Keep those triggers and permanent path tombstones when
+--  reapplying this canonical reservation/lifecycle definition.
 -- ============================================================================
 
 BEGIN;

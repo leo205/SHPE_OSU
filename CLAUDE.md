@@ -63,6 +63,27 @@ This is the verified production baseline as of **2026-09-13**. The protected
 submission rollout is complete in the Supabase project and the matching Vercel
 frontend is live from `main`.
 
+### September 14 follow-up — implemented locally, rollout pending
+
+- All three public handlers now verify Turnstile before consuming any durable
+  shared-network, identity/email, or global allowance. Invalid tokens cannot
+  lock out a campus NAT; pre-Siteverify flood protection requires the hosting
+  gateway. Verified submissions retain the existing durable limits.
+- Resume uploads now receive bounded structural/active-content PDF screening
+  after verification and quotas, before reservation/Storage. The backend-only
+  parser accepts static PDFs up to ten pages within the existing 10–250 KB
+  range. This is not antivirus or an identity check.
+- `resume-cleanup.sql` transactionally queues paths retired by approval or
+  deletion. The admin-only `cleanup-resume-files` endpoint processes private
+  detached files with leases and permanent path tombstones. Retries run on
+  admin visits/actions or the retry button; no cron is configured.
+- `npm test` includes actual lifecycle/cleanup SQL executed in isolated
+  PostgreSQL through PGlite, alongside the handler and PDF regressions.
+- Apply cleanup SQL, deploy all four Edge Functions, then deploy the matching
+  frontend. Existing files are not automatically deleted/backfilled. See
+  `supabase/README.md` for the pending rollout and live verification checklist;
+  do not label these additions live before that evidence is recorded.
+
 ### Live production baseline
 
 - **Resume book is closed.** Was fully downloadable by anyone — verified by
@@ -203,7 +224,7 @@ src/
 ├── lib/           domain helpers + protected submission clients and tests
 └── data/events.js bundled fallback when Supabase is unreachable
 supabase/
-├── functions/     protected attendance, resume, and sponsor Edge handlers
+├── functions/     three public submission handlers + admin-only file cleanup
 └── *.sql          applied production definitions and historical migrations
 .claude/agents/    three read-only reviewers (see below)
 ```

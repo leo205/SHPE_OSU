@@ -18,6 +18,10 @@ additive submission migrations, and attendance/resume lockdowns were applied and
 probed on 2026-09-13. Do not confuse a green branch build or an SQL status comment
 with proof that the live function, policy, and grants still match.
 
+The September 14 follow-up is implemented locally, rollout pending: verified-only
+quotas, bounded static-PDF screening, and transactional file cleanup. Check the
+new rollout section in `supabase/README.md` before asserting deployment status.
+
 Your job is narrow and specific: **find the things that are broken but look
 fine.** Not code quality — `code-reviewer` handles that. Not vulnerabilities —
 `security-auditor` handles those. You catch the failures that pass every build,
@@ -93,8 +97,11 @@ orphaned images too, since they inflate the deploy. Confirm each route in
 
 **5. The gates themselves.**
 `npm test`, `npm run check:edge`, `npm run lint`, and `npm run build` must pass.
-`check:edge` must include all three entry points: `submit-attendance`,
-`submit-resume`, and `submit-sponsor-inquiry`. Lint matters here specifically
+`check:edge` must include all four entry points: `submit-attendance`,
+`submit-resume`, `submit-sponsor-inquiry`, and `cleanup-resume-files`. `npm test`
+includes real lifecycle/cleanup SQL run against isolated PostgreSQL/PGlite with
+synthetic data; require rollback, retirement, lease, and permission coverage.
+Lint matters here specifically
 because it was once allowed to rot to 93 errors, at which point everyone stopped
 running it and it stopped catching anything. Run `git diff --check`,
 `npm audit --omit=dev`, and the full `npm audit` too. A production high/critical
@@ -113,6 +120,18 @@ durable HMAC-keyed rate limits, and Turnstile using its exact action
 (`attendance_submit`, `resume_submit`, or `sponsor_inquiry`), allowed hostname,
 and fresh timestamp. A missing limiter, Siteverify failure, or missing secret
 must fail closed.
+
+Only successfully verified submissions may consume shared-IP, identity/email,
+or global counters. Rejected/unavailable Turnstile must make no database calls;
+repeated invalid tokens must leave a valid same-IP request eligible. The old
+shared-IP pre-Siteverify quota is intentionally removed; hosting-gateway flood
+protection remains a separate operational requirement.
+
+Resume screening must run after verification/quotas and before reservation or
+Storage. Keep pdf-lib 1.17.1/pako 2.1.0 backend-only and confirm the deployed
+`submit-resume/deno.json` resolves them. Test a supported static PDF, fake prefix,
+active content, and parser resource limits. This is a static-feature screen,
+not antivirus; the original file remains private and needs admin review.
 
 Exercise the exact configured production and preview origins, plus a near-match
 that must be rejected. CORS is not authentication because non-browser clients
@@ -135,7 +154,8 @@ catalog state rather than trusting those comments, and never paste all SQL files
 into production as an unordered bundle.
 
 - Leaderboard: after any change, apply the current `leaderboard-view.sql` and anonymously verify
-  it returns no more than ten rows with exactly `first_name` and `count`.
+  it returns no more than ten rows with exactly `first_name`, the owner-approved
+  SQL-derived one-character `last_initial`, and `count`.
 - Attendance rebuild: apply `attendance-submit.sql`; deploy/configure the Edge Function;
   deploy and smoke-test the Edge-only browser; then apply
   `attendance-lockdown.sql` immediately. Early lockdown breaks the old client;
@@ -148,6 +168,17 @@ into production as an unordered bundle.
   quotas; deploy the function; cut over the browser; then rotate the EmailJS
   public key and update only the Edge secret. Prefer verified private-key
   enforcement instead when the account supports it.
+- September 14 cleanup extension: apply `resume-cleanup.sql` after the existing
+  resume lifecycle migration; deploy all four Edge Functions; then deploy the
+  frontend. Existing frontend approval/deletion remains compatible with the
+  transactional queue trigger. The new UI depends on that queue being present.
+  Verify admin bearer checks through Auth, non-admin/anonymous denial,
+  service-only claim/finish/count RPCs, and path selection exclusively from the
+  private queue. Verify replacement retains the new file while retiring older
+  ones, failed cleanup persists, stale leases cannot acknowledge new work, and
+  permanent tombstones prevent path reuse. No existing-file backfill is part of
+  this migration. Retry backoff starts at 30 seconds and caps at one hour;
+  processing is requested on admin visits/actions/button, not by a cron job.
 
 After every stage, query live policies/function privileges and run the documented
 safe probes from `supabase/README.md`. Source SQL and a successful CLI command are

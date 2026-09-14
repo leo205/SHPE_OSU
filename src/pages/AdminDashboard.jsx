@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { isOtherMajor, customMajorText } from '../lib/majors';
 import { attendanceEventDate } from '../lib/events';
+import { cleanupRetiredResumeFiles } from '../lib/resumeCleanup';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
   LineChart, Line,
@@ -136,6 +137,23 @@ export default function AdminDashboard() {
   const [expandedMajor, setExpandedMajor] = useState(null);
   const [searchResumes, setSearchResumes] = useState('');
   const [resumeActiveTab, setResumeActiveTab] = useState('approved'); // 'approved' | 'pending'
+  const [resumeCleanupPending, setResumeCleanupPending] = useState(false);
+  const [resumeCleanupRunning, setResumeCleanupRunning] = useState(false);
+  const cleanupRun = useRef(Promise.resolve());
+
+  const retryResumeCleanup = useCallback(() => {
+    // Serialize visits/actions so an approval made during an earlier cleanup
+    // still gets its own pass after that transaction has committed.
+    cleanupRun.current = cleanupRun.current.then(async () => {
+      setResumeCleanupRunning(true);
+      const result = await cleanupRetiredResumeFiles(supabase);
+      setResumeCleanupPending(result.pending);
+      setResumeCleanupRunning(false);
+    });
+    return cleanupRun.current;
+  }, []);
+
+  useEffect(() => { void retryResumeCleanup(); }, [retryResumeCleanup]);
 
   // Calendar Event States
   const [dbEvents, setDbEvents] = useState([]);
@@ -263,6 +281,7 @@ export default function AdminDashboard() {
       return;
     }
 
+    void retryResumeCleanup();
     const { data: refreshed, error: refreshError } = await supabase
       .from('resumes')
       .select('*')
@@ -291,16 +310,10 @@ export default function AdminDashboard() {
       return;
     }
 
-    const { error: storageError } = await supabase.storage.from('resumes').remove([data.resume_path]);
-    if (storageError) {
-      console.warn('[AdminDashboard] Orphaned resume file left in storage:', data.resume_path, storageError);
-      alert(
-        'The resume record was removed from the book, but its private PDF could not be deleted. '
-        + `Keep this path for an admin cleanup retry: ${data.resume_path}`
-      );
-    }
-
     setResumes((prev) => prev.filter((r) => r.id !== id));
+    // The deletion transaction persisted its private file path in the cleanup
+    // queue. Retrying no longer depends on a disappearing browser row.
+    void retryResumeCleanup();
   };
 
   const handleViewResume = async (path) => {
@@ -1744,6 +1757,16 @@ CREATE POLICY "events admin all"
                 />
               </div>
             </div>
+
+            {resumeCleanupPending && (
+              <div role="status" className="flex flex-col gap-3 rounded-xl border border-outline-variant/30 bg-surface-container p-4 text-sm sm:flex-row sm:items-center sm:justify-between">
+                <p>Some retired resume files still need removal. They remain private, and cleanup will retry on your next visit.</p>
+                <button type="button" onClick={retryResumeCleanup} disabled={resumeCleanupRunning}
+                  className="shrink-0 rounded-full bg-primary px-4 py-2 font-bold text-on-primary disabled:opacity-50">
+                  {resumeCleanupRunning ? 'Retrying…' : 'Retry file cleanup'}
+                </button>
+              </div>
+            )}
 
             {/* Split sub-tabs */}
             <div className="grid w-full grid-cols-2 gap-1.5 rounded-2xl bg-surface-container p-1.5 animate-fade-in sm:w-fit sm:rounded-full">
