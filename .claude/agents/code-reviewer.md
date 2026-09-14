@@ -13,7 +13,7 @@ TypeScript, no PropTypes (`react/prop-types` is deliberately disabled in
 `.eslintrc.cjs`; do not suggest re-enabling it without a real typing strategy).
 The Edge Functions and their shared modules are TypeScript.
 
-Current production baseline (reviewed 2026-09-13): events are shared through
+Current production baseline (reviewed 2026-09-14): events are shared through
 `src/lib/events.js`; the static list is an intentional outage fallback. The
 admin, recruiter-dashboard, and professional-development routes are lazy-loaded.
 The attendance form no longer collects pronouns, though the historical database
@@ -31,19 +31,36 @@ enforce `public.is_admin()` in Postgres. Never replace that flow with an
 anonymous table/Storage write, a browser-only throttle, or direct browser
 EmailJS traffic.
 
-The canonical SQL files record a production application date of 2026-09-13.
-Source code is not evidence that a migration or Edge Function remains live.
-Treat the redeployment order in those file headers as part of the implementation, and
-flag any change that could leave the old anonymous path open or take the live
-form down between stages.
+The canonical submission SQL records the September 13 rollout, and
+`resume-cleanup.sql` was applied transactionally on September 14. Source code is
+not evidence that a migration or Edge Function remains live. Treat the
+redeployment order in those file headers as part of the implementation, and flag
+any change that could leave the old anonymous path open or take the live form
+down between stages.
 
 Start with `git diff` (or `git diff main...HEAD`) and review what actually
 changed. Read enough surrounding code to judge the change in context, but do not
 re-audit the whole repo.
 
-The September 14 follow-up is implemented locally, rollout pending: verified-only
-quotas, structural PDF screening, and durable retired-file cleanup. The recorded
-state in `supabase/README.md` takes precedence over an assumption that it is live.
+The September 14 backend and frontend are live. Security commit `749ac0e` and
+quality commit `3c0215a` reached `main`; Vercel serves
+`/assets/index-BkPTcLwI.js`, and all JS/CSS hashes plus HTML/security headers
+match the approved production-configured build. All four Edge Functions are
+ACTIVE with gateway `verify_jwt = false`: `submit-attendance` v5,
+`submit-resume` v5 with its pinned Deno import map,
+`submit-sponsor-inquiry` v8, and `cleanup-resume-files` v1. Cleanup still
+requires server-verified admin Auth in its handler.
+
+The cleanup migration left 209 attendance rows, 10 resume rows (all approved),
+10 files, and 0 orphans unchanged. Its private queue has RLS/Postgres-only table
+ACL; the three trigger functions are Postgres-only; claim/finish/count RPCs are
+`service_role`-only; and all three triggers are installed. Live denial probes
+passed without changing quota fingerprints, rows, files, reservations, the
+empty cleanup queue, or orphan count. Automated evidence is 290 tests in 36
+files, lint, build, four Edge bundles, and both dependency audits at zero.
+Successful September 14 form acceptance is not complete: the owner will test
+attendance, and resume replacement lifecycle plus sponsor delivery remain
+unretested. The recorded state in `supabase/README.md` takes precedence.
 
 ## Bug classes this codebase has actually shipped
 
@@ -107,8 +124,9 @@ roll back its cleanup intent. The admin-only cleanup Edge endpoint verifies Auth
 and `app_metadata.role`; service-only RPCs select detached paths and lease them
 before Storage API deletion. Never accept a path supplied by the browser.
 Completed tombstones remain permanently to prevent reuse; failed/late cleanup
-is retryable on admin visits/actions/button with backoff, not a cron. Check old
-frontend compatibility and deploy SQL → cleanup Edge → matching frontend.
+is retryable on admin visits/actions/button with backoff, not a cron. The live
+rollout followed SQL → cleanup Edge → matching frontend; preserve that order in
+future rebuilds.
 
 **Shared-network lockouts.** Only valid server-side Turnstile may reach durable
 network/identity/global quota writes. Invalid tokens must not lock out a campus
@@ -179,6 +197,10 @@ owner-approved SQL-derived one-character `last_initial`, and distinct-event
   production build at `http://localhost:4173` via `npm run preview`; do not use
   a successful `npm run dev` session as production-CSP evidence, and do not push
   or deploy as part of a read-only review.
+- Environment-built behavior. The local `.env` currently omits
+  `VITE_TURNSTILE_SITE_KEY`; a passing local build alone is therefore not a
+  deployable artifact. Production was rebuilt by Vercel with its configured
+  public key and matched against a build supplied that value only in-process.
 
 ## Reporting
 

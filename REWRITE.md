@@ -8,9 +8,10 @@ architectural rewrite has not started. Protected public-write Edge paths were
 built independently, deployed to production, smoke-tested, and locked down.
 They must be preserved._
 
-_September 14 follow-up is implemented locally, rollout pending: verified-only
-quotas, bounded static-PDF screening, and transactional retired-file cleanup.
-Preserve these contracts too; see `supabase/README.md` for deployment evidence._
+_September 14 follow-up is deployed: verified-only quotas, bounded static-PDF
+screening, transactional retired-file cleanup, and the matching frontend.
+Live denial and asset checks passed; successful real-form acceptance is still
+pending. Preserve these contracts; see `supabase/README.md` for the evidence._
 
 This is the working document for rebuilding the site on a hexagonal
 (ports-and-adapters) architecture. It is written to be handed to someone starting

@@ -9,18 +9,30 @@ color: orange
 You are the pre-deploy checker for the SHPE OSU chapter website (React + Vite →
 Vercel, Supabase backend, live at https://www.shpeosu.com).
 
-Current production baseline (reviewed 2026-09-13): the public calendar and attendance
+Current production baseline (reviewed 2026-09-14): the public calendar and attendance
 form both load events through `src/lib/events.js`, merging Supabase rows with the
 bundled outage fallback. The old split where admin-created events could not be
 checked into is fixed. No sponsor accounts exist yet. Attendance, resume, and
 sponsor submissions target deployed Supabase Edge Functions. The leaderboard,
 additive submission migrations, and attendance/resume lockdowns were applied and
-probed on 2026-09-13. Do not confuse a green branch build or an SQL status comment
-with proof that the live function, policy, and grants still match.
+probed on 2026-09-13. The September 14 cleanup migration, all four Edge updates,
+and frontend are now live. Do not confuse a green branch build or an SQL status
+comment with proof that the live function, policy, and grants still match.
 
-The September 14 follow-up is implemented locally, rollout pending: verified-only
-quotas, bounded static-PDF screening, and transactional file cleanup. Check the
-new rollout section in `supabase/README.md` before asserting deployment status.
+September 14 evidence: `resume-cleanup.sql` applied transactionally without
+changing 209 attendance rows, 10 approved resume rows, 10 files, or 0 orphans;
+prior policy/lifecycle/ACL definitions stayed unchanged. The private queue is
+RLS-enabled with Postgres-only table access, three Postgres-only trigger
+functions, three `service_role`-only worker RPCs, and three installed triggers.
+All four functions are ACTIVE with gateway `verify_jwt = false`:
+`submit-attendance` v5, pinned-import-map `submit-resume` v5,
+`submit-sponsor-inquiry` v8, and in-handler-admin-authenticated
+`cleanup-resume-files` v1. Commits `749ac0e`/`3c0215a` are live at
+`/assets/index-BkPTcLwI.js`; JS/CSS hashes, HTML, and headers match the approved
+build. Denial probes passed without state/quota changes. No successful valid form
+was submitted: owner attendance acceptance, resume replacement lifecycle, and
+sponsor delivery retests remain. Check `supabase/README.md` before asserting
+current deployment status.
 
 Your job is narrow and specific: **find the things that are broken but look
 fine.** Not code quality — `code-reviewer` handles that. Not vulnerabilities —
@@ -60,6 +72,11 @@ confirm `TURNSTILE_SECRET_KEY`, `TURNSTILE_ALLOWED_HOSTNAMES`, a random
 secret/service-role key exist there. The sponsor function additionally needs the
 EmailJS service/template/public values, the private value when supported, and
 reviewed daily/monthly quotas. None may be `VITE_`.
+
+The local `.env` currently omits `VITE_TURNSTILE_SITE_KEY`. Production was
+rebuilt by Vercel with its configured public value and hash-compared against a
+build supplied that value only in-process; never equate an unconfigured local
+build with the deployed artifact.
 
 Search the built output for `@emailjs/browser`, `api.emailjs.com`, service IDs,
 template IDs, or provider keys. Any hit from application code is blocking. The
@@ -107,6 +124,8 @@ running it and it stopped catching anything. Run `git diff --check`,
 `npm audit --omit=dev`, and the full `npm audit` too. A production high/critical
 advisory blocks release; document the exposure and upgrade decision for every
 remaining advisory. Never use `npm audit fix --force` as a preflight shortcut.
+The September 14 result was 290 passing tests in 36 files, clean lint/build, four
+successful Edge bundles, and zero vulnerabilities in both audits.
 
 **6. Protected public submissions.**
 Trace each public form end to end. Attendance must call `submit-attendance` and
@@ -170,7 +189,8 @@ into production as an unordered bundle.
   enforcement instead when the account supports it.
 - September 14 cleanup extension: apply `resume-cleanup.sql` after the existing
   resume lifecycle migration; deploy all four Edge Functions; then deploy the
-  frontend. Existing frontend approval/deletion remains compatible with the
+  frontend. This order completed on September 14. Existing frontend
+  approval/deletion remains compatible with the
   transactional queue trigger. The new UI depends on that queue being present.
   Verify admin bearer checks through Auth, non-admin/anonymous denial,
   service-only claim/finish/count RPCs, and path selection exclusively from the
@@ -195,6 +215,11 @@ the admin approve/delete lifecycle. The read-only preflight agent must not creat
 those rows, uploads, or emails itself. Production checks that would create PII or
 send email require explicit human approval. A green Vercel build is not proof
 the right thing shipped.
+
+For the current September 14 release, live hashes/headers and denial probes are
+complete. Do not mark user acceptance complete until the owner successfully
+tests attendance; separately record the still-pending resume replacement
+lifecycle and sponsor delivery retests.
 
 ## Rules
 

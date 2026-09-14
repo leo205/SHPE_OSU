@@ -1,6 +1,7 @@
 # Supabase — database and public-submission security
 
-_Production state reviewed and probed: 2026-09-13._
+_Production backend state reviewed and probed: 2026-09-14. Successful browser
+acceptance tests for this follow-up are still pending._
 
 Everything that authorizes access to attendance, resumes, sponsor data, or
 uploaded PDFs must be enforced by Supabase or another trusted server. The anon
@@ -24,7 +25,7 @@ state; query the catalog and endpoint behavior after every future change.
 | `resume-edge-submit.sql` | **Applied 2026-09-13.** | A live PDF completed upload, private admin view, approval, and deletion; the test row and object were removed afterward. |
 | `resume-lockdown.sql` | **Applied 2026-09-13.** | Anonymous resume metadata insertion has no grant, legacy RPC execution returns `42501`, direct resume-bucket upload is denied by Storage RLS, and no anonymous Storage INSERT policy remains. |
 | `submit-attendance`, `submit-resume`, `submit-sponsor-inquiry` | **Deployed and active 2026-09-13** with `verify_jwt = false`. | Turnstile-protected attendance succeeded; resume lifecycle succeeded; sponsor inquiry reached EmailJS and delivered. Each endpoint performs its own validation, exact-origin handling, action check, and durable limits. |
-| September 14 security fixes | **Implemented locally; rollout pending.** | Verified-only quotas, structural PDF screening, and `resume-cleanup.sql`/`cleanup-resume-files` are changes to the baseline above; local tests alone do not prove deployment. |
+| September 14 security fixes | **Backend and matching frontend deployed 2026-09-14; user acceptance pending.** | Cleanup SQL applied; all four Edge Functions active. Live rejected-token probes left quota counters, records, reservations, and files unchanged; private-data and cleanup authorization denial checks passed. Frontend assets match the approved build. Successful browser submissions are not yet re-verified for this follow-up. |
 
 The rollout used transaction-wrapped migrations, catalog inventories, controlled
 production smoke tests, and cleanup because the account's Free plan did not
@@ -33,23 +34,64 @@ for future security changes. Network/IP buckets are still defense in depth: the
 gateway's handling of conflicting caller-supplied forwarding headers has not
 been proved in a separate staging environment.
 
-## September 14 security follow-up — rollout pending
+## September 14 security follow-up — deployed, user acceptance pending
 
 This focused change fixes invalid-token shared-Wi-Fi lockouts, magic-only PDF
 validation, and files left behind when a resume is replaced. It does not add
 identity verification, MFA, or a scheduled cleanup job.
 
-Local verification recorded September 14: **29 test files / 232 tests passed**,
-along with lint, all four Edge bundles, the frontend build, and `git diff --check`.
-The resume function also passed an actual Deno typecheck/runtime probe with a
+Local release gates recorded September 14: **36 test files / 290 tests passed**,
+along with lint, all four Edge bundles, the frontend build, `git diff --check`,
+and zero findings in both dependency audits. The earlier resume validation work
+also passed an actual Deno typecheck/runtime probe with a
 synthetic native Quartz PDF of about 19 KB and rejection of a fake PDF. The
-production-header preview is running at <http://127.0.0.1:4173>; browser
-automation was unavailable, so no authenticated visual click-through was
-completed this turn. These are local checks, not evidence of production rollout.
+production-header preview is running at <http://127.0.0.1:4173>. Its original
+build lacked `VITE_TURNSTILE_SITE_KEY`; localhost is not configured for real
+submission testing. The release comparison build uses the already-public live
+site key only in its build process, without changing `.env` or any secrets.
+Production must rebuild from Git with Vercel's production variables. Browser
+automation was unavailable; the owner will test attendance after frontend
+release. No successful production check-in, email, or upload was created here.
 
-A read-only production precheck found 10 approved resumes, 10 metadata rows,
-10 private objects, and zero orphaned objects. The cleanup extension was absent.
-No production state was changed by that check.
+A production inventory before applying the migration found 209 attendance rows,
+10 approved resumes, 10 metadata rows, 10 private objects, zero orphaned objects,
+and no cleanup extension. After applying only `resume-cleanup.sql`, those counts
+were unchanged; existing policies and lifecycle routine definitions/grants were
+identical. The new queue has RLS, no policies, and only the owner has direct
+table privileges. Its three worker RPCs grant execution only to the owner and
+`service_role`; all six new functions are owner-controlled security definers
+with an empty search path, and all three lifecycle triggers are present.
+
+Deployed versions on project `ekuaqbelulybowihmact`: `submit-attendance` **5**,
+`submit-resume` **5**, `submit-sponsor-inquiry` **8**, and `cleanup-resume-files`
+**1**, all `ACTIVE` with `verify_jwt = false`. Resume has the explicit pinned
+`deno.json` import map; cleanup verifies admin Auth inside the handler.
+
+Post-deploy live checks passed: exact production-origin preflight succeeds;
+near-match origins are rejected; missing/invalid cleanup bearers return 401;
+two invalid-token requests per public form return `verification_failed`/403.
+The quota-table fingerprint and counts for attendance, resumes, reservations,
+cleanup, and private files were unchanged across those probes. Anonymous raw
+attendance and cleanup reads are denied; resume metadata and private-bucket
+listing reveal zero rows. The public leaderboard returns exactly ten rows with
+only `first_name`, `last_initial`, and `count`.
+
+Rollback source and aggregate/schema inventories were saved outside Git at
+`/private/tmp/shpe-rollout-nDusll`. These are temporary local evidence, not a
+long-term backup. The previous protected frontend remains compatible with the
+additive schema.
+
+The matching application commit `3c0215a` (including security commit `749ac0e`)
+was pushed to `main` and rebuilt by Vercel using production variables. The live
+entry `/assets/index-BkPTcLwI.js`, three lazy JS chunks, and CSS all match the
+comparison build byte-for-byte by SHA-256; production HTML returns 200 with
+the configured security headers. These HTTP/asset checks are not browser
+interaction tests. Real attendance acceptance, sponsor delivery, and the new
+successful PDF replacement/cleanup lifecycle still require verification. The
+owner is testing attendance; no successful synthetic submission was made here.
+The final post-rollout cleanup queue and orphan counts were both zero.
+
+Preserve this sequence for subsequent redeployment:
 
 1. Run the normal gates. `npm test` includes `resume-cleanup.test.js`, which
    executes the actual lifecycle/cleanup SQL in isolated PostgreSQL through

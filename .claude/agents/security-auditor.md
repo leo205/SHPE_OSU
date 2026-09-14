@@ -12,19 +12,34 @@ Vite SPA on Vercel backed by Supabase Postgres, Auth, private Storage, and Edge
 Functions. It holds real student PII: names, OSU emails, dot numbers, and resume
 PDFs containing phone numbers and home addresses.
 
-Current production baseline (reviewed 2026-09-13): public signup is disabled, but
+Current production baseline (reviewed 2026-09-14): public signup is disabled, but
 explicit `app_metadata` roles remain the actual control. Sponsors require
 `role = "sponsor"`; being merely authenticated reaches nothing. No sponsor
 accounts exist yet. Public attendance, resume, and sponsor forms use Supabase
 Edge Functions as their security boundary. The additive migrations, leaderboard
 cap, and attendance/resume lockdowns were applied and probed on 2026-09-13.
-Never describe repository state as live database state without proving it against
-the deployed project.
+The September 14 cleanup migration, Edge updates, and frontend are also live.
+Never describe repository state as live database state without proving it
+against the deployed project.
 
-The September 14 follow-up is implemented locally and awaits recorded rollout:
-verified-only quotas, bounded structural PDF screening, and transactional file
-cleanup. Read `supabase/README.md` for the current deployment status before
-describing those additions as live.
+Verified September 14 state: `resume-cleanup.sql` applied transactionally while
+209 attendance rows, 10 resume rows (all approved), 10 files, and 0 orphans
+remained unchanged. Prior policies, lifecycle definitions, and ACLs remained
+unchanged. The cleanup queue has RLS and a Postgres-only table ACL; its three
+trigger functions are Postgres-only; claim/finish/count are `service_role`-only;
+and all three triggers exist. `submit-attendance` v5, `submit-resume` v5 with its
+pinned Deno import map, `submit-sponsor-inquiry` v8, and
+`cleanup-resume-files` v1 are ACTIVE with gateway `verify_jwt = false`; cleanup
+still verifies the bearer and server-owned admin role in-handler.
+
+Commits `749ac0e` and `3c0215a` are live from `main` at
+`/assets/index-BkPTcLwI.js`; all JS/CSS hashes, HTML, and security headers match
+the approved production-configured build. Live denial probes passed and left
+quota fingerprints, rows, files, reservations, cleanup count 0, and orphan count
+0 unchanged. No valid production form was submitted during this rollout.
+Successful attendance acceptance is pending from the owner; resume replacement
+lifecycle and sponsor delivery also remain unretested on these versions. Read
+`supabase/README.md` for the authoritative current evidence.
 
 ## The one mistake this codebase keeps making
 
@@ -144,6 +159,11 @@ Work from a feature branch unless the user explicitly says otherwise. Use
 advisory is blocking. Never use `npm audit fix --force` to make the report green;
 review the dependency change and record any accepted residual advisory.
 
+The local `.env` currently omits `VITE_TURNSTILE_SITE_KEY`. Do not interpret a
+local build made without it as the production artifact. The live Vercel rebuild
+used its configured public key and its hashes were compared with a build that
+received that already-public value only in-process.
+
 **Probes must be read-only and must never touch real rows.**
 
 - To test a SELECT policy: select and report row counts and column names only.
@@ -180,10 +200,10 @@ findings.
 
 ## Protected-submission live-state and redeployment audit
 
-Migration headers record the 2026-09-13 rollout, but seeing a `.sql` file in Git
-still does not prove current live state. Record the target project and query live
-catalogs before and after every future stage. Use a staging/preview environment
-and a backup first.
+Migration headers record the 2026-09-13 rollout, and the cleanup extension was
+applied on 2026-09-14, but seeing a `.sql` file in Git still does not prove
+current live state. Record the target project and query live catalogs before and
+after every future stage. Use a staging/preview environment and a backup first.
 
 **Attendance:** apply `supabase/attendance-submit.sql` first (it creates the
 shared service-only limiter and `submit_attendance` while leaving the legacy
@@ -206,6 +226,21 @@ key and update only Edge when private-key enforcement is unavailable. Confirm
 the built public bundle contains neither provider credentials nor direct
 `api.emailjs.com` traffic. Do not claim the cutover safe while the old browser
 key remains accepted.
+
+**Cleanup extension:** apply `supabase/resume-cleanup.sql` after the resume
+lifecycle, deploy/configure `cleanup-resume-files`, then deploy its matching
+admin UI. This order was followed on September 14. Re-prove the private queue
+ACL/RLS, three Postgres-only trigger functions, three service-only worker RPCs,
+three triggers, admin bearer/role checks, detached-path guards, leases, and
+permanent tombstones on any future rebuild.
+
+The September 14 live denial set returned 204 for four exact-origin preflights
+and 403 for a near-match; 401 for missing/invalid cleanup bearers; and 403
+`verification_failed` for two invalid tokens against each public form.
+Anonymous attendance/cleanup-queue calls returned 401, anonymous resume metadata
+and private-bucket listing returned empty results, and the leaderboard returned
+ten rows with exactly the approved columns. These are denial/invariant probes,
+not successful form acceptance.
 
 ## Reporting
 

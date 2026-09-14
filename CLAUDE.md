@@ -59,11 +59,14 @@ current one. **Click the thing you changed.**
 
 ## Current state
 
-This is the verified production baseline as of **2026-09-13**. The protected
-submission rollout is complete in the Supabase project and the matching Vercel
-frontend is live from `main`.
+The September 14 backend and frontend release is live as of **2026-09-14**.
+Commit `3c0215a` was pushed to `main`; Vercel serves
+`/assets/index-BkPTcLwI.js`, and every generated JS/CSS hash plus the HTML and
+security headers matches the approved production-configured build. Successful
+real-form acceptance is still pending, so do not claim the new attendance,
+resume-replacement, or sponsor-delivery flow has been end-to-end retested.
 
-### September 14 follow-up — implemented locally, rollout pending
+### September 14 follow-up — backend and frontend live; form acceptance pending
 
 - All three public handlers now verify Turnstile before consuming any durable
   shared-network, identity/email, or global allowance. Invalid tokens cannot
@@ -73,22 +76,49 @@ frontend is live from `main`.
   after verification and quotas, before reservation/Storage. The backend-only
   parser accepts static PDFs up to ten pages within the existing 10–250 KB
   range. This is not antivirus or an identity check.
-- `resume-cleanup.sql` transactionally queues paths retired by approval or
-  deletion. The admin-only `cleanup-resume-files` endpoint processes private
-  detached files with leases and permanent path tombstones. Retries run on
-  admin visits/actions or the retry button; no cron is configured.
+- `resume-cleanup.sql` was applied transactionally. Pre/post inventory stayed
+  exactly unchanged: 209 attendance rows; 10 resume rows, all 10 approved; 10
+  resume Storage objects; and 0 orphans. Existing policies, lifecycle-function
+  definitions, and ACLs were unchanged. The private cleanup queue has RLS and a
+  Postgres-only table ACL; its three trigger functions are Postgres-only; the
+  claim/finish/count worker RPCs are `service_role`-only; all three triggers are
+  installed.
+- All four Edge Functions are ACTIVE with `verify_jwt = false` at the gateway:
+  `submit-attendance` v5, `submit-resume` v5 (using its pinned Deno import map),
+  `submit-sponsor-inquiry` v8, and `cleanup-resume-files` v1. The cleanup handler
+  remains admin-only because it verifies the bearer through Auth and checks
+  server-controlled `app_metadata.role` before queue or Storage access.
+- No production secret was changed during this follow-up. The public Turnstile
+  site key was reused and verified, while the local `.env` still omits
+  `VITE_TURNSTILE_SITE_KEY`. Vercel rebuilt the release with its production
+  variable; the hash-comparison build received the same already-public value
+  only for that build process.
 - `npm test` includes actual lifecycle/cleanup SQL executed in isolated
   PostgreSQL through PGlite, alongside the handler and PDF regressions.
-- Apply cleanup SQL, deploy all four Edge Functions, then deploy the matching
-  frontend. Existing files are not automatically deleted/backfilled. See
-  `supabase/README.md` for the pending rollout and live verification checklist;
-  do not label these additions live before that evidence is recorded.
+- The full gate is green: 290 tests in 36 files, lint, production build, all four
+  Edge bundles, `npm audit --omit=dev`, and the full `npm audit` (0
+  vulnerabilities in both).
+- Live non-mutating probes passed: all four exact-origin preflights returned 204
+  and a near-match returned 403; cleanup rejected missing/invalid bearers with
+  401; and two invalid tokens against each public form returned 403
+  `verification_failed`. Anonymous attendance/cleanup-queue access returned 401,
+  anonymous resume metadata and private-bucket listing returned empty results,
+  and the leaderboard returned ten rows with exactly the approved columns.
+  Quota fingerprints, 209 attendance rows, 10 resume rows, 10 files,
+  reservations, an empty cleanup queue, and 0 orphans were identical before and
+  after the probes.
+- No valid production attendance, resume upload, or sponsor-email submission was
+  made during this rollout. The project owner will test attendance next;
+  resume-replacement lifecycle and sponsor delivery also have not yet been
+  retested against the September 14 release.
 
-### September 14 quality follow-up — implemented locally, not deployed
+### September 14 quality follow-up — live; interactive acceptance pending
 
-`fix/quality-review-followups` is stacked on security follow-up commit `749ac0e`.
-This quality work introduces no backend changes; the security rollout above
-remains pending and still governs deployment of the combined branch.
+Quality commit `3c0215a` on `fix/quality-review-followups` is stacked on security
+commit `749ac0e`. This quality work introduces no additional backend changes.
+The backend prerequisite, live denial probes, `main` push, Vercel rebuild, and
+live asset/header verification are complete. Interactive/mobile and valid-form
+acceptance remain; those are verification tasks, not another code rollout.
 
 - Admin datasets load every counted page before replacing displayed data.
   Failed or incomplete loads show an error and retry control; reports and
@@ -156,34 +186,39 @@ remains pending and still governs deployment of the combined branch.
   attendance writes, resume metadata writes, resume Storage uploads, and the
   legacy `submit_resume()` RPC are denied. Authenticated admin operations remain
   available.
-- **Live smoke tests passed.** Attendance succeeded before and after lockdown;
+- **September 13 live smoke tests passed.** Attendance succeeded before and after lockdown;
   sponsor inquiry delivered through EmailJS; and a real resume completed the
   upload, admin view, approval, and deletion lifecycle. The disposable rows and
-  file were removed afterward.
+  file were removed afterward. Those tests establish the September 13 baseline,
+  not acceptance of the September 14 function versions or frontend.
 
 ## What is open
 
-1. **Upcoming events need to be added.** The first two Autumn 2026 events have
+1. **Finish September 14 user acceptance.** The source, Vercel build, hashes,
+   HTML, and headers are verified live. The project owner will test attendance;
+   the resume-replacement lifecycle and sponsor delivery still need successful
+   real-form retests before this release is called end-to-end accepted.
+2. **Upcoming events need to be added.** The first two Autumn 2026 events have
    passed. The E-Board will add the next dates through the Admin Dashboard; the
    bundled list in `src/data/events.js` is only the outage fallback.
-2. **No sponsor accounts exist yet**, so the corporate portal is not in use.
+3. **No sponsor accounts exist yet**, so the corporate portal is not in use.
    Creating one is two steps and people forget the second — see `HANDOFF.md` §4.
-3. **Attendance identity and presence are not proved.** Turnstile, canonical
+4. **Attendance identity and presence are not proved.** Turnstile, canonical
    events, duplicate suppression, and durable limits make automated poisoning
    harder, but a person can still claim another dot number or invent identities.
    Strong leaderboard integrity needs an approved identity/presence mechanism
    such as OSU SSO, an event-scoped rotating secret, or admin review. The earlier
    form-lock idea remains deliberately deferred.
-4. **Resume/sponsor email ownership is not proved.** Turnstile proves a human,
+5. **Resume/sponsor email ownership is not proved.** Turnstile proves a human,
    not control of the claimed address. Resume revisions stay pending and cannot
    displace an approved row automatically, but admins must still verify identity
    before approval. Full closure needs OSU SSO or an emailed OTP.
-5. `PublicLeaderboard.jsx` is committed but imported nowhere. Delete or mount.
-6. **Gateway client-IP provenance is not fully proved.** Network limits are
+6. `PublicLeaderboard.jsx` is committed but imported nowhere. Delete or mount.
+7. **Gateway client-IP provenance is not fully proved.** Network limits are
    defense in depth until a future staging environment can demonstrate which
    forwarding header Supabase overwrites and ignores when conflicting values
    are supplied.
-7. `AdminDashboard.jsx` still contains five tabs in one large file. Splitting it
+8. `AdminDashboard.jsx` still contains five tabs in one large file. Splitting it
    remains worthwhile, but is not an emergency.
 
 ---
@@ -200,6 +235,12 @@ remains pending and still governs deployment of the combined branch.
 - **Cloudflare dummy keys are local-only.** Edge rejects the official test
   secrets when `SUPABASE_URL` is hosted. Never work around that check or copy
   `dummy-key-pass` into a deployed hostname allowlist.
+- **The current local `.env` lacks the Turnstile site key.** That is acceptable
+  for non-interactive local gates. The September 14 release was rebuilt by
+  Vercel with the production variable, and its live hashes match a comparison
+  build made with that already-public key supplied only to the build process.
+  Do not assume a future local build has production configuration merely because
+  `npm run build` succeeds.
 - **EmailJS Free has no private key in this account.** Production therefore has
   non-browser API access on and private-key/strict mode off. The public key was
   rotated at cutover, exists only in Edge secrets, and the retired browser key

@@ -297,11 +297,15 @@ EmailJS Free account does not expose a private key, so its public key was rotate
 during cutover and the replacement exists only in Supabase Edge secrets. See
 `supabase/README.md` for the recorded evidence and safe redeployment order.
 
-**September 14 follow-up is implemented locally and awaits rollout.** Invalid
+**September 14 follow-up is deployed; successful form acceptance is pending.** Invalid
 Turnstile attempts no longer consume shared Wi-Fi quotas; the backend adds
 structural PDF screening; and resume replacement/deletion persists a private
-cleanup queue. Deploy `resume-cleanup.sql`, all four Edge Functions, then the
-matching frontend in that order. There is no automatic orphan backfill or
+cleanup queue. The cleanup SQL and all four Edge Functions are live; rejected
+verification and private-data denial probes passed without changing records,
+files, or quota counters. The matching frontend was pushed to `main` and its live
+asset hashes/security headers verified; the owner will now test real attendance.
+Preserve SQL → Edge Functions → frontend order for redeployment.
+There is no automatic orphan backfill or
 scheduled cleanup job. The authoritative rollout record is
 [`supabase/README.md`](./supabase/README.md).
 

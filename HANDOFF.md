@@ -1,6 +1,7 @@
 # SHPE OSU Website — Engineering Handoff
 
-_Last updated: 2026-09-14; September 14 follow-up rollout pending._
+_Last updated: 2026-09-14; backend/frontend rollout verified live, successful
+real-form acceptance pending._
 
 Developer documentation for the Digital Operations Chair and anyone maintaining
 the SHPE chapter website at The Ohio State University. Covers architecture,
@@ -13,7 +14,11 @@ database design, the security model, maintenance protocols, and deployment.
 **Live at https://www.shpeosu.com, deployed from `main` via Vercel.** The
 protected attendance, resume, and sponsor submission architecture is deployed
 and its additive and final-lockdown migrations were applied to production on
-2026-09-13.
+2026-09-13. The September 14 cleanup migration and four updated Edge Functions
+are also deployed. Commit `3c0215a` is now live from `main`; Vercel serves
+`/assets/index-BkPTcLwI.js`, and all four JavaScript chunks, the CSS, HTML, and
+security headers match the approved production-configured build. Successful
+real-form acceptance for the September 14 versions remains pending.
 
 The site is in good working order. A security review in July–August 2026 found
 and closed a set of real problems; the notes below are deliberately blunt about
@@ -58,7 +63,7 @@ prove that the corresponding live policy or function still exists.
 | **Dependencies** | React Router and Vite were updated without `--force`; the production and full dependency audits are clean. Safari 14 remains an explicit build target. | ✅ Live |
 | **Public leaderboard** | Both clients request ten rows, and the canonical view enforces the same top-ten cap so a direct caller cannot enumerate the remaining aggregates. It exposes only `first_name`, a SQL-derived one-character `last_initial`, and distinct-event `count`; the stored surname/dot number stays private and public roles receive `SELECT` only. | ✅ Applied and anonymously verified |
 
-### September 14 follow-up — implemented locally, not yet marked live
+### September 14 follow-up — backend/frontend live; form acceptance pending
 
 The focused fixes move all three forms' durable quotas after successful
 Turnstile verification, add bounded structural PDF screening before upload, and
@@ -67,19 +72,42 @@ cannot consume a campus NAT's shared allowance. The existing identity and
 presence limitations remain; pre-Siteverify flood protection is a separate
 hosting-gateway concern.
 
-`resume-cleanup.sql` must be applied before deploying `cleanup-resume-files`
-and the matching frontend. The older frontend remains compatible with the
-transactional triggers. Deploy all four Edge Functions for this follow-up;
-local PGlite tests execute the actual SQL, but production status requires the
-live probes in `supabase/README.md`. No existing files/rows are removed or
-backfilled by the migration.
+`resume-cleanup.sql` was applied in one transaction. Its before/after inventory
+was identical: 209 attendance rows; 10 resume rows, all 10 approved; 10 resume
+files; and 0 orphans. Existing policies, lifecycle-function definitions, and
+ACLs were unchanged. `resume_file_cleanup` has RLS and a Postgres-only table
+ACL; all three trigger functions are Postgres-only; the claim, finish, and count
+worker RPCs are `service_role`-only; and all three triggers are installed. The
+migration did not remove or backfill existing rows/files.
 
-### September 14 quality follow-up — implemented locally, not deployed
+All four functions are ACTIVE with gateway `verify_jwt = false`:
+`submit-attendance` v5, `submit-resume` v5 with its pinned Deno import map,
+`submit-sponsor-inquiry` v8, and `cleanup-resume-files` v1. Cleanup is still
+admin-only: its handler verifies the bearer through Supabase Auth and checks
+server-controlled `app_metadata.role` before queue/Storage work. No production
+secret was changed.
 
-Branch `fix/quality-review-followups` is stacked on `749ac0e`, the pending
-security follow-up described above. These quality changes add no backend work;
-the combined branch still requires the earlier security rollout before its
-matching frontend is deployed.
+The non-mutating live probes passed. All four exact-origin preflights returned
+204 and a near-match returned 403; missing/invalid cleanup bearers returned 401;
+and two invalid tokens for each public form returned 403 `verification_failed`.
+Anonymous attendance and cleanup-queue access returned 401. Anonymous resume
+metadata and private-bucket listing returned empty results, while the public
+leaderboard returned ten rows with exactly the approved columns. Quota
+fingerprints, attendance/resume/file counts, reservations, cleanup count 0, and
+orphan count 0 were unchanged after probing.
+
+No valid production attendance, resume upload, sponsor email, or cleanup side
+effect was created during this rollout. The project owner will test attendance;
+resume replacement/approval/deletion and sponsor delivery have not yet been
+retested against the September 14 versions. Preserve SQL → Edge → frontend order
+for future rebuilds; `supabase/README.md` is authoritative.
+
+### September 14 quality follow-up — live; interactive acceptance pending
+
+Quality commit `3c0215a` on `fix/quality-review-followups` is stacked on security
+commit `749ac0e`. These quality changes add no backend work. Their backend
+prerequisite, `main`/Vercel release, and live asset/header verification are
+complete; interactive/mobile and successful real-form acceptance remain.
 
 - Admin datasets use counted pagination and publish only complete results.
   Errors or incomplete loads expose a retry control and withhold affected
@@ -98,8 +126,10 @@ production build pass. Both dependency audits report zero vulnerabilities.
 Date-format regressions also pass in UTC, America/New_York, and
 America/Los_Angeles. Independent review found no further actionable regression.
 The preview at <http://127.0.0.1:4173/> serves the build with production headers;
-browser access was not approved, so interactive/mobile visual review remains
-pending. No production data or deployment was changed.
+interactive/mobile acceptance of the deployed frontend remains pending. The
+backend deployment changed definitions/functions but left production rows and
+files unchanged; no valid form submission was made. Vercel's live HTML, headers,
+and asset hashes match the approved production-configured build.
 
 The build retains the mixed static/dynamic Supabase import warning. The initial
 chunk is now 502.18 KB minified / 144.46 KB gzip, triggering Vite's 500 KB warning
@@ -172,7 +202,7 @@ The live application utilizes five tables/views and one storage bucket in
 Supabase. (`events` and `leaderboard` were added after the original draft of
 this document — see §2.4 and §2.5.) The security migrations also add the internal,
 RLS-locked `public_submission_rate_limits` and
-`resume_submission_reservations` tables. The pending cleanup migration adds
+`resume_submission_reservations` tables. The deployed cleanup migration adds
 `resume_file_cleanup`; its private rows include retry/lease state and permanent
 completed path tombstones. They are internal implementation details, not browser
 APIs; the cleanup worker uses service-only RPCs rather than direct table grants.
@@ -338,7 +368,7 @@ Rename them `⚠️ OLD — DO NOT RUN`.
     email always creates a pending revision and cannot de-list an existing
     approved resume. Admin approve/delete operations lock and re-check the row
     in authenticated-admin atomic RPCs instead of trusting a zero-row browser
-    update. The pending cleanup extension queues every deleted sibling path in
+    update. The deployed cleanup extension queues every deleted sibling path in
     that same transaction. Cleanup never removes the replacement's active file.
 
 4.  **Sponsor Access — Supabase Auth**:
@@ -461,7 +491,7 @@ SELECT event_name, first_name, last_name_dotnum, count(*)
 FROM attendance GROUP BY 1,2,3 HAVING count(*) > 1;
 ```
 
-### Retired resume file cleanup (after the September 14 rollout)
+### Retired resume file cleanup (deployed September 14)
 
 Approval or deletion records retired file paths inside its database transaction.
 The `cleanup-resume-files` Edge endpoint verifies the admin bearer through Auth
@@ -577,6 +607,12 @@ VITE_TURNSTILE_SITE_KEY=your-site-key-here
 Use Node `^20.19.0` or `>=22.12.0`. Edge-only secrets belong in Supabase, never
 in Vite; `supabase/functions/.env.example` is the complete template for local
 function development. A variable prefixed `VITE_` is public by design.
+
+The current local `.env` omits `VITE_TURNSTILE_SITE_KEY`. The September 14
+production release was rebuilt by Vercel with its configured public key and the
+served hashes match a comparison build supplied that same already-public value
+only for the build process. A successful local build does not prove it contains
+production variables; never upload an unverified local `dist/` as the release.
 
 ### Useful CLI Commands
 Run these commands inside the `/Users/leonardomedina/Documents/SHPE_web/shpe-osu` directory:
@@ -709,8 +745,9 @@ or materially changing the boundary:
 1. Back up/inventory production and rehearse on staging. Prove the gateway IP
    behavior, exact origins/hostnames, real Turnstile, and EmailJS template.
 2. Apply additive `attendance-submit.sql`, then `resume-edge-submit.sql`.
-3. Deploy all three Edge Functions with real server-only secrets and exercise
-   them before changing the browser.
+3. Apply `resume-cleanup.sql` after the resume lifecycle exists, then deploy all
+   four Edge Functions with real server-only secrets. The cleanup SQL and worker
+   must precede the matching admin UI.
 4. Deploy the matching frontend, verify all three forms, then immediately apply
    `attendance-lockdown.sql` and `resume-lockdown.sql` so the legacy anonymous
    paths are gone.
@@ -721,6 +758,11 @@ or materially changing the boundary:
 6. Re-run anonymous-denial, admin/sponsor authorization, duplicate/idempotency,
    leaderboard-shape, Storage, rate-limit, and provider probes before merging
    or declaring production complete.
+
+The September 14 extension followed SQL → four Edge Functions → frontend. Its
+backend invariants, denial probes, live asset hashes, HTML, and headers are
+verified. Successful real attendance acceptance is next; resume replacement
+lifecycle and sponsor delivery also still need September 14 live retests.
 
 ### Project subagents
 
