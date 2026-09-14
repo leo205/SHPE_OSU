@@ -11,6 +11,13 @@ import {
   submitSponsorInquiry,
 } from '../lib/sponsorInquiry';
 import { TURNSTILE_SITE_KEY } from '../lib/turnstile';
+import {
+  clearSponsorDraft,
+  EMPTY_SPONSOR_FORM as EMPTY_FORM,
+  loadSponsorDraft,
+  saveSponsorDraft,
+  SPONSOR_FIELD_LIMITS as MAX_LEN,
+} from '../lib/sponsorDraft';
 
 // Pricing cards and their exact inquiry labels share one immutable definition
 // in sponsorInquiry.js. "Custom" is the only non-card option.
@@ -100,22 +107,6 @@ function SponsorCard({ sponsor, size = 'lg' }) {
 }
 
 /* ── Sponsorship Contact Form ──────────────────────────────── */
-// Draft is kept in sessionStorage, not localStorage: recruiters often fill this
-// out on shared/conference machines, and the draft holds their name and email.
-// sessionStorage dies with the tab; localStorage persisted it indefinitely.
-const DRAFT_KEY = 'sponsorFormDraft';
-const EMPTY_FORM = {
-  company_name: '',
-  contact_name: '',
-  reply_to: '',
-  tier: SPONSOR_TIERS[0].label,
-  message: '',
-};
-
-// These mirror the server caps for quick feedback. The Edge Function remains
-// authoritative because browser validation is always bypassable.
-const MAX_LEN = { company_name: 150, contact_name: 120, reply_to: 254, message: 2000 };
-
 /**
  * `pick` is `{ label, seq }` from the parent. The sequence number matters: after
  * a successful submit the form resets to the cheapest tier, so a plain
@@ -127,16 +118,7 @@ function ContactForm({ pick }) {
   const [errorMsg, setErrorMsg] = useState('');
   const [turnstileToken, setTurnstileToken] = useState('');
   const [turnstileResetKey, setTurnstileResetKey] = useState(0);
-  const [formData, setFormData] = useState(() => {
-    try {
-      const saved = sessionStorage.getItem(DRAFT_KEY);
-      if (saved) return { ...EMPTY_FORM, ...JSON.parse(saved) };
-    } catch {
-      // Corrupt draft — drop it rather than leaving it to fail on every load.
-      sessionStorage.removeItem(DRAFT_KEY);
-    }
-    return EMPTY_FORM;
-  });
+  const [formData, setFormData] = useState(loadSponsorDraft);
 
   // The UUID survives an ambiguous manual retry so duplicate emails can be
   // recognized. Editing the draft starts a new inquiry identity.
@@ -144,11 +126,7 @@ function ContactForm({ pick }) {
   const sendingRef = useRef(false);
 
   useEffect(() => {
-    try {
-      sessionStorage.setItem(DRAFT_KEY, JSON.stringify(formData));
-    } catch {
-      // Private-browsing quota errors shouldn't break typing.
-    }
+    saveSponsorDraft(formData);
   }, [formData]);
 
   // A Get Started click wins over whatever the restored draft had, since it is
@@ -225,7 +203,7 @@ function ContactForm({ pick }) {
       }
 
       setStatus('success');
-      sessionStorage.removeItem(DRAFT_KEY);
+      clearSponsorDraft();
       inquiryDraftRef.current = null;
       setFormData(EMPTY_FORM);
     } catch {

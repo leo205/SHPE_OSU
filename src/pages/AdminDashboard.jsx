@@ -4,6 +4,8 @@ import { supabase } from '../lib/supabase';
 import { isOtherMajor, customMajorText } from '../lib/majors';
 import { attendanceEventDate } from '../lib/events';
 import { cleanupRetiredResumeFiles } from '../lib/resumeCleanup';
+import { ADMIN_DATASET_NAMES, loadAdminDataset } from '../lib/adminData';
+import { formatAdminDate } from '../lib/adminDate';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
   LineChart, Line,
@@ -42,6 +44,34 @@ const ADMIN_TABS = [
   { id: 'events', label: 'Events', icon: Calendar },
   { id: 'resume', label: 'Resume', icon: FileText },
 ];
+
+const TAB_DATASETS = {
+  home: 'attendance',
+  companies: 'company_access',
+  events: 'events',
+  resume: 'resumes',
+};
+
+function DatasetLoadStatus({ state, onRetry }) {
+  if (state.status === 'ready') return null;
+  return (
+    <div
+      role={state.status === 'error' ? 'alert' : 'status'}
+      className="max-w-4xl rounded-xl border border-outline-variant/30 bg-surface-container-lowest p-5 text-sm shadow-sm"
+    >
+      <p>{state.status === 'loading' ? 'Loading records…' : state.error}</p>
+      {state.status === 'error' && (
+        <button
+          type="button"
+          onClick={onRetry}
+          className="mt-3 rounded-lg bg-primary px-4 py-2 font-bold text-on-primary hover:bg-primary-fixed-dim"
+        >
+          Retry loading
+        </button>
+      )}
+    </div>
+  );
+}
 
 const EMPTY_EVENT_FORM = {
   title: '',
@@ -125,7 +155,11 @@ export default function AdminDashboard() {
   const [attendance, setAttendance] = useState([]);
   const [resumes, setResumes] = useState([]);
   const [codes, setCodes] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loadStates, setLoadStates] = useState(() => Object.fromEntries(
+    ADMIN_DATASET_NAMES.map((name) => [name, { status: 'loading', error: null }])
+  ));
+  const loadControllers = useRef({});
+  const dataLoadingActive = useRef(false);
 
   // Search & Filter States
   const [searchAttendance, setSearchAttendance] = useState('');
@@ -157,7 +191,6 @@ export default function AdminDashboard() {
 
   // Calendar Event States
   const [dbEvents, setDbEvents] = useState([]);
-  const [eventsError, setEventsError] = useState(false);
   const [addingEvent, setAddingEvent] = useState(false);
   const [editingEventId, setEditingEventId] = useState(null);
   const [imageFile, setImageFile] = useState(null);
@@ -172,36 +205,42 @@ export default function AdminDashboard() {
     setSearchParams({ tab: activeTab }, { replace: true });
   }, [activeTab, setSearchParams]);
 
-  useEffect(() => {
-    fetchData();
+  const loadDataset = useCallback(async (name) => {
+    // An approval RPC can finish after navigation has already unmounted us.
+    if (!dataLoadingActive.current) return { status: 'cancelled' };
+    loadControllers.current[name]?.abort();
+    const controller = new AbortController();
+    loadControllers.current[name] = controller;
+    setLoadStates((prev) => ({ ...prev, [name]: { status: 'loading', error: null } }));
+    const result = await loadAdminDataset(supabase, name, { signal: controller.signal });
+    // A retry/refresh or unmount supersedes the previous request, including its
+    // error. Only a complete current result can replace data shown in the UI.
+    if (controller.signal.aborted || !dataLoadingActive.current) return { status: 'cancelled' };
+    if (result.status === 'ready') {
+      const setters = {
+        attendance: setAttendance,
+        resumes: setResumes,
+        company_access: setCodes,
+        events: setDbEvents,
+      };
+      setters[name](result.data);
+    }
+    setLoadStates((prev) => ({
+      ...prev,
+      [name]: { status: result.status, error: result.error },
+    }));
+    return result;
   }, []);
 
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const [attData, resData, codesData, evData] = await Promise.all([
-        supabase.from('attendance').select('*').order('created_at', { ascending: false }),
-        supabase.from('resumes').select('*').order('uploaded_at', { ascending: false }),
-        supabase.from('company_access').select('*').order('created_at', { ascending: false }),
-        supabase.from('events').select('*').order('date', { ascending: false })
-      ]);
-      if (attData.data) setAttendance(attData.data);
-      if (resData.data) setResumes(resData.data);
-      if (codesData.data) setCodes(codesData.data);
-      if (evData.data) {
-        setDbEvents(evData.data);
-        setEventsError(false);
-      } else if (evData.error) {
-        console.warn('Events table fetch warning:', evData.error);
-        setEventsError(true);
-      }
-    } catch (err) {
-      console.error('[AdminDashboard] Fetch error:', err);
-      setEventsError(true);
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    dataLoadingActive.current = true;
+    ADMIN_DATASET_NAMES.forEach((name) => { void loadDataset(name); });
+    const controllers = loadControllers.current;
+    return () => {
+      dataLoadingActive.current = false;
+      Object.values(controllers).forEach((controller) => controller.abort());
+    };
+  }, [loadDataset]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -282,16 +321,10 @@ export default function AdminDashboard() {
     }
 
     void retryResumeCleanup();
-    const { data: refreshed, error: refreshError } = await supabase
-      .from('resumes')
-      .select('*')
-      .order('uploaded_at', { ascending: false });
-    if (refreshError) {
-      console.error('[AdminDashboard] Resume refresh failed:', refreshError);
-      alert('The resume was approved, but the list could not refresh. Reload this page.');
-      return;
+    const result = await loadDataset('resumes');
+    if (result.status === 'error') {
+      alert('The resume was approved, but the list could not refresh. Use Retry loading to reload it.');
     }
-    setResumes(refreshed ?? []);
   };
 
   // ── Resumes Delete ────────────────────────────────────────────────────
@@ -603,7 +636,7 @@ export default function AdminDashboard() {
     // answer.
     //
     // Compared on created_at rather than trusting iteration order: rows only
-    // arrive newest-first because of an .order() in fetchData(), and a silent
+    // arrive newest-first because of an .order() in loadAdminDataset(), and a silent
     // behaviour change if someone edits that query is not worth the shortcut.
     const at = r.created_at ?? '';
     if (r.major && at >= majorByMember[dotnum].at) {
@@ -739,17 +772,6 @@ export default function AdminDashboard() {
     );
   });
 
-  if (loading) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center bg-surface font-body">
-        <div className="flex flex-col items-center gap-3 text-on-surface-variant animate-pulse">
-          <img src="/photos/shpeLogo.png" alt="SHPE Logo" className="h-14 w-auto object-contain mb-2 animate-bounce" />
-          <p className="font-bold text-sm">Loading admin dashboard...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen w-full bg-surface font-body text-on-surface md:flex md:h-screen md:overflow-hidden">
 
@@ -855,9 +877,15 @@ export default function AdminDashboard() {
 
       {/* ── MAIN CONTENT AREA ───────────────────────────────────────── */}
       <main className="w-full min-w-0 px-4 py-5 sm:px-6 md:flex-1 md:overflow-y-auto md:px-8 md:py-8 lg:px-10">
+        {TAB_DATASETS[activeTab] && (
+          <DatasetLoadStatus
+            state={loadStates[TAB_DATASETS[activeTab]]}
+            onRetry={() => { void loadDataset(TAB_DATASETS[activeTab]); }}
+          />
+        )}
         
         {/* ── TAB 1: HOME (ANALYTICS & CHARTS) ────────────────────────── */}
-        {activeTab === 'home' && (
+        {activeTab === 'home' && loadStates.attendance.status === 'ready' && (
           <div className="w-full max-w-6xl space-y-7 sm:space-y-8">
             <div>
               <h1 className="text-2xl font-black font-headline tracking-tight text-on-surface sm:text-3xl">Dashboard</h1>
@@ -1198,11 +1226,7 @@ export default function AdminDashboard() {
                         <span>{r.event_name}</span>
                         <span aria-hidden="true">·</span>
                         <span>
-                          {r.created_at
-                            ? new Date(r.created_at).toLocaleDateString('en-US', {
-                                month: 'short', day: 'numeric', year: 'numeric',
-                              })
-                            : '—'}
+                          {formatAdminDate(r.created_at)}
                         </span>
                         {r.is_first_meeting && (
                           <span className="rounded-md bg-tertiary-container/20 px-2 py-0.5 font-bold text-tertiary">
@@ -1346,9 +1370,7 @@ export default function AdminDashboard() {
                             )}
                           </td>
                           <td className="px-6 py-4 text-on-surface-variant text-xs">
-                            {r.created_at ? new Date(r.created_at).toLocaleDateString('en-US', {
-                              month: 'short', day: 'numeric', year: 'numeric'
-                            }) : '—'}
+                            {formatAdminDate(r.created_at)}
                           </td>
                         </tr>
                       ))}
@@ -1371,7 +1393,7 @@ export default function AdminDashboard() {
         )}
 
         {/* ── TAB 3: COMPANIES (ACCESS CODES) ────────────────────────── */}
-        {activeTab === 'companies' && (
+        {activeTab === 'companies' && loadStates.company_access.status === 'ready' && (
           <div className="space-y-6 max-w-4xl">
             <div>
               <h1 className="text-2xl font-black font-headline text-on-surface sm:text-3xl">Recruiter Codes</h1>
@@ -1409,7 +1431,7 @@ WHERE email = 'recruiter@company.com';`}</pre>
                     <h4 className="font-bold text-on-surface">{c.company_name}</h4>
                     <p className="font-mono text-lg font-semibold tracking-wider text-primary mt-1">{c.access_code}</p>
                     <p className="text-[10px] text-on-surface-variant mt-1">
-                      Created: {new Date(c.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      Created: {formatAdminDate(c.created_at)}
                     </p>
                   </div>
                   <button
@@ -1431,52 +1453,14 @@ WHERE email = 'recruiter@company.com';`}</pre>
         )}
 
         {/* ── TAB 4: EVENTS ──────────────────────────────────────────── */}
-        {activeTab === 'events' && (
+        {activeTab === 'events' && loadStates.events.status === 'ready' && (
           <div className="space-y-6 max-w-5xl">
             <div>
               <h1 className="text-2xl font-black font-headline text-on-surface sm:text-3xl">Calendar Events</h1>
               <p className="text-sm text-on-surface-variant mt-1">Manage events displayed on the public website calendar.</p>
             </div>
 
-            {/* SQL Table Check Warning */}
-            {eventsError && (
-              <div className="max-w-4xl space-y-4 rounded-xl border border-error/20 bg-error/10 p-4 font-body text-on-surface shadow-sm sm:p-6">
-                <div className="flex items-center gap-2.5 text-error">
-                  <span className="material-symbols-outlined font-black">warning</span>
-                  <h3 className="font-bold font-headline">Events Database Table Missing</h3>
-                </div>
-                <p className="text-sm">
-                  The <code className="bg-surface-container px-1.5 py-0.5 rounded font-mono font-bold text-xs">events</code> table is not found in your Supabase database. To enable this dynamic calendar feature, copy and run the following SQL command in your <strong>Supabase Dashboard → SQL Editor</strong>:
-                </p>
-                <pre className="p-4 bg-surface-container-lowest text-xs rounded-lg font-mono overflow-x-auto text-on-surface border border-outline-variant/30 select-all leading-relaxed">
-{`CREATE TABLE public.events (
-  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  created_at timestamptz DEFAULT now(),
-  title text NOT NULL,
-  date text NOT NULL,
-  time text NOT NULL,
-  end_time text,
-  location text NOT NULL,
-  description text NOT NULL,
-  category text NOT NULL,
-  featured boolean DEFAULT false NOT NULL,
-  rsvp_url text DEFAULT '',
-  photo text DEFAULT ''
-);
-
-ALTER TABLE public.events ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "events public read"
-  ON public.events FOR SELECT TO anon, authenticated USING (true);
-CREATE POLICY "events admin all"
-  ON public.events FOR ALL TO authenticated
-  USING (public.is_admin()) WITH CHECK (public.is_admin());`}
-                </pre>
-              </div>
-            )}
-
             {/* Event Form Card */}
-            {!eventsError && (
               <div id="event-form-card" className="max-w-4xl scroll-mt-32 rounded-xl border border-outline-variant/20 bg-surface-container-lowest p-4 shadow-sm sm:p-6 md:scroll-mt-6">
                 <h3 className="font-bold font-headline text-on-surface mb-4">
                   {editingEventId ? 'Edit Calendar Event' : 'Add Upcoming Event'}
@@ -1657,10 +1641,7 @@ CREATE POLICY "events admin all"
                   </div>
                 </form>
               </div>
-            )}
-
             {/* List of active calendar events */}
-            {!eventsError && (
               <div className="space-y-4">
                 <h3 className="font-bold font-headline text-base text-on-surface">Active Events Calendar</h3>
                 <div className="max-w-4xl overflow-x-auto overscroll-x-contain rounded-lg border border-outline-variant/20 bg-surface-container-lowest shadow-sm">
@@ -1729,12 +1710,11 @@ CREATE POLICY "events admin all"
                   </table>
                 </div>
               </div>
-            )}
           </div>
         )}
 
         {/* ── TAB 5: RESUME (SUBMISSIONS VERIFICATION) ────────────────── */}
-        {activeTab === 'resume' && (
+        {activeTab === 'resume' && loadStates.resumes.status === 'ready' && (
           <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>

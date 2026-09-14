@@ -84,6 +84,24 @@ frontend is live from `main`.
   `supabase/README.md` for the pending rollout and live verification checklist;
   do not label these additions live before that evidence is recorded.
 
+### September 14 quality follow-up — implemented locally, not deployed
+
+`fix/quality-review-followups` is stacked on security follow-up commit `749ac0e`.
+This quality work introduces no backend changes; the security rollout above
+remains pending and still governs deployment of the combined branch.
+
+- Admin datasets load every counted page before replacing displayed data.
+  Failed or incomplete loads show an error and retry control; reports and
+  exports stay unavailable until their dataset finishes loading.
+- Admin table dates reuse one formatter with the existing locale, display
+  format, and browser-local timezone unchanged.
+- Each same-day calendar event has its own button. An overflow control opens
+  the complete day list, with focus returned when the list or event closes.
+- Sponsor drafts tolerate blocked storage and malformed saved fields; optional
+  draft cleanup cannot turn an accepted inquiry into an error.
+- Professional-development counter timers stop on unmount and can restart
+  after React StrictMode replays their effects.
+
 ### Live production baseline
 
 - **Resume book is closed.** Was fully downloadable by anyone — verified by

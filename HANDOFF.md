@@ -74,6 +74,39 @@ local PGlite tests execute the actual SQL, but production status requires the
 live probes in `supabase/README.md`. No existing files/rows are removed or
 backfilled by the migration.
 
+### September 14 quality follow-up — implemented locally, not deployed
+
+Branch `fix/quality-review-followups` is stacked on `749ac0e`, the pending
+security follow-up described above. These quality changes add no backend work;
+the combined branch still requires the earlier security rollout before its
+matching frontend is deployed.
+
+- Admin datasets use counted pagination and publish only complete results.
+  Errors or incomplete loads expose a retry control and withhold affected
+  reports and exports. The reused date formatter preserves the existing
+  display format, locale, and browser-local timezone.
+- Calendar dates with multiple events offer separate event buttons and a
+  complete day list through the overflow control, with focus restoration.
+- Sponsor draft storage is optional: blocked storage, corrupt JSON, or malformed
+  fields do not break the form, and cleanup cannot replace a confirmed success
+  with an error.
+- Professional-development counters clear their timers on unmount and restart
+  correctly when React StrictMode replays effect setup and cleanup.
+
+Verification: 290 tests in 36 files, lint, all Edge bundle checks, and the
+production build pass. Both dependency audits report zero vulnerabilities.
+Date-format regressions also pass in UTC, America/New_York, and
+America/Los_Angeles. Independent review found no further actionable regression.
+The preview at <http://127.0.0.1:4173/> serves the build with production headers;
+browser access was not approved, so interactive/mobile visual review remains
+pending. No production data or deployment was changed.
+
+The build retains the mixed static/dynamic Supabase import warning. The initial
+chunk is now 502.18 KB minified / 144.46 KB gzip, triggering Vite's 500 KB warning
+(about 0.6 KB more gzip than before this quality patch). No new dependencies or
+eager admin/Recharts imports were introduced; further bundle splitting is not
+part of this focused fix.
+
 ### What is still open
 
 *   **Upcoming events.** The first two Autumn 2026 events have passed. The E-Board

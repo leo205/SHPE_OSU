@@ -23,6 +23,7 @@
  */
 
 import { useState, useRef, useEffect } from 'react';
+import { observeAnimatedCount } from '../lib/animatedCounter';
 import { scrollToAnchor } from '../lib/scroll';
 
 /* ─────────────────────────────────────────────
@@ -179,33 +180,12 @@ function AnimCounter({ value, duration = 1400 }) {
   const num = parseInt(value.replace(/[^0-9]/g, ''), 10) || 0;
   const [count, setCount] = useState(0);
   const ref = useRef(null);
-  const started = useRef(false);
 
-  useEffect(() => {
-    // Honour reduced-motion: skip animation if user prefers it
-    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (prefersReduced) {
-      setCount(num);
-      return;
-    }
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting && !started.current) {
-          started.current = true;
-          let cur = 0;
-          const step = Math.max(1, Math.ceil(num / (duration / 16)));
-          const timer = setInterval(() => {
-            cur += step;
-            if (cur >= num) { setCount(num); clearInterval(timer); }
-            else { setCount(cur); }
-          }, 16);
-        }
-      },
-      { threshold: 0.5 }
-    );
-    if (ref.current) observer.observe(ref.current);
-    return () => observer.disconnect();
-  }, [num, duration]);
+  useEffect(() => observeAnimatedCount(ref.current, {
+    target: num,
+    duration,
+    onCount: setCount,
+  }), [num, duration]);
 
   return <span ref={ref}>{prefix}{count}{suffix}</span>;
 }

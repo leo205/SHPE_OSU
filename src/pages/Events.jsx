@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { buildGoogleCalendarUrl, downloadICS } from '../lib/calendar';
 import { fetchEvents, mergeEvents, localDateString } from '../lib/events';
 import { publicLeaderboardName } from '../lib/leaderboard';
+import CalendarDay, { CalendarDayEvents } from '../components/CalendarDay';
 
 /* ── Calendar helpers ──────────────────────────────────────── */
 function getDaysInMonth(year, month) {
@@ -247,6 +248,9 @@ export default function Events() {
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const [expandedDay, setExpandedDay] = useState(null);
+  const dayListRef = useRef(null);
+  const dayListTriggerRef = useRef(null);
   const closeEventModal = useCallback(() => setSelectedEvent(null), []);
   const [members, setMembers] = useState([]);
   // Seeded from the bundled static list so the calendar, Featured and Upcoming
@@ -254,6 +258,18 @@ export default function Events() {
   // meant every visitor saw a blank calendar until the round-trip completed,
   // and forever if it hung.
   const [dbEvents, setDbEvents] = useState(() => mergeEvents([]));
+
+  useEffect(() => {
+    if (expandedDay) {
+      dayListRef.current?.focus({ preventScroll: true });
+      dayListRef.current?.scrollIntoView({ block: 'nearest' });
+    }
+  }, [expandedDay]);
+
+  const closeDayList = () => {
+    setExpandedDay(null);
+    dayListTriggerRef.current?.focus();
+  };
 
   useEffect(() => {
     const fetchMembers = async () => {
@@ -317,6 +333,7 @@ export default function Events() {
   const prevMonthDays = getDaysInMonth(year, month - 1 < 0 ? 11 : month - 1);
 
   const prevMonth = () => {
+    setExpandedDay(null);
     if (month === 0) {
       setMonth(11);
       setYear((y) => y - 1);
@@ -325,6 +342,7 @@ export default function Events() {
     }
   };
   const nextMonth = () => {
+    setExpandedDay(null);
     if (month === 11) {
       setMonth(0);
       setYear((y) => y + 1);
@@ -407,6 +425,7 @@ export default function Events() {
                 </button>
                 <button
                   onClick={() => {
+                    setExpandedDay(null);
                     setMonth(today.getMonth());
                     setYear(today.getFullYear());
                   }}
@@ -437,7 +456,7 @@ export default function Events() {
             </div>
 
             {/* Calendar grid */}
-            <div className="grid grid-cols-7 gap-1 auto-rows-[80px] md:auto-rows-[100px]">
+            <div className="grid grid-cols-7 gap-1 auto-rows-[100px]">
               {/* Previous month filler */}
               {Array.from({ length: firstDay }).map((_, i) => (
                 <div
@@ -459,53 +478,35 @@ export default function Events() {
                   year === today.getFullYear();
 
                 return (
-                  <div
+                  <CalendarDay
                     key={day}
-                    className={`rounded-lg p-2 text-sm relative overflow-hidden transition-all ${dayEvents.length > 0
-                      ? 'cursor-pointer hover:shadow-md hover:scale-[1.02] bg-surface-container-lowest border border-outline-variant/20'
-                      : 'bg-surface-container-lowest'
-                      } ${isToday ? 'ring-2 ring-primary' : ''}`}
-                    role={dayEvents.length > 0 ? 'button' : undefined}
-                    tabIndex={dayEvents.length > 0 ? 0 : undefined}
-                    aria-label={dayEvents.length > 0 ? `${day} — ${dayEvents[0].title}` : undefined}
-                    onClick={() => dayEvents.length > 0 && setSelectedEvent(dayEvents[0])}
-                    onKeyDown={(e) => {
-                      if (dayEvents.length > 0 && (e.key === 'Enter' || e.key === ' ')) {
-                        e.preventDefault();
-                        setSelectedEvent(dayEvents[0]);
-                      }
+                    day={day}
+                    dateLabel={new Date(year, month, day).toLocaleDateString('en-US', {
+                      month: 'long', day: 'numeric', year: 'numeric',
+                    })}
+                    events={dayEvents}
+                    isToday={isToday}
+                    onSelectEvent={setSelectedEvent}
+                    onShowAll={(event) => {
+                      dayListTriggerRef.current = event.currentTarget;
+                      setExpandedDay(key);
                     }}
-                  >
-                    <span
-                      className={`text-xs font-bold ${isToday
-                        ? 'bg-primary text-on-primary rounded-full w-6 h-6 flex items-center justify-center'
-                        : ''
-                        }`}
-                    >
-                      {day}
-                    </span>
-                    <div className="mt-1 space-y-0.5">
-                      {dayEvents.slice(0, 2).map((ev) => {
-                        const colors = categoryColors[ev.category] || categoryColors.GBM;
-                        return (
-                          <div
-                            key={ev.id}
-                            className={`text-[9px] md:text-[10px] font-bold px-1 py-0.5 rounded leading-tight truncate ${colors.bg} ${colors.text}`}
-                          >
-                            {ev.title}
-                          </div>
-                        );
-                      })}
-                      {dayEvents.length > 2 && (
-                        <div className="text-[9px] text-outline font-bold">
-                          +{dayEvents.length - 2} more
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                  />
                 );
               })}
             </div>
+
+            {expandedDay && (
+              <CalendarDayEvents
+                dateLabel={new Date(`${expandedDay}T12:00:00`).toLocaleDateString('en-US', {
+                  month: 'long', day: 'numeric', year: 'numeric',
+                })}
+                events={eventMap[expandedDay] || []}
+                onSelectEvent={setSelectedEvent}
+                onClose={closeDayList}
+                panelRef={dayListRef}
+              />
+            )}
 
             {/* Category legend */}
             <div className="flex flex-wrap gap-3 mt-6 pt-4 border-t border-outline-variant/20">
