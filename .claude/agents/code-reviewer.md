@@ -183,6 +183,14 @@ owner-approved SQL-derived one-character `last_initial`, and distinct-event
 - Accessibility basics on new markup: labels associated with controls, keyboard
   reachability, `aria-label` on icon-only buttons. The palette already passes
   WCAG AA contrast, so do not re-litigate colors.
+- Responsive regressions in the Admin Dashboard. On phone widths the desktop
+  sidebar must be hidden in favor of the sticky four-tab header; cards must
+  stack, controls must fit the viewport, and wide tables must scroll within
+  their containers without creating page-level horizontal overflow.
+- Public visual contracts already approved by the owner: event flyers remain
+  uncropped and available in the detail dialog/full-size link; missing flyers
+  use the real SHPE logo; E-Board card/photo curves match and E-Board cards do
+  not animate on hover.
 - Bundle impact. The heaviest private routes are lazy-loaded, but the initial
   JavaScript chunk is still substantial. Flag heavy dependencies added to public
   routes and any change that makes the admin/Recharts bundle eager again.

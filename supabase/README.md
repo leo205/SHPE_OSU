@@ -76,10 +76,11 @@ attendance and cleanup reads are denied; resume metadata and private-bucket
 listing reveal zero rows. The public leaderboard returns exactly ten rows with
 only `first_name`, `last_initial`, and `count`.
 
-Rollback source and aggregate/schema inventories were saved outside Git at
-`/private/tmp/shpe-rollout-nDusll`. These are temporary local evidence, not a
-long-term backup. The previous protected frontend remains compatible with the
-additive schema.
+Temporary rollback source and aggregate/schema inventories were captured outside
+Git during deployment. They were short-lived deployment evidence, not a durable
+backup; use Git/Vercel version history and freshly downloaded deployed sources
+for future rollback preparation. The previous protected frontend remains
+compatible with the additive schema.
 
 The matching application commit `3c0215a` (including security commit `749ac0e`)
 was pushed to `main` and rebuilt by Vercel using production variables. The live
@@ -122,7 +123,7 @@ tombstones or restore anonymous upload/write permissions to roll back.
 
 ## Current public-submission design
 
-The following describes the code contract, including the pending follow-up
+The following describes the code contract, including the deployed follow-up
 above. The production table is the authority for what has been deployed.
 
 The three browser forms invoke public Edge endpoints. The Edge Functions hold
@@ -132,7 +133,8 @@ Storage bucket, or EmailJS endpoint.
 
 ### Shared controls
 
-All three functions share the code under `functions/_shared/`:
+All three public-submission functions share the code under
+`functions/_shared/`:
 
 - Requests are bounded before parsing and validated again on the server.
 - CORS permits exact origins only. The built-in set is
@@ -329,12 +331,12 @@ verification before reconciliation.
 
 ## Safe redeployment and rollback order
 
-The sequence below is the one used for the completed 2026-09-13 production
-cutover and must be preserved if the boundary is rebuilt. Prefer a staging
-Supabase project and preview deployment first. Take a schema, policy, grant,
-bucket, and relevant-row inventory before changing anything. Apply one numbered
-stage at a time and record its evidence; do not rerun every historical SQL file
-as an unordered bundle.
+The sequence below combines the completed 2026-09-13 production cutover with the
+deployed September 14 cleanup follow-up and must be preserved if the boundary is
+rebuilt. Prefer a staging Supabase project and preview deployment first. Take a
+schema, policy, grant, bucket, and relevant-row inventory before changing
+anything. Apply one numbered stage at a time and record its evidence; do not
+rerun every historical SQL file as an unordered bundle.
 
 1. Run the local gates: `npm test`, `npm run check:edge`,
    `npm run lint`, `npm run build`, and `git diff --check`.
@@ -351,22 +353,28 @@ as an unordered bundle.
 4. Apply `resume-edge-submit.sql`. Probe reservation, exact retry, changed-draft
    conflict, private upload, pending revision behavior, non-admin denial, and
    admin approve/delete. Confirm existing approved resumes remain readable only
-   to authorized roles.
+   to authorized roles. Then apply `resume-cleanup.sql`; verify its private
+   queue, reference guards, lifecycle triggers, owner/service-only worker grants,
+   and that applying it did not backfill or delete rows or files.
 5. Configure staging Edge secrets from `functions/.env.example`. Use exact
    preview origins and Turnstile hostnames. Prepare the EmailJS public-key
    rotation, or private-key enforcement when the account supports it, before
    sponsor cutover.
-6. Deploy all three Edge Functions with the reviewed `config.toml`. Probe rejected
+6. Deploy all four Edge Functions with the reviewed `config.toml`. Probe rejected
    origin, malformed/oversized body, bad and replayed Turnstile token, exhausted
-   rate bucket, provider failure, and one valid request for each function.
-   Confirm no sensitive values enter logs.
+   rate bucket, provider failure, and one valid request for each public form.
+   Verify anonymous and non-admin cleanup requests are denied, then exercise the
+   authorized cleanup path with disposable data. Confirm no sensitive values
+   enter logs.
 7. Deploy the matching browser build to preview and click-test attendance,
    resume upload, admin approval/deletion, sponsor inquiry, and the emergency
    fallback. Confirm browser code performs no direct public write or EmailJS
    request.
-8. Repeat additive SQL, secrets, and Edge deployment in production. Deploy the
-   browser only after the live Edge probes pass. Submit one real browser request
-   through each flow and verify the database/Storage/email result.
+8. Repeat the additive SQL (including `resume-cleanup.sql`), secrets, and all
+   four Edge deployments in production. Deploy the browser only after the live
+   Edge probes pass. Submit one real browser request through each public flow and
+   verify the database/Storage/email result; verify cleanup with authorized
+   disposable resume data.
 9. Immediately apply `attendance-lockdown.sql`, then probe direct anonymous
    attendance `SELECT` and `INSERT` denial, protected Edge acceptance, admin
    access, and the privacy-limited public leaderboard.

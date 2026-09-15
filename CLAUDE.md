@@ -149,6 +149,15 @@ acceptance remain; those are verification tasks, not another code rollout.
 - **Events have one source.** Admins can add, edit, or delete them in the Admin
   Dashboard → Supabase `events` table → read by both the public calendar and the
   check-in dropdown via `src/lib/events.js`.
+- **Event artwork fails gracefully.** Missing or failed flyers render the real
+  SHPE logo. Existing flyers use `object-contain`, appear in the detail dialog,
+  and offer a full-size link instead of being cropped or hidden.
+- **The Admin Dashboard is responsive.** Below the desktop breakpoint it uses a
+  sticky compact header and four-tab navigation; cards stack and wide tables
+  scroll inside their own containers. Do not restore a permanently visible
+  desktop sidebar on phone widths.
+- **E-Board cards are intentionally still.** The shell and photo use matching
+  modest curves, and the cards have no hover transform/animation.
 - **Heavy routes are code-split.** The admin dashboard, recruiter dashboard, and
   professional-development page are loaded lazily instead of being included in
   every visitor's initial bundle.

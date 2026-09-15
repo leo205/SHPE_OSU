@@ -46,6 +46,9 @@ what was wrong, because the same mistakes are easy to repeat.
 | **Sponsor logos** | IBM removed at the president's request (it was a personal donation, not corporate). List updated to the five current sponsors and grouped by the tiers the chapter actually sells — the wall previously said Platinum/Gold/Bronze, which are not levels SHPE OSU offers. | ✅ Current |
 | **Sponsor tier buttons** | All four "Get Started" buttons scrolled to a form that always defaulted to Buckeye ($500), so a Platinum enquiry arrived labelled as the cheapest tier. | ✅ Preselects |
 | **Sponsors hero** | A ~16:9 photo in a 4:3 frame; `object-cover` discarded 27% of the width and cut people out of the group shot. | ✅ Matched |
+| **Event artwork** | Events without a flyer showed a broken-looking placeholder, while real flyers were cropped in cards and omitted from the detail view. | ✅ Official SHPE-logo fallback; uncropped flyer preview and full-size link |
+| **E-Board cards** | The card shell and headshot used visibly different corner radii, and hover motion made the roster feel unstable. | ✅ Matching modest curves; no card hover animation |
+| **Admin on mobile** | The fixed desktop sidebar consumed most of a phone viewport and forced dashboard content off-screen. | ✅ Sticky mobile header/tabs, stacked cards, full-width controls, contained table scrolling |
 
 ### Security hardening live in production
 
@@ -131,11 +134,11 @@ backend deployment changed definitions/functions but left production rows and
 files unchanged; no valid form submission was made. Vercel's live HTML, headers,
 and asset hashes match the approved production-configured build.
 
-The build retains the mixed static/dynamic Supabase import warning. The initial
-chunk is now 502.18 KB minified / 144.46 KB gzip, triggering Vite's 500 KB warning
-(about 0.6 KB more gzip than before this quality patch). No new dependencies or
-eager admin/Recharts imports were introduced; further bundle splitting is not
-part of this focused fix.
+The build retains the mixed static/dynamic Supabase import warning. The
+production-configured comparison build's initial chunk is 502.20 KB minified /
+144.49 KB gzip, triggering Vite's 500 KB warning (about 0.6 KB more gzip than
+before this quality patch). No new dependencies or eager admin/Recharts imports
+were introduced; further bundle splitting is not part of this focused fix.
 
 ### What is still open
 

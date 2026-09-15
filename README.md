@@ -35,7 +35,7 @@ Dashboard.
     *   **Member Spotlight Carousel**: An interactive selector showing student internship experiences at top employers like GM, Ford, and Lincoln Electric.
     *   **National Convention Guide**: Step-by-step prep timeline (Registration, Resume, Company Research, Elevator Pitch, Business Attire, Follow-up) and logistics overview.
     *   **SponsorSHPE Call to Action**: Invites corporate partners to collaborate and redirects them to the Sponsors portal.
-*   **E-Board Roster (`/eboard`)**: Displays student leaders in a custom, Loteria-styled grid layout. Cards use dynamic Tailwind CSS grids and flexbox centering fallbacks to align the orphaned last row cleanly on all screen sizes, showcasing standardized `.webp` headshots.
+*   **E-Board Roster (`/eboard`)**: Displays student leaders in a custom, Loteria-styled grid layout. Cards use consistent modest corner radii around both the card and headshot, remain still on hover, and use responsive flexbox sizing to align the orphaned last row cleanly on all screen sizes.
 *   **Corporate Sponsor Portal (`/sponsors`)**: Partner benefits and tiers (Buckeye $500, Carmen $1,000, Scarlet & Gray $1,500, Platinum $2,000). Current sponsors are grouped by the tier they actually purchased, and empty tiers hide themselves. Each tier's **Get Started** button preselects that tier in the contact form. Inquiries go through a Turnstile-protected Supabase Edge Function; EmailJS credentials and traffic never enter the browser.
 *   **Resource Hub (`/resources`)**: Provides study tips, tutoring links, and a direct link to view and read the official chapter **First-Year Guide PDF** (`/photos/First-Year-Guide.pdf`).
 
@@ -84,6 +84,7 @@ claims protect the operations behind them.
 
 #### 4. Secure Admin Panel (`/admin` & `/admin/resumes`)
 *   **Admin Authentication**: Protected behind Supabase Email/Password authentication. Redirect guards secure the paths.
+*   **Responsive Admin Navigation**: Phones use a sticky compact header and four-tab navigation instead of the desktop sidebar. Dashboard cards stack, controls fill the available width, and wide data tables scroll within their own containers rather than forcing the entire page off-screen.
 *   **Interactive Attendance Analytics**:
     *   **Overview Cards**: Displays overall unique members, total check-ins, and number of events.
     *   **Most Active Members Leaderboard**: Ranks members by the number of **distinct events** attended, so a duplicate check-in at one meeting cannot inflate a ranking.
@@ -99,7 +100,7 @@ claims protect the operations behind them.
     replacement is selected, and updates the shared calendar/check-in source.
 *   **Resume Book Admin Dashboard (`/admin/resumes`)**:
     *   **Review Pipeline**: Admins can view, approve, revoke, or delete pending resume submissions.
-    *   **Retired File Cleanup (pending rollout)**: Replaced/deleted files are queued transactionally and removed by an admin-only server endpoint. Failed work persists for the next admin visit or **Retry file cleanup** action.
+    *   **Retired File Cleanup**: Replaced/deleted files are queued transactionally and removed by the deployed admin-only server endpoint. Failed work persists for the next admin visit or **Retry file cleanup** action.
     *   **Sponsor Onboarding**: Step-by-step instructions for creating a recruiter account and granting the `sponsor` role.
     *   **Inline Major Editing**: Admins can modify a student's major directly in the resume book table to fix spelling errors.
 
@@ -232,7 +233,7 @@ shpe-osu/
 │   ├── attendance-submit.sql  # applied: limiter + service-only RPC
 │   ├── attendance-lockdown.sql # applied: no anonymous table writes
 │   ├── resume-edge-submit.sql # applied: reservations/admin RPCs
-│   ├── resume-cleanup.sql     # pending rollout: private transactional cleanup
+│   ├── resume-cleanup.sql     # applied: private transactional cleanup
 │   ├── resume-lockdown.sql    # applied: no legacy public upload path
 │   └── functions/             # Three public submission functions + admin cleanup
 ├── tailwind.config.js    # Customized color system (SHPE branding palette)
@@ -279,7 +280,7 @@ shpe-osu/
     sponsor contact form in production while everything looked fine locally.
 *   **File Safeguards**:
     *   PDFs between 10 KB and 250 KB.
-    *   Quick magic-byte feedback plus the pending backend structural PDF screen.
+    *   Quick magic-byte feedback plus deployed backend structural and active-content PDF screening.
     *   User filenames are discarded; the server reserves
         `submissions/<13-digit timestamp>_<uuid>.pdf`, so a caller cannot choose
         a path or point metadata at another object.
@@ -290,11 +291,11 @@ shpe-osu/
 ### Protected-submission production status
 
 The coordinated rollout was completed and smoke-tested on **2026-09-13**.
-`submit-attendance`, `submit-resume`, and `submit-sponsor-inquiry` are deployed;
-the additive and lockdown SQL is applied; Turnstile and durable limits are
-active; and the top-ten leaderboard cap is enforced by the database view. The
-EmailJS Free account does not expose a private key, so its public key was rotated
-during cutover and the replacement exists only in Supabase Edge secrets. See
+The three protected public-submission functions are deployed; the additive and
+lockdown SQL is applied; Turnstile and durable limits are active; and the
+top-ten leaderboard cap is enforced by the database view. The EmailJS Free
+account does not expose a private key, so its public key was rotated during
+cutover and the replacement exists only in Supabase Edge secrets. See
 `supabase/README.md` for the recorded evidence and safe redeployment order.
 
 **September 14 follow-up is deployed; successful form acceptance is pending.** Invalid

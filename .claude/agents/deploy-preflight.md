@@ -112,6 +112,13 @@ Every `/photos/...` path referenced in `src/` should exist in `public/`. Flag
 orphaned images too, since they inflate the deploy. Confirm each route in
 `App.jsx` returns 200 under `npm run preview`.
 
+At a phone-width viewport, confirm the Admin Dashboard uses its sticky compact
+header/four-tab navigation, keeps cards and form controls within the viewport,
+and contains horizontal scrolling inside wide tables. Also confirm Events uses
+the official SHPE logo when a flyer is absent or fails, displays real flyers
+uncropped in cards/details with a full-size link, and keeps E-Board cards still
+on hover with matching card/photo corner radii.
+
 **5. The gates themselves.**
 `npm test`, `npm run check:edge`, `npm run lint`, and `npm run build` must pass.
 `check:edge` must include all four entry points: `submit-attendance`,

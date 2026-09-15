@@ -3,7 +3,7 @@
 _Written 2026-08-03, against the codebase as it stood after the July–August
 security work._
 
-_Status reviewed 2026-09-13. Phase 0's Vitest safety net is complete; the
+_Status reviewed 2026-09-14. Phase 0's Vitest safety net is complete; the
 architectural rewrite has not started. Protected public-write Edge paths were
 built independently, deployed to production, smoke-tested, and locked down.
 They must be preserved._
@@ -443,7 +443,7 @@ an event date, build the string from `getFullYear()/getMonth()/getDate()`.
 
 Tables: `attendance`, `resumes`, `company_access` (vestigial), `events`,
 `leaderboard` (view), plus internal
-`public_submission_rate_limits`/`resume_submission_reservations` and the pending
+`public_submission_rate_limits`/`resume_submission_reservations` and the deployed
 `resume_file_cleanup` queue/tombstones. Full schema
 and rollout state are in `HANDOFF.md` §2 and `supabase/README.md`. Do not change
 these security migrations as an incidental part of the architecture rewrite.
