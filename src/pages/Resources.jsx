@@ -12,7 +12,7 @@
  *                               ✗ "Download PDF"
  *                               ✓ "Download the 2025-2026 First-Year Guide (PDF)"
  *                               ✗ "Access Google Drive"
- *                               ✓ "Access the Engineering Test Bank on Google Drive"
+ *                               ✓ "Open the Engineering Test Bank Classroom"
  *                               ✗ "Learn More"
  *                               ✓ "Learn more about OSU Tutoring Services"
  *  2.4.4  (new tab)          — External links that open in _blank include
@@ -91,13 +91,13 @@ export default function Resources() {
             </div>
             <div className="flex flex-wrap gap-4">
               <a
-                href="https://classroom.google.com/w/NzAwMzI5NTYzMTky/t/all"
+                href="https://classroom.google.com/c/NzAwMzI5NTYzMTky"
                 target="_blank"
                 rel="noopener noreferrer"
-                aria-label="Access Google Drive (opens in a new tab)"
+                aria-label="Open the Engineering Test Bank Google Classroom (opens in a new tab)"
                 className="inline-flex items-center gap-3 bg-primary text-on-primary px-8 py-4 rounded-full font-bold hover:bg-primary-fixed-dim hover:-translate-y-1 transition-all active:scale-95"
               >
-                Access Google Drive
+                Open Google Classroom
                 <span className="material-symbols-outlined" aria-hidden="true">link</span>
                 <span className="sr-only">(opens in a new tab)</span>
               </a>
