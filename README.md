@@ -47,7 +47,7 @@ control. Their URLs are public; Edge validation, RLS, Storage policies, and role
 claims protect the operations behind them.
 
 #### 1. Student Check-In (`/attendance`)
-*   **Mobile-First Check-In**: Quick check-in page for chapter events. Options come from the same shared source as the public calendar (`src/lib/events.js`), so an event added in the Admin Dashboard is immediately checkinable. The list is seeded from the bundled fallback at first paint, so a slow or failed network can never leave students staring at an empty dropdown mid-meeting.
+*   **Mobile-First Check-In**: Quick check-in page for chapter events. Options come from the same shared source as the public calendar (`src/lib/events.js`), so an event added in the Admin Dashboard is immediately checkinable. Only events dated today or later appear; past meetings remain in the calendar and admin history but are not selectable. The list is seeded from the eligible bundled fallback at first paint so a known current event can appear even before the database responds.
 *   **First-Time Meeting Logic**: Prompts first-time attendees for how they heard about SHPE and their major. The historical `pronouns` database column is retained, but the form no longer collects it.
 *   **Custom Major Entry**: If a student selects "Other" as their major, a text input appears allowing them to type their exact major (limited to 150 characters, saved in the database as `Other – [custom text]`, formatted by the shared helper in `src/lib/majors.js` so the check-in form and the resume portal cannot drift apart).
 *   **Protected Submission**: The browser has no direct table-write path. A

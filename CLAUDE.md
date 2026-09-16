@@ -148,7 +148,9 @@ acceptance remain; those are verification tasks, not another code rollout.
   success*, so students saw "Upload Successful" while nothing changed.
 - **Events have one source.** Admins can add, edit, or delete them in the Admin
   Dashboard → Supabase `events` table → read by both the public calendar and the
-  check-in dropdown via `src/lib/events.js`.
+  check-in dropdown via `src/lib/events.js`. The public check-in dropdown shows
+  only events dated today or later; historical meetings remain available to the
+  calendar and admin reporting but are not selectable.
 - **Event artwork fails gracefully.** Missing or failed flyers render the real
   SHPE logo. Existing flyers use `object-contain`, appear in the detail dialog,
   and offer a full-size link instead of being cropped or hidden.

@@ -20,22 +20,24 @@ describe('event data contracts', () => {
     const events = [
       { id: 'next', date: '2026-09-10', title: 'Next GBM' },
       { id: 'today', date: '2026-09-03', title: 'Tonight GBM' },
+      { id: 'past', date: '2026-09-02', title: 'Yesterday GBM' },
     ];
     // 8:30 PM EDT is already September 4 in UTC. A toISOString()-based
     // implementation therefore fails this case while local calendar logic does not.
     const eveningInColumbus = new Date('2026-09-03T20:30:00-04:00');
 
-    expect(sortForCheckIn(events, { today: eveningInColumbus })[0].id).toBe('today');
+    expect(sortForCheckIn(events, { today: eveningInColumbus }).map((event) => event.id))
+      .toEqual(['today', 'next']);
   });
 
-  it('never leaves the check-in list empty when all events are old', () => {
+  it('returns an empty check-in list when all events are in the past', () => {
     const events = [
       { id: 'older', date: '2025-10-01', title: 'Older' },
       { id: 'newer', date: '2025-11-01', title: 'Newer' },
     ];
 
     expect(sortForCheckIn(events, { today: new Date('2026-09-03T12:00:00-04:00') }))
-      .toEqual([events[1], events[0]]);
+      .toEqual([]);
   });
 
   it('ignores null dates and prefers the database copy of a duplicate event', () => {

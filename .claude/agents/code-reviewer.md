@@ -99,6 +99,10 @@ event loader fixed that instance. Content arrays that no component maps over are
 the same failure shape. If a change adds a field or table, confirm something
 consumes it.
 
+The attendance dropdown intentionally shows only events dated today or later,
+using the visitor's local calendar date rather than UTC. Past events remain in
+the calendar/admin history and must not be restored as a check-in fallback.
+
 **Protected public submissions that quietly bypass the protection.** A form is
 not protected merely because it renders a Turnstile widget. Trace the browser
 call through its Edge Function and into a service-only RPC or private Storage

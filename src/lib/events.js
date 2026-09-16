@@ -162,45 +162,13 @@ export function attendanceEventDate(eventName, submittedDate) {
 }
 
 /**
- * Orders events for the check-in dropdown: soonest upcoming first, then the most
- * recent past ones. A student checking in wants tonight's GBM at the top, not
- * whatever happens to sort first by date.
- *
- * Past events are included only while they are still plausibly checkinable:
- * within `withinPastDays`, for the student checking in a day late. Older ones
- * appear ONLY when there is nothing else to show, so the dropdown can never be
- * empty mid-meeting — that is the one thing it must never be.
+ * Returns only events that can still be selected in the check-in form: today
+ * and future dates, ordered soonest first. Past events remain available to the
+ * calendar and admin reports, but must not clutter the public check-in list.
  */
-export function sortForCheckIn(events, { withinPastDays = 30, today = new Date() } = {}) {
+export function sortForCheckIn(events, { today = new Date() } = {}) {
   const todayStr = localDateString(today);
-  const cutoff = localDateString(
-    new Date(today.getTime() - withinPastDays * 86400000)
-  );
-
-  const upcoming = events
+  return events
     .filter((e) => e.date >= todayStr)
     .sort((a, b) => a.date.localeCompare(b.date));
-
-  const past = events
-    .filter((e) => e.date < todayStr)
-    .sort((a, b) => b.date.localeCompare(a.date));
-
-  const recentPast = past.filter((e) => e.date >= cutoff);
-
-  // Once there is something upcoming, that plus anything genuinely recent is
-  // the whole useful list — stop there.
-  //
-  // This used to append `past.slice(0, 5)` unconditionally whenever the recent
-  // window came up empty, which is exactly what happens at the start of a
-  // semester: nothing has run in 30 days, so the dropdown showed this week's
-  // GBM followed by five events from LAST spring. Clutter at best, and at
-  // worst a student taps the wrong one and their check-in lands on an event
-  // from April.
-  if (upcoming.length > 0) return [...upcoming, ...recentPast];
-
-  // Nothing upcoming. Show recent events so a late check-in still works, and
-  // only if even that window is empty (mid-summer, or before the E-Board has
-  // added the new semester) fall back to the most recent few — an empty
-  // dropdown mid-meeting is worse than a stale one.
-  return recentPast.length > 0 ? recentPast : past.slice(0, 5);
 }

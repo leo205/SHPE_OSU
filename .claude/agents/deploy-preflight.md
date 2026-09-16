@@ -90,11 +90,13 @@ authentication is supported, require it and prove the public-only route fails.
 **2. Content that has silently expired.**
 `src/lib/events.js` feeds both the public calendar and the attendance dropdown.
 Compare dates against today and verify the next database event appears in both
-places. Also inspect `src/data/events.js`: it is an outage fallback, so before a
-high-stakes check-in it should contain a character-identical title/date copy of
-the relevant database event. A mismatch can create duplicates and split stored
-attendance labels. Also flag graduation-year options in `ResumeUpload.jsx` that
-have gone stale, and E-Board entries with missing fields.
+places. The check-in dropdown must include local-today and future dates only;
+past meetings remain visible in the calendar but are not selectable. Also
+inspect `src/data/events.js`: it is an outage fallback, so before a high-stakes
+check-in it should contain a character-identical title/date copy of the relevant
+database event. A mismatch can create duplicates and split stored attendance
+labels. Also flag graduation-year options in `ResumeUpload.jsx` that have gone
+stale, and E-Board entries with missing fields.
 
 Verify the owner-approved GroupMe destination is exact and synchronized on
 Home, Footer, and the first-attendance success UI. A different destination,

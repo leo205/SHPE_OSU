@@ -576,8 +576,9 @@ At the start of a new semester (Autumn/Spring):
     *   Preferred: Admin Dashboard → **Events** tab. Goes into Supabase, appears
         on the calendar and in the check-in dropdown immediately, no deploy.
     *   `src/data/events.js` is only the offline fallback. Old entries there are
-        harmless — the check-in dropdown shows upcoming events first and falls
-        back to recent ones, so stale entries do not crowd out real ones.
+        harmless because the check-in dropdown excludes every date before the
+        visitor's local today. Mirror an important current event there before a
+        high-stakes meeting if check-in must survive a Supabase outage.
 2.  **E-Board Roster Update**:
     *   Collect new E-board member headshots, convert them to `.webp`, and place them in `public/photos/eboard/`.
     *   Open `src/pages/Eboard.jsx`. Update the `eboardMembers` array with names, majors, graduation years, and roles.
@@ -684,7 +685,8 @@ CREATE TABLE events (
 Both the public calendar and the attendance check-in dropdown read this table
 through `src/lib/events.js`, which merges it with the bundled fallback in
 `src/data/events.js`. An event added in the Admin Dashboard is therefore
-immediately checkinable.
+immediately checkinable when its date is today or later. Past events stay in the
+calendar and admin history but are excluded from the public dropdown.
 
 This was previously a real trap: `Attendance.jsx` read only the static file, so a
 dashboard-added event showed on the calendar but could not be checked into, with

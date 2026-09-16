@@ -95,15 +95,13 @@ export default function Attendance() {
   // Clear the cooldown ticker if the student closes the form mid-countdown.
   useEffect(() => () => clearInterval(cooldownTimer.current), []);
 
-  // Event options: seeded synchronously from the bundled static list, then
-  // upgraded once the database responds.
+  // Current/upcoming event options: seeded synchronously from the bundled
+  // static list, then upgraded once the database responds.
   //
-  // This must never start empty. Check-in happens on phones in basement lecture
-  // halls on bad campus wifi, and the Supabase client has no request timeout —
-  // so if options only appeared after a successful round-trip, one stalled
-  // request would leave every student staring at a dead dropdown for the whole
-  // meeting. Seeding first means the worst case is a slightly stale list rather
-  // than a room full of people who cannot check in.
+  // Check-in happens on phones in basement lecture halls on bad campus wifi.
+  // Seeding first means a current event included in the fallback appears before
+  // the request finishes. The list may intentionally be empty when every known
+  // event is in the past.
   const [eventOptions, setEventOptions] = useState(() =>
     sortForCheckIn(mergeEvents([]))
   );
@@ -113,8 +111,7 @@ export default function Attendance() {
     fetchEvents()
       .then((all) => {
         if (cancelled) return;
-        const options = sortForCheckIn(all);
-        if (options.length > 0) setEventOptions(options);
+        setEventOptions(sortForCheckIn(all));
       })
       .catch((err) => {
         // fetchEvents swallows its own errors; this only guards against a throw
@@ -415,7 +412,7 @@ export default function Attendance() {
                 className="w-full px-4 py-3 rounded-xl border border-outline-variant bg-surface focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
               >
                 <option value="">
-                  {eventOptions.length === 0 ? 'No events available' : 'Select an event…'}
+                  {eventOptions.length === 0 ? 'No current or upcoming events' : 'Select an event…'}
                 </option>
                 {eventOptions.map((event) => {
                   const label = eventOptionLabel(event);
@@ -428,8 +425,8 @@ export default function Attendance() {
               </select>
               {eventOptions.length === 0 && (
                 <p id="event-empty-help" role="alert" className="text-xs text-error font-bold mt-2">
-                  No events are set up yet. Let an E-Board member know — they can add one
-                  from the Admin Dashboard and it will appear here right away.
+                  No current or upcoming events are set up. Let an E-Board member know —
+                  they can add one from the Admin Dashboard and it will appear here right away.
                 </p>
               )}
             </div>
