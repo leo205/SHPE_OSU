@@ -4,7 +4,7 @@ import ImagePlaceholder from '../components/ImagePlaceholder';
  * ── E-BOARD MEMBERS ────────────────────────────────────────────
  * To update a member:
  *   1. Add their photo to /public/photos/eboard/
- *   2. Replace the `photo: null` with `photo: '/photos/eboard/name.jpg'`
+ *   2. Replace the `photo: null` with `photo: '/photos/eboard/name.'`
  *   3. Update name, major, year as needed
  *
  * To add a new member: copy one of the objects below and add it to the array.
