@@ -1,7 +1,7 @@
 # SHPE OSU Website — Engineering Handoff
 
-_Last updated: 2026-09-14; backend/frontend rollout verified live, successful
-real-form acceptance pending._
+_Last updated: 2026-09-23; sponsor-directory release 1 implemented locally only.
+Earlier production evidence below has not been re-audited during this work._
 
 Developer documentation for the Digital Operations Chair and anyone maintaining
 the SHPE chapter website at The Ohio State University. Covers architecture,
@@ -10,6 +10,38 @@ database design, the security model, maintenance protocols, and deployment.
 ---
 
 ## 0. Where the site stands today
+
+### Sponsor content management — pending local acceptance, not live
+
+On `feature/admin-managed-sponsors`, **Sponsors → Website sponsors** manages
+company listings; **Recruiter access** retains the separate historical access
+workflow. Existing `?tab=companies` links and four-tab mobile navigation remain.
+Log in to the isolated local environment using the README's `local:sponsors:*`
+commands before testing; those commands do not use the production `.env`.
+
+Editors can save drafts, explicitly publish, reorder within a tier, replace or
+remove a logo, archive, and restore as a draft. The company website and academic
+year controls were removed at the owner's request on September 24, including
+the year filter/list labels. Existing database values are preserved, not deleted.
+Changes to already published listings take effect
+only with **Save and publish**; unsaved edits do not survive closing the editor.
+Price packages, benefits, and the packet remain code-managed until release 2.
+
+Only published listings are public. Logos are public branding even while a
+listing is draft/archived. Uploads accept static PNG/JPEG/WebP up to 2 MiB,
+4096 pixels per dimension, and 4 million pixels; Edge decodes and normalizes
+them to PNG. Do not upload confidential/embargoed images. The public card uses
+the company name when no logo is available.
+
+Keep old files referenced by saved listings or audit history. **Clean up unused
+logos** removes eligible abandoned uploads after 24 hours, in small leased
+batches; waiting/retrying is normal and no background scheduler is installed.
+Audit records are database-only in release 1. Never delete asset registry
+tombstones or bypass Storage through a table-row deletion.
+
+All changes remain local, including schema and seeds. Browser/mobile visual
+acceptance and authorized SQL → Edge → frontend rollout are still needed.
+See `docs/plans/sponsor-admin.md` and the sponsor section of `supabase/README.md`.
 
 **Live at https://www.shpeosu.com, deployed from `main` via Vercel.** The
 protected attendance, resume, and sponsor submission architecture is deployed

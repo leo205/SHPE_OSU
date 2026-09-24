@@ -62,6 +62,16 @@ there isn't one, that is a finding regardless of how convincing the UI looks.
 
 ## Non-negotiables for this project
 
+- Sponsor-directory release 1 is local-only until separately authorized.
+  `sponsors` publicly exposes published branding only; drafts/audit/asset registry
+  require admin authorization. Recruiter Auth does not grant editing access.
+  The admin-only `manage-sponsor-assets` endpoint must verify the bearer through
+  Auth before reading/decoding a bounded body. Raster logos are fully decoded
+  and normalized; direct browser Storage writes remain denied even for admins.
+  Validate references against the registry and exact migrated-logo allowlist in
+  Postgres. Check cleanup/attachment races, retained history, leases, permanent
+  tombstones, and late objects; client-supplied paths cannot select deletions.
+  The local review runner must stay loopback-only and never use production data.
 - Anything prefixed `VITE_` is inlined into the public bundle. The anon key is
   safe to ship **only** because RLS constrains it. A `service_role` key in a
   `VITE_` variable is a total compromise — check for it every time.

@@ -18,3 +18,8 @@ verify_jwt = false
 # missing/invalid/non-admin sessions are still rejected before any queue access.
 [functions.cleanup-resume-files]
 verify_jwt = false
+
+# Logo uploads and cleanup verify a real admin bearer in-handler before any
+# request body parsing, image decoding, registry or Storage work.
+[functions.manage-sponsor-assets]
+verify_jwt = false

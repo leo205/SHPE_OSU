@@ -6,6 +6,7 @@ import { attendanceEventDate } from '../lib/events';
 import { cleanupRetiredResumeFiles } from '../lib/resumeCleanup';
 import { ADMIN_DATASET_NAMES, loadAdminDataset } from '../lib/adminData';
 import { formatAdminDate } from '../lib/adminDate';
+import SponsorsManager from '../components/admin/SponsorsManager';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
   LineChart, Line,
@@ -40,14 +41,13 @@ const MAJOR_BAR_COLOR = '#a33700';
 
 const ADMIN_TABS = [
   { id: 'home', label: 'Home', icon: HomeIcon },
-  { id: 'companies', label: 'Companies', icon: Briefcase },
+  { id: 'companies', label: 'Sponsors', icon: Briefcase },
   { id: 'events', label: 'Events', icon: Calendar },
   { id: 'resume', label: 'Resume', icon: FileText },
 ];
 
 const TAB_DATASETS = {
   home: 'attendance',
-  companies: 'company_access',
   events: 'events',
   resume: 'resumes',
 };
@@ -150,6 +150,7 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState(() => {
     return searchParams.get('tab') || 'home';
   });
+  const [sponsorSection, setSponsorSection] = useState('website');
 
   // Supabase Data States
   const [attendance, setAttendance] = useState([]);
@@ -1392,11 +1393,22 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* ── TAB 3: COMPANIES (ACCESS CODES) ────────────────────────── */}
-        {activeTab === 'companies' && loadStates.company_access.status === 'ready' && (
-          <div className="space-y-6 max-w-4xl">
+        {/* Keep the historical ?tab=companies URL and four navigation slots. */}
+        {activeTab === 'companies' && (
+          <div className="min-w-0 space-y-6 max-w-5xl">
+            <h1 className="text-2xl font-black font-headline text-on-surface sm:text-3xl">Sponsors</h1>
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Sponsor management sections">
+              <button type="button" aria-pressed={sponsorSection === 'website'} onClick={() => setSponsorSection('website')} className={`rounded-lg px-4 py-2.5 text-sm font-bold ${sponsorSection === 'website' ? 'bg-primary text-on-primary' : 'bg-surface-container text-on-surface'}`}>Website sponsors</button>
+              <button type="button" aria-pressed={sponsorSection === 'recruiter'} onClick={() => setSponsorSection('recruiter')} className={`rounded-lg px-4 py-2.5 text-sm font-bold ${sponsorSection === 'recruiter' ? 'bg-primary text-on-primary' : 'bg-surface-container text-on-surface'}`}>Recruiter access</button>
+            </div>
+            <div hidden={sponsorSection !== 'website'}>
+              <SponsorsManager />
+            </div>
+            {sponsorSection === 'recruiter' && <>
+              <DatasetLoadStatus state={loadStates.company_access} onRetry={() => { void loadDataset('company_access'); }} />
+              {loadStates.company_access.status === 'ready' && <div className="space-y-6 max-w-4xl">
             <div>
-              <h1 className="text-2xl font-black font-headline text-on-surface sm:text-3xl">Recruiter Codes</h1>
+              <h2 className="text-2xl font-black font-headline text-on-surface sm:text-3xl">Recruiter Codes</h2>
               <p className="text-sm text-on-surface-variant mt-1">Sponsors sign in with a real account. The codes below are historical and grant nothing — delete them once every sponsor has a login.</p>
             </div>
 
@@ -1449,6 +1461,8 @@ WHERE email = 'recruiter@company.com';`}</pre>
                 </div>
               )}
             </div>
+              </div>}
+            </>}
           </div>
         )}
 

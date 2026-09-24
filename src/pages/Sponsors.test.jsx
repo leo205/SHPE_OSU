@@ -15,6 +15,10 @@ describe('sponsor page draft recovery', () => {
     expect(markup).toContain('Become a Sponsor');
     expect(markup).toContain('name="company_name"');
     expect(markup).toContain('Submit Inquiry');
+    expect(markup).toContain('Loading sponsors');
+    expect(markup).toContain('SponsorSHPE Tiers');
+    expect(markup).toContain('/Sponsorship_Packet.pdf');
+    expect(markup).not.toContain('Lincoln Electric');
   });
 
   it('recovers malformed field values while retaining usable draft text', () => {

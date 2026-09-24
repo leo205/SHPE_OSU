@@ -95,12 +95,24 @@ describe('admin data availability in rendered UI', () => {
     expect(markup).not.toContain('View PDF');
   });
 
-  it('does not describe failed recruiter-code loading as an empty list', () => {
+  it('keeps website sponsor management available when recruiter-code loading fails', () => {
     view.states.company_access = { status: 'error', error: 'Could not load all historical recruiter codes. Please retry.' };
     const markup = renderTab('companies');
-    expect(markup).toContain('Could not load all historical recruiter codes. Please retry.');
-    expect(markup).toContain('Retry loading');
+    expect(markup).toContain('Website sponsors');
+    expect(markup).toContain('Recruiter access');
+    expect(markup).toContain('Add sponsor');
+    expect(markup).toContain('Loading website sponsors');
+    expect(markup).not.toContain('Could not load all historical recruiter codes. Please retry.');
     expect(markup).not.toContain('No company access codes generated');
+  });
+
+  it('preserves the companies URL while naming the four mobile navigation items Sponsors', () => {
+    const markup = renderTab('companies');
+    expect(markup).not.toContain('>Companies<');
+    expect(markup).toContain('>Sponsors<');
+    const mobileNav = markup.match(/<nav[^>]*aria-label="[^"]*"[^>]*>[\s\S]*?<\/nav>/)?.[0];
+    expect(mobileNav).toBeDefined();
+    expect((mobileNav.match(/<button/g) || []).length).toBe(4);
   });
 
   it('hides the report while the complete attendance history is still loading', () => {

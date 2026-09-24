@@ -1,0 +1,6 @@
+{
+  "imports": {
+    "@cf-wasm/photon/node": "npm:@cf-wasm/photon@0.4.0/node",
+    "image-size": "npm:image-size@2.0.4"
+  }
+}

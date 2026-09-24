@@ -59,6 +59,28 @@ current one. **Click the thing you changed.**
 
 ## Current state
 
+### September 23 sponsor directory — local branch only
+
+`feature/admin-managed-sponsors` is based on updated `main` at `4778478`.
+Release 1 implements a Supabase-backed sponsor directory and **Sponsors →
+Website sponsors** editor, separately from **Recruiter access**. Draft/publish,
+ordering, logo replacement, archive/restore, optimistic version checks, and
+audit history are implemented. Prices, package benefits, the packet, and the
+protected inquiry endpoint are unchanged. See `docs/plans/sponsor-admin.md`.
+
+This feature has **not** been deployed or applied to production. Use the
+isolated `local:sponsors:*` commands in README for review; ordinary `.env`
+values may point to production. Local tests use no student data. Browser visual
+acceptance remains pending because Chrome access was not approved.
+
+The public directory has no hardcoded fallback: an empty database result must
+stay empty, and a read failure shows a retry state. Listing publication never
+grants resume access. New raster logos pass the admin-only
+`manage-sponsor-assets` Edge endpoint, not a browser Storage write. Its SQL,
+bucket permissions, and seed must precede endpoint/frontend rollout; see
+`supabase/README.md`. `check:edge` now checks five source entry points, not proof
+that five endpoints are deployed. The earlier live evidence below is historical.
+
 The September 14 backend and frontend release is live as of **2026-09-14**.
 Commit `3c0215a` was pushed to `main`; Vercel serves
 `/assets/index-BkPTcLwI.js`, and every generated JS/CSS hash plus the HTML and

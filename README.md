@@ -23,6 +23,54 @@ Dashboard.
 
 > **Working on this?** Start with [`CLAUDE.md`](./CLAUDE.md) — it covers the current state, remaining work, branch policy, and the mistakes this codebase has already made once.
 
+Local feature branch: [`Admin-managed sponsors`](./docs/plans/sponsor-admin.md)
+release 1 is implemented for local review, **not deployed**. It moves company
+listings, logos, tiers, ordering, and draft/publish/archive controls into the
+existing Admin Dashboard. Package prices/benefits and the packet remain unchanged
+and are planned separately. Recruiter access and sponsor inquiries are unchanged.
+
+### Isolated sponsor review
+
+Use `feature/admin-managed-sponsors` and a running Docker-compatible engine
+(Docker Desktop or Colima). This is a separate local Supabase project, not a
+copy of production. No hosted credentials or student data are needed.
+
+```bash
+npm ci
+npm run local:sponsors:setup
+npm run local:sponsors:functions  # keep running in this terminal
+```
+
+In a second terminal:
+
+```bash
+npm run local:sponsors:dev
+```
+
+Open <http://127.0.0.1:5173/admin> and use the disposable login in
+`.sponsor-local/review-login.txt`. Choose **Sponsors → Website sponsors**;
+the public view is <http://127.0.0.1:5173/sponsors>. The five existing companies
+are seeded without guessing websites or academic years. Refresh the public page
+after publishing. All review services bind to loopback; this URL is for the
+laptop, not another phone on Wi-Fi.
+
+The runner sets local Supabase values only in the dev process; it does not
+edit `.env`, link a hosted project, deploy functions, or run production SQL.
+Runtime files are ignored under `.sponsor-local/`. Attendance, resume submissions,
+and sponsor email are deliberately not configured in this isolated fixture.
+Use the production site for normal operations, not this review database.
+
+Repeatable local API checks (synthetic fixtures only):
+
+```bash
+node scripts/smoke-sponsors.mjs
+node scripts/smoke-sponsor-assets.mjs
+```
+
+Browser visual/phone acceptance and a production-header check remain release
+gates. See [`supabase/README.md`](./supabase/README.md#admin-managed-sponsors--local-only-release-1)
+before authorizing rollout; merging the frontend alone is insufficient.
+
 ---
 
 ## 🚀 Key Features

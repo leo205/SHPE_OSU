@@ -8,6 +8,83 @@ uploaded PDFs must be enforced by Supabase or another trusted server. The anon
 key is present in the public JavaScript bundle, so a React check controls what is
 rendered, never what an attacker can call directly.
 
+## Admin-managed sponsors — local-only release 1
+
+Implemented on `feature/admin-managed-sponsors` from `4778478`, 2026-09-23.
+**Not applied or deployed to the hosted project.** This adds public sponsor
+branding management, not recruiter accounts, billing, or new public submissions.
+Existing inquiry, attendance, and resume boundaries are unchanged.
+
+| Component | Contract |
+|---|---|
+| `sponsors-admin.sql` | Additive tables, validated fields, RLS/column grants, audit/version triggers, asset registry/cleanup RPCs, restricted public branding bucket, repeat-safe five-company seed |
+| `public.sponsors` | Public `SELECT` of published rows only; explicit admin role required for drafts and writes; no browser deletion; optimistic version checks |
+| `public.sponsor_audit` | Admin-readable, trigger-written history including before/after values; not editable through the API |
+| `public.sponsor_assets` | Admin-readable registry; service-only mutations; verified immutable paths and permanent cleanup tombstones |
+| `manage-sponsor-assets` | Own admin bearer verification through Auth; bounded static raster decode/PNG normalization; immutable upload; leased cleanup without client-selected paths |
+| `sponsor-assets` bucket | Public branding, 2 MiB cap; direct browser upload/overwrite/delete denied, including admin-browser writes |
+
+Service-only asset RPCs are `reserve_sponsor_asset`, `complete_sponsor_asset`,
+`claim_sponsor_asset_cleanup`, `finish_sponsor_asset_cleanup`, and
+`pending_sponsor_asset_cleanup_count`. Browser metadata changes still go through
+RLS, not the service key. Draft/archived *rows* are private, but their logo URLs
+are public. Never upload private branding or contracts to this bucket.
+
+Only the five exact migrated `/photos/sponsors/` paths or ready registered
+`logos/<UUID>.<extension>` assets may be saved. Cleanup skips saved and audited
+references, waits 24 hours for abandoned uploads, leases small batches, and
+retains tombstones. Database row locking protects attachment versus cleanup,
+including stale repeatable-read transactions. Cleanup is an explicit admin action,
+not a scheduler, and will not erase retained logo history.
+
+### Isolated local verification
+
+README documents `npm run local:sponsors:setup`, `local:sponsors:functions`, and
+`local:sponsors:dev`. They use the Docker project `shpe-sponsors-local`, API
+`http://127.0.0.1:55431`, database port `55432`, and ignored `.sponsor-local/`
+runtime files. The Docker network explicitly binds ports to loopback and setup
+checks the resulting bindings. No production `.env` value is used or changed.
+Local supporting tables are empty; the admin fixture is disposable.
+
+`supabase/local/sponsor-review-bootstrap.sql` is **local fixtures only**, not a
+production migration. Never apply it to the hosted project or rerun all SQL as
+a bundle. Synthetic API/Storage checks run with:
+
+```bash
+node scripts/smoke-sponsors.mjs
+node scripts/smoke-sponsor-assets.mjs
+```
+
+Automated evidence includes real React DOM interaction tests, PostgreSQL/PGlite
+role/constraint tests, actual local REST editing and authorization checks, local
+Edge decoding of PNG/JPEG/WebP, Storage metadata/denial/cleanup checks, and
+two-session PostgreSQL attachment/cleanup races. Synthetic smoke fixtures are
+removed; asset tombstones remain intentionally. Browser access was not approved,
+so visual desktop/mobile and production-header acceptance remain outstanding.
+
+### Later rollout, only after approval
+
+1. Review the local UI, then inventory/back up target sponsor tables, policies,
+   Storage settings, and existing public branding. Confirm the five-company seed
+   still matches what should be published. Do not change unrelated policies.
+2. Apply **only** `sponsors-admin.sql` transactionally after confirming the
+   existing `public.is_admin()` and Storage schema. Its repeat seed never
+   overwrites edits or resurrects archived rows. Inspect resulting grants/RLS.
+3. Deploy `manage-sponsor-assets` with its pinned `deno.json`. Gateway
+   `verify_jwt = false` does not make it public: the handler verifies Auth and the
+   server-owned admin role before request-body, registry, or Storage work.
+   Existing Supabase server credentials and exact `PUBLIC_SITE_ORIGINS` are
+   required. No new `VITE_` variable, Turnstile, or EmailJS key is needed.
+4. Verify admin uploads and actual Storage behavior, anonymous/recruiter denial,
+   and all five public listings before deploying the matching frontend. Test
+   publish/edit/archive/restore and version conflicts with approved disposable
+   fixtures. Recheck recruiter access and inquiry delivery separately.
+5. Release the frontend only after approval. Verify actual deployed assets,
+   security headers, mobile layout, and public reads. A Git revert does not
+   revert content: retain the additive tables and constraints on rollback and
+   review the old static roster because it may be stale. Never reopen browser
+   Storage writes or drop user-edited listings as a recovery shortcut.
+
 ## Production state
 
 The protected public-submission rollout was completed on **2026-09-13** against

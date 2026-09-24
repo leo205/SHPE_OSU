@@ -9,6 +9,7 @@ const result = await build({
     'supabase/functions/submit-resume/index.ts',
     'supabase/functions/submit-sponsor-inquiry/index.ts',
     'supabase/functions/cleanup-resume-files/index.ts',
+    'supabase/functions/manage-sponsor-assets/index.ts',
   ],
   bundle: true,
   format: 'esm',
@@ -20,8 +21,8 @@ const result = await build({
   logLevel: 'warning',
 });
 
-if (result.outputFiles.length !== 4 || result.outputFiles.some((file) => file.contents.length === 0)) {
-  throw new Error('Edge Function bundle check did not produce all four outputs.');
+if (result.outputFiles.length !== 5 || result.outputFiles.some((file) => file.contents.length === 0)) {
+  throw new Error('Edge Function bundle check did not produce all five outputs.');
 }
 
 console.log('Edge Function bundle check passed.');

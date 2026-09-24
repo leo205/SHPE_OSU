@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import ImagePlaceholder from '../components/ImagePlaceholder';
+import SponsorDirectory from '../components/sponsors/SponsorDirectory';
 import TurnstileWidget from '../components/TurnstileWidget';
 import { scrollToAnchor } from '../lib/scroll';
 import { supabase } from '../lib/supabase';
@@ -22,89 +22,6 @@ import {
 // Pricing cards and their exact inquiry labels share one immutable definition
 // in sponsorInquiry.js. "Custom" is the only non-card option.
 const TIER_OPTIONS = SPONSOR_TIER_LABELS;
-
-/*
- * ── Current & Past Sponsors ────────────────────────────────────
- * Add logos to /public/logos/ and update the `logo` field.
- * Example: logo: '/logos/lockheed.png'
- */
-/*
- * Current sponsors, grouped by the tier they actually purchased.
- *
- * The tier names here match `SPONSOR_TIERS` — the levels we actually
- * sell. They used to be "platinum / gold / bronze", which are not levels this
- * chapter offers, so a company that bought Scarlet & Gray ($1,500) was being
- * displayed under a "Platinum" heading. Grouping by the real tier keeps the
- * logo wall consistent with the pricing table on the same page.
- *
- * Amounts are from the chapter sponsorship sheet and map onto the tier prices
- * exactly ($500 Buckeye / $1,000 Carmen / $1,500 Scarlet & Gray / $2,000
- * Platinum), which is how the two blank tier cells in the sheet were resolved.
- *
- * To update: add the logo to public/photos/sponsors/ as .webp and add an entry
- * under the right tier. Empty tiers are hidden automatically.
- */
-const sponsors = {
-  'Platinum': [],                                          // $2,000 — none yet
-  'Scarlet & Gray': [                                      // $1,500
-    { name: 'Lincoln Electric', logo: '/photos/sponsors/lincolnElectric.webp' },
-  ],
-  'Carmen': [                                              // $1,000
-    { name: 'Honda', logo: '/photos/sponsors/honda.webp' },
-    { name: 'Burns & McDonnell', logo: '/photos/sponsors/burnsMcDonnell.webp' },
-    { name: 'Whiting-Turner', logo: '/photos/sponsors/wtLogo.jpg' },
-  ],
-  'Buckeye': [                                             // $500
-    { name: 'Gresham Smith', logo: '/photos/sponsors/greshamSmith.webp' },
-  ],
-};
-
-// Largest card for the highest tier, so the visual hierarchy matches the price.
-// A tier missing from this map falls back to 'sm' at the call site — NOT to
-// SponsorCard's own 'lg' default, which would hand a brand-new cheap tier the
-// biggest card on the page and quietly outrank the sponsors who paid more.
-const TIER_CARD_SIZE = {
-  'Platinum': 'lg',
-  'Scarlet & Gray': 'lg',
-  'Carmen': 'md',
-  'Buckeye': 'sm',
-};
-
-/* ── Sponsor Logo Card ─────────────────────────────────────── */
-/**
- * WCAG 1.1.1 Non-text Content:
- * Every corporate logo image must have an explicit, descriptive alt attribute.
- * When the logo acts as a purely decorative flourish inside a labelled section,
- * we still provide company identity alt text so AT users understand who sponsors us.
- * Format: "[Company] corporate sponsor logo"
- */
-function SponsorCard({ sponsor, size = 'lg' }) {
-  const h = size === 'lg' ? 'h-28' : size === 'md' ? 'h-24' : 'h-20';
-  const w = size === 'lg' ? 'w-[320px]' : size === 'md' ? 'w-[280px]' : 'w-[240px]';
-  return (
-    <div className={`bg-surface-container-lowest p-6 md:p-8 rounded-lg flex items-center justify-center hover:scale-[1.02] transition-all duration-300 platinum-glow border border-outline-variant/20 max-w-full ${w}`}>
-      {sponsor.logo ? (
-        <img
-          src={sponsor.logo}
-          alt={`${sponsor.name} corporate sponsor logo`}
-          className={`${h} max-w-full object-contain`}
-          loading="lazy"
-          width="600"
-        />
-      ) : (
-        /*
-         * 📸 SWAP LOGO:
-         * 1. Add logo to /public/logos/companyname.png
-         * 2. Set `logo: '/logos/companyname.png'` in the sponsors object above
-         */
-        <ImagePlaceholder
-          label={`${sponsor.name} Logo`}
-          className={`${h} w-full max-w-[200px]`}
-        />
-      )}
-    </div>
-  );
-}
 
 /* ── Sponsorship Contact Form ──────────────────────────────── */
 /**
@@ -487,24 +404,7 @@ export default function Sponsors() {
             </p>
           </div>
 
-          {/* One section per tier, highest first. Tiers with no sponsors are
-              skipped, so an empty Platinum level doesn't render a bare heading. */}
-          <div className="space-y-16">
-            {Object.entries(sponsors)
-              .filter(([, companies]) => companies.length > 0)
-              .map(([tier, companies]) => (
-                <div key={tier} className="flex flex-col items-center">
-                  <h3 className="font-headline text-xs font-black text-on-surface-variant uppercase tracking-[0.3em] mb-8">
-                    {tier} Sponsors
-                  </h3>
-                  <div className="flex flex-wrap justify-center gap-6 w-full max-w-5xl">
-                    {companies.map((s) => (
-                      <SponsorCard key={s.name} sponsor={s} size={TIER_CARD_SIZE[tier] ?? 'sm'} />
-                    ))}
-                  </div>
-                </div>
-              ))}
-          </div>
+          <SponsorDirectory />
         </div>
       </section>
 

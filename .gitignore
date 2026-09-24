@@ -16,6 +16,7 @@ node_modules
 dist
 dist-ssr
 supabase/.temp/
+.sponsor-local/
 *.local
 
 # Editor directories and files

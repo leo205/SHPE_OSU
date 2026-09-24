@@ -64,6 +64,15 @@ unretested. The recorded state in `supabase/README.md` takes precedence.
 
 ## Bug classes this codebase has actually shipped
 
+**Local sponsor-directory release 1 (not deployed).** Review
+`SponsorsManager.jsx`, the shared sponsor cards/directory, `src/lib/sponsors.js`,
+and `sponsors-admin.sql`. Require stable creation IDs for ambiguous insert
+retries, returned rows/version checks for updates, explicit conflict comparison,
+preserved uploads after failed saves, and restore-as-draft. Public reads must
+not merge a static sponsor roster; an empty result is intentional. Listing
+changes must not affect recruiter access, package pricing, or inquiry delivery.
+`check:edge` includes the fifth source endpoint `manage-sponsor-assets`.
+
 Weight these heavily — each one reached production here at least once.
 
 **Destructive-order bugs.** `ResumeUpload` deleted a student's existing file and

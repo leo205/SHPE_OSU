@@ -123,8 +123,10 @@ on hover with matching card/photo corner radii.
 
 **5. The gates themselves.**
 `npm test`, `npm run check:edge`, `npm run lint`, and `npm run build` must pass.
-`check:edge` must include all four entry points: `submit-attendance`,
-`submit-resume`, `submit-sponsor-inquiry`, and `cleanup-resume-files`. `npm test`
+`check:edge` must include all five source entry points: `submit-attendance`,
+`submit-resume`, `submit-sponsor-inquiry`, `cleanup-resume-files`, and
+`manage-sponsor-assets` (the sponsor-directory release is local-only, not
+deployed). `npm test`
 includes real lifecycle/cleanup SQL run against isolated PostgreSQL/PGlite with
 synthetic data; require rollback, retirement, lease, and permission coverage.
 Lint matters here specifically
@@ -177,6 +179,17 @@ imported into attendance or the leaderboard; reconciliation is a manual admin
 operation.
 
 **7. Migration order and live-state proof.**
+
+For the local sponsor-directory release, require separate approval before any
+production change. Inventory/back up, apply only `sponsors-admin.sql`, deploy
+`manage-sponsor-assets` with its pinned import map, verify admin/role denial and
+actual Storage behavior, then release the frontend. Confirm the five migrated
+companies, drafts hidden, explicit publication, archived absence, version
+conflicts, and missing-logo fallback. Keep recruiter access and sponsor inquiries
+unchanged. Do not run `supabase/local/sponsor-review-bootstrap.sql` on production
+or treat isolated fixture acceptance as live acceptance. Check real desktop and
+phone layouts plus production CSP before merging; browser review is outstanding.
+
 The canonical migrations are marked applied as of 2026-09-13. Verify their live
 catalog state rather than trusting those comments, and never paste all SQL files
 into production as an unordered bundle.
