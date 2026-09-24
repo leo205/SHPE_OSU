@@ -54,10 +54,24 @@ describe('sponsor editor interactions', () => {
     fireEvent.change(screen.getByLabelText('Company name'), { target: { value: 'Updated sponsor' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save and publish' }));
     await screen.findByText('Sponsor published. Visitors will see it on their next page load.');
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel / close editor' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Close sponsor editor' }));
     expect(screen.getByRole('button', { name: 'Edit Updated sponsor' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Edit Original sponsor' })).toBeNull();
     expect(loadSponsors).toHaveBeenCalledTimes(1);
+  });
+
+  it('closes from the header without saving edits and restores keyboard focus', async () => {
+    loadSponsors.mockResolvedValue({ status: 'ready', data: [savedSponsor()] });
+    render(<SponsorsManager client={client} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit Original sponsor' }));
+    fireEvent.change(screen.getByLabelText('Company name'), { target: { value: 'Unsaved name' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Close sponsor editor' }));
+    expect(screen.queryByRole('heading', { name: 'Edit sponsor' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Edit Original sponsor' })).toBeTruthy();
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Add sponsor' }));
+    expect(saveSponsor).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Original sponsor' }));
+    expect(screen.getByLabelText('Company name').value).toBe('Original sponsor');
   });
 
   it('preserves stored website and academic year when editing the visible sponsor fields', async () => {
@@ -201,11 +215,15 @@ describe('sponsor editor interactions', () => {
     fireEvent.change(screen.getByLabelText('Company logo (optional)'), { target: { files: [new File(['logo'], 'logo.png', { type: 'image/png' })] } });
     fireEvent.click(screen.getByRole('button', { name: 'Save and publish' }));
     expect(screen.getByRole('button', { name: 'Save and publish' }).disabled).toBe(true);
+    expect(screen.getByRole('button', { name: 'Close sponsor editor' }).disabled).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Close sponsor editor' }));
+    expect(screen.getByRole('heading', { name: 'Edit sponsor' })).toBeTruthy();
     fireEvent.submit(view.container.querySelector('form'));
     expect(uploadSponsorLogo).toHaveBeenCalledTimes(1);
     finishUpload({ ok: true, path: logo });
     await screen.findByText('Sponsor published. Visitors will see it on their next page load.');
     expect(saveSponsor).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: 'Close sponsor editor' }).disabled).toBe(false);
     view.unmount();
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:local-sponsor-preview');
   });

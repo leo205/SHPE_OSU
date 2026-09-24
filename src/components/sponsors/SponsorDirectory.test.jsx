@@ -44,6 +44,20 @@ describe('public sponsor directory', () => {
 });
 
 describe('shared sponsor card', () => {
+  it('uses compact dimensions only when explicitly requested for the editor preview', () => {
+    const sponsors = [row('Honda', 'carmen', { logo_path: '/photos/sponsors/honda.webp' })];
+    const compact = renderToStaticMarkup(<SponsorGroups sponsors={sponsors} compact />);
+    const standard = renderToStaticMarkup(<SponsorGroups sponsors={sponsors} />);
+    expect(compact).toContain('w-[200px]');
+    expect(compact).toContain('h-16 max-w-full object-contain');
+    expect(compact).toContain('Carmen Sponsors');
+    expect(compact).not.toContain('hover:scale');
+    expect(standard).toContain('w-[280px]');
+    expect(standard).toContain('h-24 max-w-full object-contain');
+    expect(standard).toContain('p-6 md:p-8');
+    expect(standard).not.toContain('w-[200px]');
+  });
+
   it('renders company identity cleanly when a logo is absent or unsafe', () => {
     const markup = renderToStaticMarkup(<SponsorCard sponsor={row('Company without a logo', 'carmen', { logo_path: 'https://unapproved.example/logo.svg' })} />);
     expect(markup).toContain('Company without a logo');

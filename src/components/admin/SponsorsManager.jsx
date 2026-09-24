@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { cleanupSponsorAssets, loadSponsors, saveSponsor, uploadSponsorLogo } from '../../lib/sponsors';
 import { EMPTY_SPONSOR, normalizeSponsor, validateSponsorLogo } from '../../lib/sponsorValidation';
@@ -149,9 +149,14 @@ export function SponsorEditor({ sponsor = EMPTY_SPONSOR, client = supabase, onSa
   const archived = base.status === 'archived';
   return (
     <section aria-labelledby="sponsor-editor-title" className={`${styles.panel} min-w-0 p-4 sm:p-6`}>
-      <h2 id="sponsor-editor-title" tabIndex={-1} ref={title} className="font-headline text-xl font-bold">{base.id ? 'Edit sponsor' : 'Add a sponsor'}</h2>
+      <div className="flex items-start justify-between gap-3">
+        <h2 id="sponsor-editor-title" tabIndex={-1} ref={title} className="min-w-0 font-headline text-xl font-bold">{base.id ? 'Edit sponsor' : 'Add a sponsor'}</h2>
+        <button type="button" disabled={saving} className={`${BUTTON} ${styles.closeButton}`} onClick={onCancel} aria-label="Close sponsor editor" title="Close sponsor editor">
+          <X size={20} aria-hidden="true" />
+        </button>
+      </div>
       <p className="mt-2 text-sm text-on-surface-variant">
-        {archived ? 'Archived listings stay off the public page. Restore as a draft, then publish when ready.' : base.status === 'published' ? 'Your edits stay in this editor until you select Save and publish. Cancel leaves the published listing unchanged.' : 'Save a draft to prepare a listing, or publish when it is ready.'}
+        {archived ? 'Archived listings stay off the public page. Restore as a draft, then publish when ready.' : base.status === 'published' ? 'Your edits stay in this editor until you select Save and publish. Closing the editor leaves the published listing unchanged.' : 'Save a draft to prepare a listing, or publish when it is ready.'}
       </p>
       <form className="mt-5 space-y-5" onSubmit={(event) => { event.preventDefault(); void save(base.status === 'published' ? 'published' : 'draft'); }}>
         <fieldset disabled={saving} className="min-w-0 space-y-4 disabled:opacity-70">
@@ -191,9 +196,9 @@ export function SponsorEditor({ sponsor = EMPTY_SPONSOR, client = supabase, onSa
           </div>
         </fieldset>
 
-        <div className={`${styles.preview} min-w-0 p-4 sm:p-6`}>
-          <p className="mb-5 text-sm font-bold">Public card preview</p>
-          <SponsorGroups sponsors={[{ ...form, id: base.id || 'preview' }]} client={client} logoPreview={previewUrl} />
+        <div className={`${styles.preview} min-w-0 p-4`}>
+          <p className="mb-3 text-sm font-bold">Public card preview</p>
+          <SponsorGroups sponsors={[{ ...form, id: base.id || 'preview' }]} client={client} logoPreview={previewUrl} compact />
         </div>
 
         {error && <p role="alert" className="break-words text-sm text-error">{error}</p>}
@@ -219,7 +224,6 @@ export function SponsorEditor({ sponsor = EMPTY_SPONSOR, client = supabase, onSa
             </>}
             {base.id && <button type="button" disabled={saving || conflict} className={BUTTON} onClick={() => { void save('archived', true); }}>Archive sponsor</button>}
           </>}
-          <button type="button" disabled={saving} className={BUTTON} onClick={onCancel}>Cancel / close editor</button>
         </div>
       </form>
     </section>

@@ -53,6 +53,11 @@ describe('sponsor glass experiment style boundaries', () => {
       if (!/^(?:background|border|outline|box-shadow|text-shadow|color|--glass-)/.test(declaration.prop)) return;
       // Error text remains semantic; it is not part of the decorative palette.
       if (declaration.prop === 'color' && /\[role=['"]alert['"]\]/.test(declaration.parent.selector || '')) return;
+      // Status dots use semantic color; surrounding glass surfaces remain neutral.
+      if (declaration.prop === 'background' && declaration.parent.selectors?.every((selector) => /^\.status\[data-status='(?:published|draft|archived)'\]::before$/.test(selector))) {
+        expect(['#22804a', '#b42318', 'currentColor']).toContain(declaration.value);
+        return;
+      }
       expect(declaration.value).not.toMatch(/\b(?:hsla?|hwb|(?:ok)?lab|(?:ok)?lch|color(?:-mix)?)\(/i);
       const colors = declaration.value.match(/#[\da-f]{3,8}\b|rgba?\([^)]*\)/gi) || [];
       for (const color of colors) {
@@ -65,6 +70,25 @@ describe('sponsor glass experiment style boundaries', () => {
       }
     });
     expect(checkedColors).toBeGreaterThan(0);
+  });
+
+  it('uses green for published and red for unpublished dots, retaining labels and a touch-sized close control', () => {
+    const published = [];
+    const draft = [];
+    const archived = [];
+    const close = [];
+    css.walkRules((rule) => {
+      if (rule.selector === ".status[data-status='published']::before" && !isWithin(rule, 'media')) published.push(rule);
+      if (rule.selectors.includes(".status[data-status='draft']::before") && !isWithin(rule, 'media')) draft.push(rule);
+      if (rule.selectors.includes(".status[data-status='archived']::before") && !isWithin(rule, 'media')) archived.push(rule);
+      if (rule.selector === '.closeButton') close.push(rule);
+    });
+    expect(hasDeclaration(published, /^background$/, /^#22804a$/)).toBe(true);
+    expect(hasDeclaration(draft, /^background$/, /^#b42318$/)).toBe(true);
+    expect(hasDeclaration(archived, /^background$/, /^#b42318$/)).toBe(true);
+    expect(source).toContain('data-status={row.status}>{row.status}');
+    expect(hasDeclaration(close, /^width$/, /^44px$/)).toBe(true);
+    expect(hasDeclaration(close, /^height$/, /^44px$/)).toBe(true);
   });
 
   it('provides a solid background fallback before enabling backdrop effects', () => {

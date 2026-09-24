@@ -23,6 +23,24 @@ The header now uses the existing SHPE logo instead of the building icon, and
 the permanent **Refresh listings** button is removed. Initial loading, automatic
 list updates after saving, failed-load retry, and conflict reload remain available.
 
+## Editor UI follow-up (September 24)
+
+On `fix/sponsor-editor-compact-ui`, authorized for production by the owner:
+published status dots are green; draft and archived dots are red (surrounding
+badges stay neutral). The editor preview is compact,
+and a top-right, keyboard-accessible × replaces the bottom close button.
+Closing still discards unsaved edits and is disabled during saving/loading.
+The public directory retains its existing card sizes; no backend changes or
+migrations are required for this follow-up.
+
+Pre-push checks: 463 tests across 46 files, lint, all five Edge bundles,
+production-configured build, diff checks, and both dependency audits passed
+(zero vulnerabilities). The production-header preview passed eight routes,
+expected security headers, and all generated JS/CSS hash comparisons.
+No auth, data-access, upload, or mutation logic changed. The owner will review
+the UI on production; automated DOM interaction checks are not browser/mobile
+visual acceptance. Live deployment verification is a separate post-push check.
+
 ## Recommendation
 
 Build a focused sponsor manager in the existing Admin Dashboard using the

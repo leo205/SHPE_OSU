@@ -11,14 +11,15 @@ function websiteLink(value) {
   }
 }
 
-export default function SponsorCard({ sponsor, size = 'lg', client = supabase, logoPreview = null }) {
+export default function SponsorCard({ sponsor, size = 'lg', client = supabase, logoPreview = null, compact = false }) {
   const [failedLogo, setFailedLogo] = useState(null);
   const logo = logoPreview || sponsorLogoUrl(client, sponsor.logo_path);
   const href = websiteLink(sponsor.website_url);
-  const height = size === 'lg' ? 'h-28' : size === 'md' ? 'h-24' : 'h-20';
-  const fallbackHeight = size === 'lg' ? 'min-h-28' : size === 'md' ? 'min-h-24' : 'min-h-20';
-  const width = size === 'lg' ? 'w-[320px]' : size === 'md' ? 'w-[280px]' : 'w-[240px]';
-  const className = `bg-surface-container-lowest p-6 md:p-8 rounded-lg flex items-center justify-center hover:scale-[1.02] transition-all duration-300 platinum-glow border border-outline-variant/20 max-w-full min-w-0 ${width}`;
+  const height = compact ? 'h-16' : size === 'lg' ? 'h-28' : size === 'md' ? 'h-24' : 'h-20';
+  const fallbackHeight = compact ? 'min-h-16' : size === 'lg' ? 'min-h-28' : size === 'md' ? 'min-h-24' : 'min-h-20';
+  const width = compact ? 'w-[200px]' : size === 'lg' ? 'w-[320px]' : size === 'md' ? 'w-[280px]' : 'w-[240px]';
+  const presentation = compact ? 'p-4' : 'p-6 md:p-8 hover:scale-[1.02] transition-all duration-300';
+  const className = `bg-surface-container-lowest ${presentation} rounded-lg flex items-center justify-center platinum-glow border border-outline-variant/20 max-w-full min-w-0 ${width}`;
   const content = logo && logo !== failedLogo ? (
     <img
       src={logo}
@@ -29,7 +30,7 @@ export default function SponsorCard({ sponsor, size = 'lg', client = supabase, l
       onError={() => setFailedLogo(logo)}
     />
   ) : (
-    <span className={`${fallbackHeight} flex w-full items-center justify-center break-words text-center font-headline text-xl font-bold text-on-surface`}>
+    <span className={`${fallbackHeight} flex w-full items-center justify-center break-words text-center font-headline ${compact ? 'text-sm' : 'text-xl'} font-bold text-on-surface`}>
       {sponsor.name || 'Company name'}
     </span>
   );

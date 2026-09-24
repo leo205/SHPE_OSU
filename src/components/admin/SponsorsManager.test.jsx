@@ -30,7 +30,10 @@ describe('sponsor management workflow controls', () => {
   it('makes published edits explicit and does not offer persistent draft revisions', () => {
     const markup = renderEditor('published');
     expect(markup).toContain('Save and publish');
-    expect(markup).toContain('Cancel leaves the published listing unchanged.');
+    expect(markup).toContain('Closing the editor leaves the published listing unchanged.');
+    expect(markup).toContain('aria-label="Close sponsor editor"');
+    expect(markup.indexOf('aria-label="Close sponsor editor"')).toBeLessThan(markup.indexOf('<form'));
+    expect(markup).not.toContain('Cancel / close editor');
     expect(markup).toContain('Archive sponsor');
     expect(markup).not.toContain('Save draft');
     expect(markup).not.toContain('Publish sponsor');
@@ -49,7 +52,7 @@ describe('sponsor management workflow controls', () => {
     const markup = renderEditor('draft', { tier_key: 'carmen', logo_path: '/photos/sponsors/honda.webp' });
     expect(markup).toContain('Carmen Sponsors');
     expect(markup).toContain('object-contain');
-    expect(markup).toContain('w-[280px]');
+    expect(markup).toContain('w-[200px]');
     expect(markup).toContain('for="sponsor-name"');
     expect(markup).toContain('for="sponsor-logo"');
     expect(markup).toContain('accept="image/png,image/jpeg,image/webp"');
