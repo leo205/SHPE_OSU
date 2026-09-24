@@ -34,6 +34,32 @@ afterEach(() => {
 });
 
 describe('sponsor editor interactions', () => {
+  it('retains error recovery without a permanent refresh button', async () => {
+    loadSponsors.mockResolvedValueOnce({ status: 'error', error: 'Could not load website sponsors. Please retry.' })
+      .mockResolvedValueOnce({ status: 'ready', data: [savedSponsor()] });
+    render(<SponsorsManager client={client} />);
+    expect(screen.queryByRole('button', { name: 'Refresh listings' })).toBeNull();
+    fireEvent.click(await screen.findByRole('button', { name: 'Retry loading website sponsors' }));
+    await screen.findByRole('button', { name: 'Edit Original sponsor' });
+    expect(loadSponsors).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('updates the listing immediately after saving without requiring a refresh', async () => {
+    const sponsor = savedSponsor();
+    loadSponsors.mockResolvedValue({ status: 'ready', data: [sponsor] });
+    saveSponsor.mockImplementation(async (_client, fields) => ({ ok: true, data: { ...sponsor, ...fields, version: 4 } }));
+    render(<SponsorsManager client={client} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit Original sponsor' }));
+    fireEvent.change(screen.getByLabelText('Company name'), { target: { value: 'Updated sponsor' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save and publish' }));
+    await screen.findByText('Sponsor published. Visitors will see it on their next page load.');
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel / close editor' }));
+    expect(screen.getByRole('button', { name: 'Edit Updated sponsor' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Edit Original sponsor' })).toBeNull();
+    expect(loadSponsors).toHaveBeenCalledTimes(1);
+  });
+
   it('preserves stored website and academic year when editing the visible sponsor fields', async () => {
     const sponsor = savedSponsor({ website_url: 'https://example.test/sponsor', academic_year: '2025-2026' });
     saveSponsor.mockImplementation(async (_client, fields) => ({ ok: true, data: { ...sponsor, ...fields, version: 4 } }));

@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Plus } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { cleanupSponsorAssets, loadSponsors, saveSponsor, uploadSponsorLogo } from '../../lib/sponsors';
 import { EMPTY_SPONSOR, normalizeSponsor, validateSponsorLogo } from '../../lib/sponsorValidation';
 import { SPONSOR_DIRECTORY_TIERS } from '../../lib/sponsorTiers';
 import { createInquiryId as createSponsorId } from '../../lib/sponsorInquiry';
 import { SponsorGroups } from '../sponsors/SponsorDirectory';
+import styles from './SponsorsManager.module.css';
 
-const INPUT = 'min-w-0 w-full rounded-lg border border-outline-variant/40 bg-surface-container-lowest px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/50';
-const BUTTON = 'rounded-lg border border-outline-variant/40 px-4 py-2.5 text-sm font-bold hover:bg-surface-container disabled:cursor-not-allowed disabled:opacity-50';
-const PRIMARY_BUTTON = `${BUTTON} bg-primary text-on-primary hover:bg-primary-fixed-dim`;
+const INPUT = `${styles.input} min-w-0 w-full px-3 py-2.5`;
+const BUTTON = styles.button;
+const PRIMARY_BUTTON = `${styles.button} ${styles.primaryButton}`;
 
 export function SponsorEditor({ sponsor = EMPTY_SPONSOR, client = supabase, onSaved, onCancel }) {
   const [base, setBase] = useState(sponsor);
@@ -146,7 +148,7 @@ export function SponsorEditor({ sponsor = EMPTY_SPONSOR, client = supabase, onSa
 
   const archived = base.status === 'archived';
   return (
-    <section aria-labelledby="sponsor-editor-title" className="min-w-0 rounded-xl border border-outline-variant/30 bg-surface-container-lowest p-4 shadow-sm sm:p-6">
+    <section aria-labelledby="sponsor-editor-title" className={`${styles.panel} min-w-0 p-4 sm:p-6`}>
       <h2 id="sponsor-editor-title" tabIndex={-1} ref={title} className="font-headline text-xl font-bold">{base.id ? 'Edit sponsor' : 'Add a sponsor'}</h2>
       <p className="mt-2 text-sm text-on-surface-variant">
         {archived ? 'Archived listings stay off the public page. Restore as a draft, then publish when ready.' : base.status === 'published' ? 'Your edits stay in this editor until you select Save and publish. Cancel leaves the published listing unchanged.' : 'Save a draft to prepare a listing, or publish when it is ready.'}
@@ -168,7 +170,7 @@ export function SponsorEditor({ sponsor = EMPTY_SPONSOR, client = supabase, onSa
             </label>
             <div className="min-w-0">
               <label className="text-sm font-bold" htmlFor="sponsor-logo">Company logo (optional)</label>
-              <input id="sponsor-logo" type="file" accept="image/png,image/jpeg,image/webp" className="mt-1 block w-full min-w-0 max-w-full text-sm" aria-describedby="sponsor-logo-help" onChange={(event) => {
+              <input id="sponsor-logo" type="file" accept="image/png,image/jpeg,image/webp" className={`${styles.file} mt-1 block w-full min-w-0 max-w-full text-sm`} aria-describedby="sponsor-logo-help" onChange={(event) => {
                 const selected = event.target.files?.[0];
                 if (!selected) return;
                 const validationError = validateSponsorLogo(selected);
@@ -189,7 +191,7 @@ export function SponsorEditor({ sponsor = EMPTY_SPONSOR, client = supabase, onSa
           </div>
         </fieldset>
 
-        <div className="min-w-0 rounded-lg bg-surface-container-low p-4 sm:p-6">
+        <div className={`${styles.preview} min-w-0 p-4 sm:p-6`}>
           <p className="mb-5 text-sm font-bold">Public card preview</p>
           <SponsorGroups sponsors={[{ ...form, id: base.id || 'preview' }]} client={client} logoPreview={previewUrl} />
         </div>
@@ -197,7 +199,7 @@ export function SponsorEditor({ sponsor = EMPTY_SPONSOR, client = supabase, onSa
         {error && <p role="alert" className="break-words text-sm text-error">{error}</p>}
         {notice && <p role="status" className="text-sm text-on-surface-variant">{notice}</p>}
         {saving && <p role="status" className="text-sm">Saving or loading sponsor…</p>}
-        {conflict && <div className="space-y-3 rounded-lg border border-outline-variant p-4 text-sm">
+        {conflict && <div className={`${styles.conflict} space-y-3 border p-4 text-sm`}>
           <p>A saved version of this listing differs from your edits. Compare versions before saving.</p>
           <button type="button" disabled={saving} className={BUTTON} onClick={() => { void reloadLatest(); }}>Reload latest version</button>
           {latest && <div className="space-y-3">
@@ -287,20 +289,25 @@ export default function SponsorsManager({ client = supabase }) {
     .sort((a, b) => SPONSOR_DIRECTORY_TIERS.findIndex((tier) => tier.key === a.tier_key) - SPONSOR_DIRECTORY_TIERS.findIndex((tier) => tier.key === b.tier_key) || a.display_order - b.display_order || a.name.localeCompare(b.name));
 
   return (
-    <section aria-labelledby="website-sponsors-title" className="min-w-0 space-y-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <section aria-labelledby="website-sponsors-title" className={`${styles.screen} min-w-0 space-y-5`}>
+      <div className={`${styles.header} flex flex-wrap items-start justify-between`}>
         <div className="min-w-0">
-          <h2 id="website-sponsors-title" className="font-headline text-xl font-bold">Website sponsors</h2>
-          <p className="mt-1 text-sm text-on-surface-variant">Manage the public sponsor directory. Publishing a listing does not grant recruiter access.</p>
+          <div className={styles.heading}>
+            <img src="/photos/shpeLogo.png" alt="SHPE OSU Logo" width="500" height="155" className={styles.headerLogo} />
+            <div className="min-w-0">
+              <p className={styles.eyebrow}>Sponsor management</p>
+              <h2 id="website-sponsors-title" className={`${styles.title} font-headline font-bold`}>Website sponsors</h2>
+            </div>
+          </div>
+          <p className={`${styles.description} text-sm`}>Manage the public sponsor directory. Publishing a listing does not grant recruiter access.</p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <button type="button" disabled={state.status === 'loading'} onClick={() => { void load(); }} className={BUTTON}>Refresh listings</button>
-          <button ref={addButton} type="button" disabled={Boolean(editor) || state.status !== 'ready'} onClick={() => setEditor({ ...EMPTY_SPONSOR })} className={PRIMARY_BUTTON}>Add sponsor</button>
+        <div className={`${styles.actions} flex flex-wrap`}>
+          <button ref={addButton} type="button" disabled={Boolean(editor) || state.status !== 'ready'} onClick={() => setEditor({ ...EMPTY_SPONSOR })} className={PRIMARY_BUTTON}><Plus size={17} aria-hidden="true" />Add sponsor</button>
         </div>
       </div>
 
       {editor && <SponsorEditor key={editor.id || 'new'} sponsor={editor} client={client} onSaved={(row) => {
-        // A save supersedes an in-flight refresh that may contain older rows.
+        // A save supersedes an in-flight load that may contain older rows.
         controllerRef.current?.abort();
         setState((current) => ({ status: 'ready', data: [...(current.data || []).filter((item) => item.id !== row.id), row] }));
         // Keep a new editor mounted after its first save, including its saved
@@ -308,9 +315,9 @@ export default function SponsorsManager({ client = supabase }) {
       }} onCancel={() => { restoreFocus.current = true; setEditor(null); }} />}
 
       {state.status === 'loading' && <p role="status" className="text-sm">Loading website sponsors…</p>}
-      {state.status === 'error' && <div role="alert" className="rounded-lg border border-outline-variant p-4 text-sm"><p>{state.error}</p><button type="button" className={`${BUTTON} mt-3`} onClick={() => { void load(); }}>Retry loading website sponsors</button></div>}
+      {state.status === 'error' && <div role="alert" className={`${styles.message} p-4 text-sm`}><p>{state.error}</p><button type="button" className={`${BUTTON} mt-3`} onClick={() => { void load(); }}>Retry loading website sponsors</button></div>}
       {state.status === 'ready' && <>
-        <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className={`${styles.filters} grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2`}>
           <label htmlFor="sponsor-status-filter" className="text-sm font-bold">Status
             <select id="sponsor-status-filter" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className={`${INPUT} mt-1`}><option value="all">All statuses</option><option value="draft">Draft</option><option value="published">Published</option><option value="archived">Archived</option></select>
           </label>
@@ -318,14 +325,14 @@ export default function SponsorsManager({ client = supabase }) {
             <select id="sponsor-tier-filter" value={tierFilter} onChange={(event) => setTierFilter(event.target.value)} className={`${INPUT} mt-1`}><option value="all">All tiers</option>{SPONSOR_DIRECTORY_TIERS.map((tier) => <option key={tier.key} value={tier.key}>{tier.name}</option>)}</select>
           </label>
         </div>
-        {!visibleRows.length ? <p className="rounded-lg border border-dashed border-outline-variant p-6 text-sm text-on-surface-variant">{rows.length ? 'No sponsors match these filters.' : 'No website sponsors yet. Add a sponsor to begin.'}</p> : <ul className="space-y-3">
-          {visibleRows.map((row) => <li key={row.id} className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-lg border border-outline-variant/30 bg-surface-container-lowest p-4">
-            <div className="min-w-0 flex-1"><h3 className="break-words font-bold">{row.name}</h3><p className="mt-1 break-words text-sm text-on-surface-variant">{SPONSOR_DIRECTORY_TIERS.find((tier) => tier.key === row.tier_key)?.name} · {row.status} · Order {row.display_order}</p></div>
+        {!visibleRows.length ? <p className={`${styles.empty} p-6 text-sm text-on-surface-variant`}>{rows.length ? 'No sponsors match these filters.' : 'No website sponsors yet. Add a sponsor to begin.'}</p> : <ul className="space-y-3">
+          {visibleRows.map((row) => <li key={row.id} className={`${styles.row} flex min-w-0 flex-wrap items-center justify-between`}>
+            <div className="min-w-0 flex-1"><h3 className="break-words font-bold">{row.name}</h3><div className={styles.rowMeta}><span className={styles.status} data-status={row.status}>{row.status}</span><span>{SPONSOR_DIRECTORY_TIERS.find((tier) => tier.key === row.tier_key)?.name} · Order {row.display_order}</span></div></div>
             <button type="button" disabled={Boolean(editor)} className={BUTTON} onClick={() => setEditor(row)} aria-label={`Edit ${row.name}`}>{row.status === 'archived' ? 'View / restore' : 'Edit'}</button>
           </li>)}
         </ul>}
       </>}
-      <div className="border-t border-outline-variant/30 pt-5">
+      <div className={styles.maintenance}>
         <button type="button" className={BUTTON} disabled={cleanup.running} onClick={() => { void runCleanup(); }}>{cleanup.running ? 'Cleaning unused logos…' : 'Clean up unused logos'}</button>
         <p className="mt-2 text-xs text-on-surface-variant">Removes eligible unused uploads. Logos needed by saved listings or retained history are preserved.</p>
         {cleanup.error && <p role="alert" className="mt-2 text-sm text-error">{cleanup.error}</p>}

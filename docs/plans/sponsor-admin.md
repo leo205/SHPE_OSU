@@ -5,6 +5,22 @@ Work is on `feature/admin-managed-sponsors`, based on collaborator changes throu
 `4778478` (pulled 2026-09-23). Release 2 remains a proposal. This plan does not
 authorize production migrations or a push to `main`.
 
+The approved functional version is saved in commit `0a1ec6c` on
+`feature/admin-managed-sponsors`. A separate local-only visual experiment on
+`experiment/sponsor-glass-ui` adds frosted surfaces and glossy controls solely
+to **Website sponsors**. Its CSS module does not restyle the public directory,
+recruiter section, or other admin screens. The owner approved the revised UI
+and its local commit on September 24. This styling is separate from the earlier
+functional checkpoint and has not been pushed or deployed; production rollout
+still requires separate approval and the backend-first sequence below.
+The September 24 visual revision keeps the glass depth/highlights but removes
+decorative color: a clear backdrop, neutral white/gray surfaces, monochrome
+controls/status badges, and neutral shadows. Existing sponsor artwork and
+semantic error feedback remain unchanged.
+The header now uses the existing SHPE logo instead of the building icon, and
+the permanent **Refresh listings** button is removed. Initial loading, automatic
+list updates after saving, failed-load retry, and conflict reload remain available.
+
 ## Recommendation
 
 Build a focused sponsor manager in the existing Admin Dashboard using the

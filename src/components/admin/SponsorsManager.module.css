@@ -1,0 +1,153 @@
+/* Clear, neutral glass experiment. Every class is scoped to the sponsor manager;
+   the shared public sponsor card deliberately keeps its actual public design. */
+.screen {
+  --glass-ink: #292929;
+  --glass-muted: #606060;
+  position: relative;
+  isolation: isolate;
+  min-width: 0;
+  padding: clamp(16px, 3vw, 30px);
+  border: 1px solid rgba(255, 255, 255, .94);
+  border-radius: 32px;
+  background: linear-gradient(140deg, rgba(255, 255, 255, .24), rgba(255, 255, 255, .08));
+  color: var(--glass-ink);
+  box-shadow: inset 0 1px 0 #fff, 0 18px 48px -32px rgba(0, 0, 0, .2);
+}
+
+.header { gap: 20px; padding: 4px 2px 12px; }
+.heading { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.headerLogo {
+  flex: 0 0 auto;
+  width: 100px;
+  height: auto;
+  object-fit: contain;
+}
+.eyebrow { margin-bottom: 4px; color: #626262; font-size: 10px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+.title { color: var(--glass-ink); font-size: clamp(20px, 2.8vw, 28px); letter-spacing: -.035em; line-height: 1.25; }
+.description { max-width: 38rem; margin-top: 12px; color: var(--glass-muted); line-height: 1.6; }
+.actions { align-items: center; gap: 8px; }
+
+/* Opaque defaults are intentional: browsers without backdrop-filter still
+   get complete, legible surfaces rather than a transparent-only treatment. */
+.panel, .filters, .row, .maintenance {
+  border: 1px solid rgba(255, 255, 255, .98);
+  background: #fafafa;
+  box-shadow: inset 0 1px 1px #fff, inset 0 -1px 0 rgba(255, 255, 255, .65), 0 9px 24px -18px rgba(0, 0, 0, .24);
+}
+.panel { border-radius: 26px; }
+.filters { padding: 16px 18px; border-radius: 22px; }
+.row { border-radius: 22px; gap: 14px; padding: 18px 20px; }
+.maintenance { border-radius: 22px; padding: 18px 20px; }
+.maintenance p { color: var(--glass-muted); line-height: 1.6; }
+.maintenance p[role='alert'] { color: #a02c15; }
+
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .panel, .filters, .row, .maintenance {
+    background: linear-gradient(135deg, rgba(255, 255, 255, .78), rgba(255, 255, 255, .44));
+    -webkit-backdrop-filter: blur(18px);
+    backdrop-filter: blur(18px);
+  }
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  max-width: 100%;
+  padding: 10px 17px;
+  border: 1px solid rgba(110, 110, 110, .32);
+  border-radius: 999px;
+  background: linear-gradient(175deg, #fff 3%, #f7f7f7 49%, #eaeaea 100%);
+  color: #414141;
+  box-shadow: inset 0 1px 0 #fff, inset 0 -1px 1px rgba(255, 255, 255, .85), 0 3px 8px -5px rgba(0, 0, 0, .3);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.45;
+  text-align: center;
+  transition: box-shadow 150ms ease, border-color 150ms ease;
+}
+.button svg { flex-shrink: 0; }
+.button:disabled { opacity: .5; cursor: not-allowed; }
+.primaryButton {
+  border-color: #909090;
+  background: linear-gradient(175deg, #fff, #f3f3f3);
+  color: #202020;
+  box-shadow: inset 0 1px 0 #fff, inset 0 -1px 0 rgba(0, 0, 0, .05), 0 5px 12px -6px rgba(0, 0, 0, .28);
+}
+@media (hover: hover) {
+  .button:not(:disabled):hover {
+    border-color: #777;
+    box-shadow: inset 0 1px 0 #fff, 0 5px 12px -6px rgba(0, 0, 0, .3);
+  }
+  .primaryButton:not(:disabled):hover { border-color: #555; background: linear-gradient(175deg, #fff, #e9e9e9); }
+}
+.button:not(:disabled):active { box-shadow: inset 0 2px 4px rgba(0, 0, 0, .12); }
+.button:focus-visible, .input:focus-visible, .file:focus-visible {
+  outline: 3px solid #555;
+  outline-offset: 3px;
+}
+.input {
+  min-height: 46px;
+  border: 1px solid #888;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .95);
+  color: #292929;
+  font-size: 16px; /* Avoid input zoom on iPhone. */
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, .055), 0 1px 0 #fff;
+}
+.input option { background: #fff; color: #292929; }
+.file { padding: 10px; border: 1px dashed #888; border-radius: 14px; background: rgba(255, 255, 255, .78); }
+.file::file-selector-button {
+  margin-right: 10px;
+  padding: 6px 10px;
+  border: 1px solid #c5c5c5;
+  border-radius: 999px;
+  background: #f3f3f3;
+  color: #414141;
+  font: inherit;
+  cursor: pointer;
+}
+.preview {
+  border: 1px solid #dedede;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #f0f0f0, #fafafa);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, .04), 0 1px 0 #fff;
+}
+.status { display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; border: 1px solid #d0d0d0; border-radius: 999px; background: #f3f3f3; color: #535353; font-size: 11px; font-weight: 700; line-height: 1.4; }
+.status::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+.status[data-status='published'] { color: #343434; background: #eaeaea; border-color: #c4c4c4; }
+.status[data-status='draft'] { color: #5a5a5a; background: #fafafa; border-color: #d6d6d6; }
+.status[data-status='draft']::before { background: transparent; border: 1px solid currentColor; }
+.rowMeta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 9px; color: var(--glass-muted); font-size: 12px; }
+.row h3 { color: var(--glass-ink); letter-spacing: -.015em; }
+.empty { border: 1px dashed #b7b7b7; border-radius: 22px; background: rgba(255, 255, 255, .65); }
+.conflict { border-color: #ccc; border-radius: 18px; background: #f5f5f5; }
+.message { border: 1px solid #ccc; border-radius: 18px; background: #fafafa; }
+
+@media (max-width: 639px) {
+  .screen { border-radius: 24px; padding: 14px; }
+  .header { padding: 2px; }
+  .headerLogo { width: 72px; }
+  .actions { width: 100%; }
+  .actions > button { flex: 1 1 130px; }
+  .row, .maintenance, .filters { padding: 14px; border-radius: 18px; }
+  .panel { border-radius: 20px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .button { transition: none; }
+}
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  .screen { background: #f3f3f3; }
+  .panel, .filters, .row, .maintenance { background: #fff; border-color: #888; -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none; }
+  .input, .file, .empty { background: #fff; }
+}
+@media (forced-colors: active) {
+  .screen, .panel, .filters, .row, .maintenance, .preview, .message, .conflict, .empty {
+    background: Canvas; color: CanvasText; border: 1px solid CanvasText;
+    box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none;
+  }
+  .button, .input, .file, .status { background: ButtonFace; color: ButtonText; border: 1px solid ButtonText; box-shadow: none; }
+}

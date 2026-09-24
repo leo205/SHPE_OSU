@@ -8,6 +8,15 @@ vi.mock('../../lib/supabase', () => ({ supabase: {} }));
 const renderEditor = (status, extra = {}) => renderToStaticMarkup(<SponsorEditor sponsor={{ ...EMPTY_SPONSOR, id: 'test-id', name: 'Example sponsor', status, ...extra }} onSaved={() => {}} onCancel={() => {}} />);
 
 describe('sponsor management workflow controls', () => {
+  it('uses the existing SHPE logo beside the title and omits the manual refresh action', () => {
+    const markup = renderToStaticMarkup(<SponsorsManager />);
+    expect(markup).toContain('src="/photos/shpeLogo.png"');
+    expect(markup).toContain('alt="SHPE OSU Logo"');
+    expect(markup).toContain('Website sponsors');
+    expect(markup).toContain('Add sponsor');
+    expect(markup).not.toContain('Refresh listings');
+  });
+
   it('offers explicit draft save and publication for a new sponsor', () => {
     const markup = renderToStaticMarkup(<SponsorEditor onSaved={() => {}} onCancel={() => {}} />);
     expect(markup).toContain('Add a sponsor');
