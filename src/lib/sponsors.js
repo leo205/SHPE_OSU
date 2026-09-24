@@ -79,9 +79,9 @@ export async function saveSponsor(client, input, { id, version, creationId } = {
     }
     if (error?.code === '42501') return { ok: false, error: 'Your session cannot edit sponsors. Sign in again with an admin account.' };
     if (error?.code === '23514' || error?.code === '23503') return { ok: false, error: 'The sponsor details or logo could not be validated. Check the fields and retry.' };
-    return { ok: false, error: 'Could not confirm the save. Refresh the listings before retrying to avoid a duplicate.' };
+    return { ok: false, error: 'Could not confirm the save. Your edits are still here. Please retry.' };
   } catch {
-    return { ok: false, error: 'Could not confirm the save. Refresh the listings before retrying to avoid a duplicate.' };
+    return { ok: false, error: 'Could not confirm the save. Your edits are still here. Please retry.' };
   }
 }
 

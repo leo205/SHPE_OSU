@@ -1,4 +1,4 @@
--- Release 1: admin-managed public sponsor listings. NOT APPLIED TO PRODUCTION.
+-- Release 1: admin-managed public sponsor listings. Applied 2026-09-24.
 -- Apply this additive migration before manage-sponsor-assets and its frontend.
 -- Requires the existing public.is_admin(), auth.uid(), and Supabase Storage.
 -- Does not alter recruiter access, student data, or other buckets/policies.

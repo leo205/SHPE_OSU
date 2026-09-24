@@ -8,12 +8,37 @@ uploaded PDFs must be enforced by Supabase or another trusted server. The anon
 key is present in the public JavaScript bundle, so a React check controls what is
 rendered, never what an attacker can call directly.
 
-## Admin-managed sponsors — local-only release 1
+## Admin-managed sponsors — release 1
 
 Implemented on `feature/admin-managed-sponsors` from `4778478`, 2026-09-23.
-**Not applied or deployed to the hosted project.** This adds public sponsor
-branding management, not recruiter accounts, billing, or new public submissions.
+**Backend applied and verified on 2026-09-24; frontend rollout in progress.**
+This adds public sponsor branding management, not recruiter accounts, billing, or new public submissions.
 Existing inquiry, attendance, and resume boundaries are unchanged.
+
+The owner approved the local neutral-glass UI and production rollout. Only
+`sponsors-admin.sql` and `manage-sponsor-assets` were applied to project
+`ekuaqbelulybowihmact`. Pre-deploy checks confirmed all three sponsor tables,
+their functions, and the branding bucket were absent. The five seeded public
+companies and logo paths match the previous frontend.
+
+Hosted verification passed: admin create/publish/order/archive/restore,
+optimistic-version conflicts, and role/audit denial in a rollback-only SQL
+transaction; exact-origin CORS; missing/invalid/non-admin bearer denial; fake
+image rejection; real admin PNG upload/normalization, public retrieval, and
+registry/Storage agreement. Direct admin-browser overwrite/deletion remained
+blocked. The disposable logo was removed through the leased cleanup endpoint;
+its permanent registry tombstone remains. Both temporary Auth identities were
+deleted. No student records or email submissions were used.
+
+Existing schema definitions, policies, ACLs, triggers, and bucket settings were
+unchanged after migration. Baseline counts: 322 attendance rows, 17 events,
+10 resume rows, 10 private resume objects, and four Auth users. Schema/security
+inventories and public frontend rollback evidence were saved outside Git in a
+temporary deployment directory; these are not a durable whole-database backup.
+Local gates: 460 tests in 46 files, lint, build, all five Edge bundles, whitespace
+checks, and both npm audits (zero findings). A production-configured loopback
+preview passed route, security-header, and asset-hash checks. These HTTP/API
+checks do not replace browser interaction or phone acceptance on production.
 
 | Component | Contract |
 |---|---|

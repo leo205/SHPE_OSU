@@ -76,7 +76,7 @@ describe('sponsor saving', () => {
   });
   it('does not retry ambiguous saves', async () => {
     const client = mockClient([{ data: null, error: { code: 'network' } }]);
-    expect((await saveSponsor(client, row, { creationId: id })).error).toContain('Refresh the listings');
+    expect((await saveSponsor(client, row, { creationId: id })).error).toBe('Could not confirm the save. Your edits are still here. Please retry.');
     expect(client.from).toHaveBeenCalledTimes(1);
   });
   it('converges on the same creation ID after an INSERT response is lost', async () => {
