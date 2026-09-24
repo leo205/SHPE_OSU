@@ -1,18 +1,20 @@
 # Admin-managed sponsors
 
-Status: **release 1 approved and implemented locally; not deployed**.
-Work is on `feature/admin-managed-sponsors`, based on collaborator changes through
-`4778478` (pulled 2026-09-23). Release 2 remains a proposal. This plan does not
-authorize production migrations or a push to `main`.
+Status on **2026-09-24: release 1 backend and frontend live and verified**.
+The owner explicitly authorized
+production rollout after local visual approval. Implementation began on
+`feature/admin-managed-sponsors`, based on collaborator changes through
+`4778478` (pulled 2026-09-23). Release 2 remains a proposal and is not authorized
+by this release-1 rollout.
 
 The approved functional version is saved in commit `0a1ec6c` on
-`feature/admin-managed-sponsors`. A separate local-only visual experiment on
+`feature/admin-managed-sponsors`. A separate visual experiment on
 `experiment/sponsor-glass-ui` adds frosted surfaces and glossy controls solely
 to **Website sponsors**. Its CSS module does not restyle the public directory,
 recruiter section, or other admin screens. The owner approved the revised UI
-and its local commit on September 24. This styling is separate from the earlier
-functional checkpoint and has not been pushed or deployed; production rollout
-still requires separate approval and the backend-first sequence below.
+and its local commit on September 24, then approved including it in production.
+The rollout follows the backend-first sequence below; do not infer frontend
+verification from the applied migration or function deployment.
 The September 24 visual revision keeps the glass depth/highlights but removes
 decorative color: a clear backdrop, neutral white/gray surfaces, monochrome
 controls/status badges, and neutral shadows. Existing sponsor artwork and
@@ -198,7 +200,7 @@ EmailJS recipient. This feature must not let visitors or arbitrary content
 settings choose an email recipient. Preserve Turnstile, durable quotas,
 server-held credentials, and exactly one provider attempt per submission.
 
-## Local implementation and acceptance
+## Implementation and acceptance
 
 - The existing five-company/tier mapping is preserved with stable seed IDs and
   `ON CONFLICT DO NOTHING`; repeat runs do not overwrite edits or resurrect
@@ -228,10 +230,36 @@ server-held credentials, and exactly one provider attempt per submission.
   retains existing large-chunk and mixed Supabase import warnings. Local REST
   and Edge smoke checks passed; three concurrency cases passed against actual
   local PostgreSQL. No production connection was used.
-- Browser access was not approved during implementation. Desktop/mobile visual
-  review, keyboard interaction in a real browser, and production-header/CSP
-  acceptance are still required before release. No production SQL, deployment,
-  sponsor content, or account change has been made by this work.
+- Browser automation was not approved during implementation. The owner later
+  reviewed and approved the local visual UI; this is not a claim of automated
+  desktop/mobile or real-browser keyboard testing.
+
+### September 24 authorized production rollout
+
+- Latest gates: **460 tests in 46 files passed**, lint, frontend build, all five
+  Edge bundles, and both dependency audits at zero vulnerabilities. A production-
+  configured preview passed route, CSP, and all asset-hash checks.
+- `sponsors-admin.sql` is applied and `manage-sponsor-assets` v1 is deployed and
+  verified. Existing four functions, policies, grants, definitions, and buckets
+  were unchanged. Preserved counts: 322 attendance rows, 17 events, 10 resumes,
+  10 private files, and 4 Auth users.
+- Hosted rollback-only SQL checks covered lifecycle, RLS, and version conflicts.
+  A real PNG upload, public fetch, registry checks, admin-browser upload/delete
+  denials, and CORS/missing-bearer/invalid-bearer/non-admin denials passed. Real
+  cleanup removed the temporary logo and retained one tombstone. Both temporary
+  Auth users were deleted. No student writes, emails, or browser automation
+  occurred.
+- Commit `e1713e8` is live through successful Vercel deployment
+  `8UKNpAcXdmwCnToMxo5t6Az1o7xw`. The site serves `/assets/index-B98w6Nd9.js`;
+  all generated JS/CSS SHA-256 hashes match the production-configured build,
+  and eight routes return 200 with exact expected security headers. The exact
+  public frontend query returns five published listings (`Content-Range: 0-4/5`);
+  the apex domain redirects to `www`, which returns 200. Production
+  browser/mobile interaction acceptance remains an owner follow-up; the API
+  and HTTP checks do not establish it. The September 14 attendance,
+  resume-replacement, and sponsor-delivery acceptance checks remain separate
+  and were not retested here. The authoritative rollout evidence is in
+  [`supabase/README.md`](../../supabase/README.md#admin-managed-sponsors--release-1).
 
 ## Tradeoffs
 

@@ -59,7 +59,7 @@ current one. **Click the thing you changed.**
 
 ## Current state
 
-### September 23 sponsor directory — local branch only
+### September 24 sponsor directory — backend and frontend live
 
 `feature/admin-managed-sponsors` is based on updated `main` at `4778478`.
 Release 1 implements a Supabase-backed sponsor directory and **Sponsors →
@@ -68,23 +68,45 @@ ordering, logo replacement, archive/restore, optimistic version checks, and
 audit history are implemented. Prices, package benefits, the packet, and the
 protected inquiry endpoint are unchanged. See `docs/plans/sponsor-admin.md`.
 
-This feature has **not** been deployed or applied to production. Use the
-isolated `local:sponsors:*` commands in README for review; ordinary `.env`
-values may point to production. Local tests use no student data. Browser visual
-acceptance remains pending because Chrome access was not approved.
+The owner approved the neutral glass UI, SHPE header logo, and removal of the
+permanent refresh button, then explicitly authorized production rollout.
+`sponsors-admin.sql` is **applied and verified**, and `manage-sponsor-assets` v1
+is deployed; the existing four Edge Functions were unchanged. Hosted rollback-
+only lifecycle/RLS/conflict checks and actual PNG upload/public fetch/registry/
+cleanup checks passed, including browser-write, CORS, and non-admin denials.
+The temporary logo was removed with one tombstone retained; both temporary Auth
+users were deleted. Existing policies, grants, definitions, and buckets were
+unchanged. Counts remained 322 attendance rows, 17 events, 10 resumes,
+10 private files, and 4 Auth users. No student writes or emails were sent.
+
+Commit `e1713e8` is live through successful Vercel deployment
+`8UKNpAcXdmwCnToMxo5t6Az1o7xw`. The site serves `/assets/index-B98w6Nd9.js`;
+all generated JS/CSS SHA-256 hashes match the production-configured build, and
+eight routes return 200 with exact expected security headers.
+Gates passed: 460 tests in 46 files, lint, build, all five Edge bundles,
+both audits at zero vulnerabilities, and
+production-configured preview routes/CSP/asset hashes. The owner visually
+reviewed the local UI; browser automation was not performed. Production
+browser/mobile interaction remains an owner follow-up, not established by
+HTTP/API checks. Use isolated `local:sponsors:*` commands for synthetic
+development; ordinary `.env` values
+may point to production. See the authoritative
+[`supabase/README.md`](./supabase/README.md#admin-managed-sponsors--release-1).
 
 The public directory has no hardcoded fallback: an empty database result must
 stay empty, and a read failure shows a retry state. Listing publication never
 grants resume access. New raster logos pass the admin-only
 `manage-sponsor-assets` Edge endpoint, not a browser Storage write. Its SQL,
-bucket permissions, and seed must precede endpoint/frontend rollout; see
-`supabase/README.md`. `check:edge` now checks five source entry points, not proof
-that five endpoints are deployed. The earlier live evidence below is historical.
+bucket permissions, and seed must precede endpoint/frontend rollout. Preserve
+the additive schema, audit history, and uploaded assets on frontend rollback;
+the former static roster may be stale. `check:edge` checks five source entry
+points; actual deployment evidence remains separate. The earlier live evidence
+below is historical and does not establish new form acceptance.
 
 The September 14 backend and frontend release is live as of **2026-09-14**.
-Commit `3c0215a` was pushed to `main`; Vercel serves
+Commit `3c0215a` was pushed to `main`; that checkpoint served
 `/assets/index-BkPTcLwI.js`, and every generated JS/CSS hash plus the HTML and
-security headers matches the approved production-configured build. Successful
+security headers matched the approved production-configured build. Successful
 real-form acceptance is still pending, so do not claim the new attendance,
 resume-replacement, or sponsor-delivery flow has been end-to-end retested.
 

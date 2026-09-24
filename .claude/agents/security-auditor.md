@@ -12,7 +12,41 @@ Vite SPA on Vercel backed by Supabase Postgres, Auth, private Storage, and Edge
 Functions. It holds real student PII: names, OSU emails, dot numbers, and resume
 PDFs containing phone numbers and home addresses.
 
-Current production baseline (reviewed 2026-09-14): public signup is disabled, but
+## September 24 sponsor rollout status
+
+The owner authorized the production sponsor-directory rollout. The applied
+`sponsors-admin.sql` and deployed `manage-sponsor-assets` v1 are now verified
+against production; the existing four Edge endpoints are unchanged. The backend
+and frontend are live. Application release commit `e1713e8` reached `main`;
+Vercel deployment
+`8UKNpAcXdmwCnToMxo5t6Az1o7xw` succeeded. `www.shpeosu.com` serves
+`/assets/index-B98w6Nd9.js`; every generated JS/CSS file exactly matches the
+production-configured build's SHA-256, and all eight routes return 200 with the
+exact expected security headers. The owner approved the neutral glass editor,
+existing SHPE header logo, and no permanent Refresh listings button; that UI
+approval is not a substitute for live asset/header verification.
+
+Hosted rollback-only probes verified sponsor lifecycle, RLS, and optimistic
+version conflicts. A real PNG was uploaded, fetched publicly, and checked
+against its asset registry entry. Direct browser Storage writes/deletes remained
+denied even to an admin. Endpoint probes covered CORS rejection and missing,
+invalid, and non-admin bearer denial. Real cleanup removed the temporary upload
+and retained one permanent sponsor-asset tombstone. Both temporary Auth users
+were deleted. No student writes, emails, or browser automation were performed.
+
+Post-cleanup counts are 322 attendance rows, 17 events, 10 resume rows, 10 private
+resume files, and 4 Auth users. Unrelated policies, grants, function definitions,
+and buckets remain unchanged. Release gates passed: 460 tests in 46 files,
+lint/build, all five Edge bundles, and both dependency audits at zero.
+Production-configured preview routes, CSP, and all asset hashes passed. Live
+HTTP/API proof does not establish browser/mobile interaction acceptance, which
+remains an owner follow-up. September 14 successful attendance,
+resume-replacement, and sponsor-delivery acceptance remains pending.
+Consult `supabase/README.md` for the authoritative rollout evidence.
+
+## Historical September 14 baseline
+
+The production baseline reviewed on 2026-09-14: public signup is disabled, but
 explicit `app_metadata` roles remain the actual control. Sponsors require
 `role = "sponsor"`; being merely authenticated reaches nothing. No sponsor
 accounts exist yet. Public attendance, resume, and sponsor forms use Supabase
@@ -32,7 +66,7 @@ pinned Deno import map, `submit-sponsor-inquiry` v8, and
 `cleanup-resume-files` v1 are ACTIVE with gateway `verify_jwt = false`; cleanup
 still verifies the bearer and server-owned admin role in-handler.
 
-Commits `749ac0e` and `3c0215a` are live from `main` at
+September 14 commits `749ac0e` and `3c0215a` were verified live from `main` at
 `/assets/index-BkPTcLwI.js`; all JS/CSS hashes, HTML, and security headers match
 the approved production-configured build. Live denial probes passed and left
 quota fingerprints, rows, files, reservations, cleanup count 0, and orphan count
@@ -62,7 +96,9 @@ there isn't one, that is a finding regardless of how convincing the UI looks.
 
 ## Non-negotiables for this project
 
-- Sponsor-directory release 1 is local-only until separately authorized.
+- Sponsor-directory release 1 has a production-verified backend and frontend as
+  of September 24; browser/mobile interaction acceptance remains an owner
+  follow-up. Future production changes still require authorization.
   `sponsors` publicly exposes published branding only; drafts/audit/asset registry
   require admin authorization. Recruiter Auth does not grant editing access.
   The admin-only `manage-sponsor-assets` endpoint must verify the bearer through

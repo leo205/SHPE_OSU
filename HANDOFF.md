@@ -1,7 +1,8 @@
 # SHPE OSU Website — Engineering Handoff
 
-_Last updated: 2026-09-23; sponsor-directory release 1 implemented locally only.
-Earlier production evidence below has not been re-audited during this work._
+_Last updated: 2026-09-24; sponsor-directory backend and frontend live and
+verified. Production browser/mobile acceptance and September 14 form acceptance
+remain separate, unfinished checks._
 
 Developer documentation for the Digital Operations Chair and anyone maintaining
 the SHPE chapter website at The Ohio State University. Covers architecture,
@@ -11,13 +12,17 @@ database design, the security model, maintenance protocols, and deployment.
 
 ## 0. Where the site stands today
 
-### Sponsor content management — pending local acceptance, not live
+### Sponsor content management — backend and frontend live
 
-On `feature/admin-managed-sponsors`, **Sponsors → Website sponsors** manages
+Release 1's **Sponsors → Website sponsors** manages
 company listings; **Recruiter access** retains the separate historical access
 workflow. Existing `?tab=companies` links and four-tab mobile navigation remain.
-Log in to the isolated local environment using the README's `local:sponsors:*`
-commands before testing; those commands do not use the production `.env`.
+Use <https://www.shpeosu.com/admin?tab=companies> with an existing admin account.
+The owner approved the neutral glass UI with the SHPE header logo and no
+permanent **Refresh listings** button. Initial loading, automatic list updates
+after saving, error retry, and conflict reload remain available. For synthetic
+testing, the README's isolated `local:sponsors:*` commands do not use the
+production `.env` or student data.
 
 Editors can save drafts, explicitly publish, reorder within a tier, replace or
 remove a logo, archive, and restore as a draft. The company website and academic
@@ -39,17 +44,39 @@ batches; waiting/retrying is normal and no background scheduler is installed.
 Audit records are database-only in release 1. Never delete asset registry
 tombstones or bypass Storage through a table-row deletion.
 
-All changes remain local, including schema and seeds. Browser/mobile visual
-acceptance and authorized SQL → Edge → frontend rollout are still needed.
-See `docs/plans/sponsor-admin.md` and the sponsor section of `supabase/README.md`.
+The owner authorized production rollout on September 24. `sponsors-admin.sql`
+is applied and `manage-sponsor-assets` v1 is deployed and verified; the existing
+four Edge Functions were unchanged. Hosted rollback-only lifecycle/RLS/conflict
+checks passed, as did a real PNG upload, public fetch, registry verification,
+admin-browser upload/delete denials, and CORS/authentication/role denials. Real
+cleanup removed the temporary logo while retaining one permanent tombstone;
+both temporary Auth users were deleted. Existing policies, grants, definitions,
+and buckets were unchanged. Counts stayed at 322 attendance rows, 17 events,
+10 resumes, 10 private files, and 4 Auth users.
+
+All 460 tests in 46 files, lint, frontend build, five Edge bundles, both zero-
+vulnerability audits, and production-configured preview routes/CSP/asset hashes
+passed. The owner reviewed the local visual UI; no browser automation, student
+writes, or emails were used. Frontend commit `e1713e8` is live through successful
+Vercel deployment `8UKNpAcXdmwCnToMxo5t6Az1o7xw` at
+`/assets/index-B98w6Nd9.js`; all generated JS/CSS SHA-256 hashes match the
+production-configured build, and eight routes return 200 with exact expected
+security headers. The exact public frontend query returns five published
+listings (`Content-Range: 0-4/5`), and the apex domain redirects to the working
+`www` site. Production browser/mobile interaction remains an owner
+follow-up; HTTP/API evidence is not browser acceptance. Retain
+the additive schema and user content on rollback; an older static roster may be
+stale. See `docs/plans/sponsor-admin.md` and
+[`supabase/README.md`](./supabase/README.md#admin-managed-sponsors--release-1).
 
 **Live at https://www.shpeosu.com, deployed from `main` via Vercel.** The
 protected attendance, resume, and sponsor submission architecture is deployed
 and its additive and final-lockdown migrations were applied to production on
 2026-09-13. The September 14 cleanup migration and four updated Edge Functions
-are also deployed. Commit `3c0215a` is now live from `main`; Vercel serves
-`/assets/index-BkPTcLwI.js`, and all four JavaScript chunks, the CSS, HTML, and
-security headers match the approved production-configured build. Successful
+were also deployed. At that September 14 checkpoint, commit `3c0215a` was live
+from `main` at `/assets/index-BkPTcLwI.js`, with all generated JavaScript/CSS,
+HTML, and security headers matching the approved build. This is historical
+artifact evidence, not the September 24 frontend status. Successful
 real-form acceptance for the September 14 versions remains pending.
 
 The site is in good working order. A security review in July–August 2026 found
@@ -233,14 +260,21 @@ graph TD
 
 ## 2. Database Schema (PostgreSQL)
 
-The live application utilizes five tables/views and one storage bucket in
-Supabase. (`events` and `leaderboard` were added after the original draft of
+The original application uses five main tables/views and the private `resumes`
+Storage bucket. (`events` and `leaderboard` were added after the original draft of
 this document — see §2.4 and §2.5.) The security migrations also add the internal,
 RLS-locked `public_submission_rate_limits` and
 `resume_submission_reservations` tables. The deployed cleanup migration adds
 `resume_file_cleanup`; its private rows include retry/lease state and permanent
 completed path tombstones. They are internal implementation details, not browser
 APIs; the cleanup worker uses service-only RPCs rather than direct table grants.
+
+The September 24 sponsor release adds `sponsors` (published branding is public),
+`sponsor_audit` (admin-readable, trigger-written history), `sponsor_assets`
+(admin-readable, service-mutated registry), and the public `sponsor-assets`
+branding bucket. Browser Storage writes are denied even to admins; only the
+validated admin endpoint uploads and cleans eligible files. See the canonical
+schema/access contracts in `supabase/README.md` rather than copying its SQL.
 
 ### 1. `attendance`
 Stores all student check-in records.

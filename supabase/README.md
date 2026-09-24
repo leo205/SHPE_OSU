@@ -1,7 +1,7 @@
 # Supabase — database and public-submission security
 
-_Production backend state reviewed and probed: 2026-09-14. Successful browser
-acceptance tests for this follow-up are still pending._
+_Sponsor backend and frontend rollout verified: 2026-09-24. Earlier September 14
+form-acceptance notes remain historical; those forms were not resubmitted here._
 
 Everything that authorizes access to attendance, resumes, sponsor data, or
 uploaded PDFs must be enforced by Supabase or another trusted server. The anon
@@ -11,7 +11,7 @@ rendered, never what an attacker can call directly.
 ## Admin-managed sponsors — release 1
 
 Implemented on `feature/admin-managed-sponsors` from `4778478`, 2026-09-23.
-**Backend applied and verified on 2026-09-24; frontend rollout in progress.**
+**Backend and frontend deployed and verified on 2026-09-24.**
 This adds public sponsor branding management, not recruiter accounts, billing, or new public submissions.
 Existing inquiry, attendance, and resume boundaries are unchanged.
 
@@ -39,6 +39,18 @@ Local gates: 460 tests in 46 files, lint, build, all five Edge bundles, whitespa
 checks, and both npm audits (zero findings). A production-configured loopback
 preview passed route, security-header, and asset-hash checks. These HTTP/API
 checks do not replace browser interaction or phone acceptance on production.
+
+Application commit `e1713e8` reached `main`; Vercel reported a successful
+deployment and `https://www.shpeosu.com` serves `/assets/index-B98w6Nd9.js`.
+All generated JS/CSS SHA-256 hashes match the production-configured comparison
+build, and eight checked routes return 200 with the exact configured security
+headers. Production still uses the existing hosted Supabase URL/anon key and
+public Turnstile site key; no new environment variables or secret changes were
+needed. `manage-sponsor-assets` is ACTIVE at version 1 with its pinned import
+map and in-handler admin authentication. The other four function versions and
+bundle hashes are unchanged. Final post-cleanup inventory retains the baseline
+counts and pre-existing security definitions above; the new directory has five
+published listings, no test sponsor rows, and no leftover uploaded test file.
 
 | Component | Contract |
 |---|---|
@@ -84,10 +96,15 @@ Automated evidence includes real React DOM interaction tests, PostgreSQL/PGlite
 role/constraint tests, actual local REST editing and authorization checks, local
 Edge decoding of PNG/JPEG/WebP, Storage metadata/denial/cleanup checks, and
 two-session PostgreSQL attachment/cleanup races. Synthetic smoke fixtures are
-removed; asset tombstones remain intentionally. Browser access was not approved,
-so visual desktop/mobile and production-header acceptance remain outstanding.
+removed; asset tombstones remain intentionally. The owner reviewed and approved
+the local visual design. Browser automation was not approved; live browser/phone
+interaction acceptance remains an owner follow-up. Production-header/HTTP checks
+passed as recorded above.
 
-### Later rollout, only after approval
+### Rollout and future redeployments
+
+The owner authorized the September 24 rollout recorded above. Preserve this
+backend-first sequence and require approval for future production changes.
 
 1. Review the local UI, then inventory/back up target sponsor tables, policies,
    Storage settings, and existing public branding. Confirm the five-company seed

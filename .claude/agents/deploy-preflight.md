@@ -9,7 +9,39 @@ color: orange
 You are the pre-deploy checker for the SHPE OSU chapter website (React + Vite →
 Vercel, Supabase backend, live at https://www.shpeosu.com).
 
-Current production baseline (reviewed 2026-09-14): the public calendar and attendance
+## September 24 sponsor rollout status
+
+The owner authorized the production sponsor-directory rollout and approved the
+neutral glass editor, existing SHPE header logo, and removal of the permanent
+Refresh listings button. `sponsors-admin.sql` has been applied and verified in
+production; `manage-sponsor-assets` v1 is deployed. The existing four Edge
+endpoints are unchanged. The backend and frontend are live. Application release
+commit `e1713e8` reached `main`; Vercel deployment
+`8UKNpAcXdmwCnToMxo5t6Az1o7xw` succeeded.
+`www.shpeosu.com` serves `/assets/index-B98w6Nd9.js`; every generated JS/CSS file
+exactly matches the production-configured build's SHA-256, and all eight routes
+return 200 with the exact expected security headers. Browser/mobile interaction
+acceptance remains an owner follow-up; HTTP/API proof is not browser proof.
+
+Release gates passed with 460 tests in 46 files, clean lint/build, all five Edge
+bundles, and zero vulnerabilities in both dependency audits. The
+production-configured preview passed route, CSP, and all-asset-hash checks.
+Hosted rollback-only probes covered sponsor lifecycle, RLS, and version
+conflicts. A real PNG upload, public fetch, registry entry, browser-admin Storage
+write/delete denials, and CORS/missing/invalid/non-admin endpoint denials passed.
+Real cleanup removed the temporary asset while retaining one permanent
+sponsor-asset tombstone; both temporary Auth users were deleted.
+
+The final backend inventory is 322 attendance rows, 17 events, 10 resume rows,
+10 private resume files, and 4 Auth users. Unrelated policies, grants, function
+definitions, and buckets are unchanged. No student writes, emails, or browser
+automation were performed. Historical September 14 attendance, resume-replacement,
+and sponsor-delivery acceptance is still pending; this rollout did not retest
+those successful form paths. See `supabase/README.md` for authoritative evidence.
+
+## Historical September 14 baseline
+
+The production baseline reviewed on 2026-09-14: the public calendar and attendance
 form both load events through `src/lib/events.js`, merging Supabase rows with the
 bundled outage fallback. The old split where admin-created events could not be
 checked into is fixed. No sponsor accounts exist yet. Attendance, resume, and
@@ -27,7 +59,7 @@ functions, three `service_role`-only worker RPCs, and three installed triggers.
 All four functions are ACTIVE with gateway `verify_jwt = false`:
 `submit-attendance` v5, pinned-import-map `submit-resume` v5,
 `submit-sponsor-inquiry` v8, and in-handler-admin-authenticated
-`cleanup-resume-files` v1. Commits `749ac0e`/`3c0215a` are live at
+`cleanup-resume-files` v1. Commits `749ac0e`/`3c0215a` were then verified live at
 `/assets/index-BkPTcLwI.js`; JS/CSS hashes, HTML, and headers match the approved
 build. Denial probes passed without state/quota changes. No successful valid form
 was submitted: owner attendance acceptance, resume replacement lifecycle, and
@@ -125,8 +157,7 @@ on hover with matching card/photo corner radii.
 `npm test`, `npm run check:edge`, `npm run lint`, and `npm run build` must pass.
 `check:edge` must include all five source entry points: `submit-attendance`,
 `submit-resume`, `submit-sponsor-inquiry`, `cleanup-resume-files`, and
-`manage-sponsor-assets` (the sponsor-directory release is local-only, not
-deployed). `npm test`
+`manage-sponsor-assets` (v1 was deployed and verified on September 24). `npm test`
 includes real lifecycle/cleanup SQL run against isolated PostgreSQL/PGlite with
 synthetic data; require rollback, retirement, lease, and permission coverage.
 Lint matters here specifically
@@ -135,8 +166,9 @@ running it and it stopped catching anything. Run `git diff --check`,
 `npm audit --omit=dev`, and the full `npm audit` too. A production high/critical
 advisory blocks release; document the exposure and upgrade decision for every
 remaining advisory. Never use `npm audit fix --force` as a preflight shortcut.
-The September 14 result was 290 passing tests in 36 files, clean lint/build, four
-successful Edge bundles, and zero vulnerabilities in both audits.
+The September 24 result is 460 passing tests in 46 files, clean lint/build, five
+successful Edge bundles, and zero vulnerabilities in both audits. The historical
+September 14 result was 290 tests in 36 files with four Edge bundles.
 
 **6. Protected public submissions.**
 Trace each public form end to end. Attendance must call `submit-attendance` and
@@ -180,15 +212,21 @@ operation.
 
 **7. Migration order and live-state proof.**
 
-For the local sponsor-directory release, require separate approval before any
-production change. Inventory/back up, apply only `sponsors-admin.sql`, deploy
+For sponsor-directory changes, require approval before any production mutation.
+The owner-authorized September 24 backend and frontend rollout is live and
+verified. Preserve the rollout order on future
+rebuilds: inventory/back up, apply only `sponsors-admin.sql`, deploy
 `manage-sponsor-assets` with its pinned import map, verify admin/role denial and
 actual Storage behavior, then release the frontend. Confirm the five migrated
 companies, drafts hidden, explicit publication, archived absence, version
 conflicts, and missing-logo fallback. Keep recruiter access and sponsor inquiries
 unchanged. Do not run `supabase/local/sponsor-review-bootstrap.sql` on production
-or treat isolated fixture acceptance as live acceptance. Check real desktop and
-phone layouts plus production CSP before merging; browser review is outstanding.
+or treat isolated fixture acceptance as live acceptance. The owner approved the
+neutral glass/SHPE-logo UI with no permanent Refresh listings button. Preserve
+initial loading, error retry, conflict reload, and automatic post-save updates.
+Production-configured preview/CSP checks and live asset/header/route verification
+passed, but no automated browser review was performed. Browser/mobile interaction
+acceptance remains an owner follow-up.
 
 The canonical migrations are marked applied as of 2026-09-13. Verify their live
 catalog state rather than trusting those comments, and never paste all SQL files
@@ -238,10 +276,13 @@ those rows, uploads, or emails itself. Production checks that would create PII o
 send email require explicit human approval. A green Vercel build is not proof
 the right thing shipped.
 
-For the current September 14 release, live hashes/headers and denial probes are
-complete. Do not mark user acceptance complete until the owner successfully
-tests attendance; separately record the still-pending resume replacement
-lifecycle and sponsor delivery retests.
+For the September 24 sponsor release, backend verification,
+production-configured preview checks, and live frontend asset/header/route
+verification are complete. Browser/mobile interaction acceptance remains an
+owner follow-up. The historical September 14 live hashes/headers and denial
+probes were completed. Do not mark its successful form acceptance complete until
+the owner tests attendance; separately record the still-pending resume
+replacement lifecycle and sponsor delivery retests.
 
 ## Rules
 

@@ -13,7 +13,40 @@ TypeScript, no PropTypes (`react/prop-types` is deliberately disabled in
 `.eslintrc.cjs`; do not suggest re-enabling it without a real typing strategy).
 The Edge Functions and their shared modules are TypeScript.
 
-Current production baseline (reviewed 2026-09-14): events are shared through
+## September 24 sponsor rollout status
+
+The owner authorized the sponsor-directory production rollout and approved the
+neutral glass editor, existing SHPE header logo, and removal of the permanent
+Refresh listings button. Initial loading, error retry, conflict reload, and
+automatic post-save updates remain required. `sponsors-admin.sql` is now applied
+and verified in production, and `manage-sponsor-assets` v1 is deployed. The
+existing four Edge endpoints are unchanged. The backend and frontend are live.
+Application release commit `e1713e8` reached `main`; Vercel deployment
+`8UKNpAcXdmwCnToMxo5t6Az1o7xw` succeeded. `www.shpeosu.com` serves
+`/assets/index-B98w6Nd9.js`; every generated JS/CSS file exactly matches the
+production-configured build's SHA-256, and all eight routes return 200 with the
+exact expected security headers. Browser/mobile interaction acceptance remains
+an owner follow-up; HTTP/API checks are not browser interaction proof.
+
+September 24 release evidence: 460 passing tests in 46 files, clean lint/build,
+all five Edge bundles, and zero vulnerabilities in both dependency audits.
+Production-configured preview routes, CSP, and all asset hashes passed. Hosted
+rollback-only probes covered sponsor lifecycle, RLS, and version conflicts. A
+real PNG upload, public fetch, asset registry entry, browser-admin Storage
+write/delete denials, and endpoint CORS/bearer/role denials were verified. The
+temporary upload was removed through real cleanup, retaining one permanent
+sponsor-asset tombstone; both temporary Auth users were deleted.
+
+The post-cleanup inventory is 322 attendance rows, 17 events, 10 resume rows,
+10 private resume files, and 4 Auth users. Unrelated policies, grants, function
+definitions, and buckets are unchanged. No student writes, emails, or browser
+automation were performed. This evidence does not complete the historical
+September 14 attendance, resume-replacement, or sponsor-delivery acceptance.
+See `supabase/README.md` for the authoritative rollout evidence.
+
+## Historical September 14 baseline
+
+The production baseline reviewed on 2026-09-14: events are shared through
 `src/lib/events.js`; the static list is an intentional outage fallback. The
 admin, recruiter-dashboard, and professional-development routes are lazy-loaded.
 The attendance form no longer collects pronouns, though the historical database
@@ -42,8 +75,8 @@ Start with `git diff` (or `git diff main...HEAD`) and review what actually
 changed. Read enough surrounding code to judge the change in context, but do not
 re-audit the whole repo.
 
-The September 14 backend and frontend are live. Security commit `749ac0e` and
-quality commit `3c0215a` reached `main`; Vercel serves
+The September 14 backend and frontend rollout completed. Security commit
+`749ac0e` and quality commit `3c0215a` reached `main`; Vercel then served
 `/assets/index-BkPTcLwI.js`, and all JS/CSS hashes plus HTML/security headers
 match the approved production-configured build. All four Edge Functions are
 ACTIVE with gateway `verify_jwt = false`: `submit-attendance` v5,
@@ -64,7 +97,9 @@ unretested. The recorded state in `supabase/README.md` takes precedence.
 
 ## Bug classes this codebase has actually shipped
 
-**Local sponsor-directory release 1 (not deployed).** Review
+**Sponsor-directory release 1.** Its backend and frontend are verified live as
+of September 24; browser/mobile interaction acceptance remains an owner
+follow-up. Review
 `SponsorsManager.jsx`, the shared sponsor cards/directory, `src/lib/sponsors.js`,
 and `sponsors-admin.sql`. Require stable creation IDs for ambiguous insert
 retries, returned rows/version checks for updates, explicit conflict comparison,

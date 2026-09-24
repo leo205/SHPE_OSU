@@ -23,16 +23,18 @@ Dashboard.
 
 > **Working on this?** Start with [`CLAUDE.md`](./CLAUDE.md) — it covers the current state, remaining work, branch policy, and the mistakes this codebase has already made once.
 
-Local feature branch: [`Admin-managed sponsors`](./docs/plans/sponsor-admin.md)
-release 1 is implemented for local review, **not deployed**. It moves company
+September 24 rollout: [`Admin-managed sponsors`](./docs/plans/sponsor-admin.md)
+release 1 is **live, with backend and frontend verification complete**. The owner
+approved production rollout and the neutral glass UI,
+SHPE header logo, and removal of the permanent refresh button. It moves company
 listings, logos, tiers, ordering, and draft/publish/archive controls into the
 existing Admin Dashboard. Package prices/benefits and the packet remain unchanged
 and are planned separately. Recruiter access and sponsor inquiries are unchanged.
 
 ### Isolated sponsor review
 
-Use `feature/admin-managed-sponsors` and a running Docker-compatible engine
-(Docker Desktop or Colima). This is a separate local Supabase project, not a
+Use a working checkout and a running Docker-compatible engine (Docker Desktop
+or Colima). This is a separate local Supabase project, not a
 copy of production. No hosted credentials or student data are needed.
 
 ```bash
@@ -67,9 +69,18 @@ node scripts/smoke-sponsors.mjs
 node scripts/smoke-sponsor-assets.mjs
 ```
 
-Browser visual/phone acceptance and a production-header check remain release
-gates. See [`supabase/README.md`](./supabase/README.md#admin-managed-sponsors--local-only-release-1)
-before authorizing rollout; merging the frontend alone is insufficient.
+The owner reviewed and approved the local visual UI. Production-configured
+preview routes, CSP, and asset hashes passed; automated browser interaction was
+not performed. September 24 gates passed: 460 tests in 46 files, lint, frontend
+build, all five Edge bundles, and both dependency audits (zero vulnerabilities).
+Commit `e1713e8` is deployed: the live entry is `/assets/index-B98w6Nd9.js`, all
+generated JS/CSS SHA-256 hashes match the production-configured build, and eight
+routes return 200 with the expected security headers. Production browser/mobile
+interaction acceptance remains an owner follow-up; HTTP/API checks are not a
+substitute for it.
+See [`supabase/README.md`](./supabase/README.md#admin-managed-sponsors--release-1)
+for hosted verification and rollout status. Merging the frontend alone does not
+apply its backend prerequisites; local fixtures never establish production state.
 
 ---
 
