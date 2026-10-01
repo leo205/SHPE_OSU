@@ -1,0 +1,69 @@
+.backdrop {
+  --dialog-gutter: 1.5rem;
+  --dialog-height: calc(100vh - var(--dialog-gutter));
+}
+
+/* Keep a vh fallback for the site's Safari 14 support. */
+@supports (height: 100dvh) {
+  .backdrop { --dialog-height: calc(100dvh - var(--dialog-gutter)); }
+}
+
+.dialog {
+  min-width: 0;
+  max-height: var(--dialog-height);
+  overflow: hidden;
+}
+
+.content {
+  max-height: var(--dialog-height);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.artwork {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 0;
+  padding: 1rem;
+}
+
+.flyer {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 45vh;
+  object-fit: contain;
+}
+
+@supports (height: 100dvh) {
+  .flyer { max-height: 45dvh; }
+}
+
+.details {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: 640px) {
+  .backdrop { --dialog-gutter: 3rem; }
+}
+
+@media (min-width: 768px) {
+  /* A definite height and shrinkable row keep tall images/long text from
+     growing an implicit grid track beyond the dialog's clipped boundary. */
+  .withFlyer {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr);
+    grid-template-rows: minmax(0, 1fr);
+    height: min(48rem, var(--dialog-height));
+    overflow: hidden;
+  }
+  .flyer { height: 100%; max-height: 100%; }
+  .withFlyer .details {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}

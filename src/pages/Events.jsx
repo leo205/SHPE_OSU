@@ -5,6 +5,7 @@ import { buildGoogleCalendarUrl, downloadICS } from '../lib/calendar';
 import { fetchEvents, mergeEvents, localDateString } from '../lib/events';
 import { publicLeaderboardName } from '../lib/leaderboard';
 import CalendarDay, { CalendarDayEvents } from '../components/CalendarDay';
+import modalStyles from './EventModal.module.css';
 
 /* ── Calendar helpers ──────────────────────────────────────── */
 function getDaysInMonth(year, month) {
@@ -57,7 +58,7 @@ function EventArtwork({ event, className = '' }) {
 }
 
 /* ── Event Detail Modal ────────────────────────────────────── */
-function EventModal({ event, onClose }) {
+export function EventModal({ event, onClose }) {
   const colors = categoryColors[event.category] || categoryColors.GBM;
   const closeButtonRef = useRef(null);
   const dialogRef = useRef(null);
@@ -108,7 +109,7 @@ function EventModal({ event, onClose }) {
   }, [onClose]);
 
   const details = (
-    <div className={`${hasFlyer ? 'p-6 pt-16 md:min-h-0 md:p-8 md:pt-16 md:overflow-y-auto' : 'max-h-[calc(100dvh-1.5rem)] overflow-y-auto p-6 pt-16 sm:max-h-[calc(100dvh-3rem)] sm:p-8 sm:pt-16'} overscroll-contain`}>
+    <div className={`${modalStyles.details} p-6 pt-16 sm:p-8 sm:pt-16`}>
       <span
         className={`inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest mb-4 ${colors.badge}`}
       >
@@ -204,13 +205,13 @@ function EventModal({ event, onClose }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-3 sm:p-6 bg-black/50 backdrop-blur-sm"
+      className={`${modalStyles.backdrop} fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/50 backdrop-blur-sm`}
       role="presentation"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div
         ref={dialogRef}
-        className={`bg-surface rounded-2xl shadow-2xl w-full relative max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-3rem)] overflow-hidden ${hasFlyer ? 'max-w-5xl' : 'max-w-lg'}`}
+        className={`${modalStyles.dialog} bg-surface rounded-2xl shadow-2xl w-full relative ${hasFlyer ? 'max-w-5xl' : 'max-w-lg'}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="event-modal-title"
@@ -225,19 +226,19 @@ function EventModal({ event, onClose }) {
         >
           <span className="material-symbols-outlined" aria-hidden="true">close</span>
         </button>
-        {hasFlyer ? (
-          <div className="max-h-[calc(100dvh-1.5rem)] overflow-y-auto overscroll-contain sm:max-h-[calc(100dvh-3rem)] md:grid md:grid-cols-[minmax(0,1.15fr)_minmax(20rem,0.85fr)] md:overflow-hidden">
-            <div className="flex min-h-0 items-center justify-center bg-surface-container-high">
+        <div className={`${modalStyles.content} ${hasFlyer ? modalStyles.withFlyer : ''}`}>
+          {hasFlyer && (
+            <div className={`${modalStyles.artwork} bg-surface-container-high`}>
               <img
                 src={photo}
                 alt={`Flyer for ${event.title}`}
-                className="block w-full max-h-[45dvh] md:max-h-[calc(100dvh-3rem)] object-contain"
+                className={modalStyles.flyer}
                 onError={() => setImageFailed(true)}
               />
             </div>
-            {details}
-          </div>
-        ) : details}
+          )}
+          {details}
+        </div>
       </div>
     </div>
   );

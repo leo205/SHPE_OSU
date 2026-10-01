@@ -59,6 +59,24 @@ current one. **Click the thing you changed.**
 
 ## Current state
 
+### October 1 event-popup release — production push authorized
+
+`fix/event-flyer-dialog-sizing` bounds the desktop flyer/details grid to the
+viewport with an explicitly shrinkable row. The full flyer uses `object-fit:
+contain`; long details scroll independently. Phones and events without flyers
+use one scrolling content area, with the close button outside it. Scoped layout
+rules live in `src/pages/EventModal.module.css`, including a `vh` fallback for
+Safari 14 before opting into `dvh`. DOM interaction and CSS-contract tests cover
+the changed behavior; browser/mobile visual acceptance remains pending. No
+event data, calendar export logic, or backend changes are included.
+The owner authorized committing and pushing the pending work on October 1.
+The release also updates the ESLint-only transitive `brace-expansion` lockfile
+from 1.1.18 to compatible 1.1.21 to resolve newly reported development-tool
+denial-of-service advisories. Production dependencies had no audit findings.
+Release checks include 471 tests, lint, five Edge bundles, a build with the
+existing public production Turnstile key, and both dependency audits. Verify
+the Vercel build's live asset hashes and security headers after pushing.
+
 ### September 24 sponsor directory — backend and frontend live
 
 `feature/admin-managed-sponsors` is based on updated `main` at `4778478`.
