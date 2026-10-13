@@ -1,7 +1,18 @@
 -- ============================================================================
---  Fix the public `leaderboard` view
+--  Canonical public `leaderboard` view and private exclusions
 -- ============================================================================
---  STATUS: APPLIED TO PRODUCTION 2026-09-13.
+--  EXCLUSION REVISION: applied by the owner 2026-10-12 via the private rollout.
+--  Owner SQL results: 19 exclusions, 10 public rows, RLS enabled, anon SELECT on
+--  exclusions denied, and the same three public columns; website confirmed.
+--  These are dated owner-provided results, not an independent live inventory.
+--  Requires the existing public.attendance table, public.is_admin() role helper,
+--  and Supabase roles. Run as postgres so the view owner can read both private
+--  relations. No attendance records, counts, or admin reports are changed.
+--  The confirmed roster is supplied separately outside Git; this file contains
+--  no member identifiers. scripts/prepare-leaderboard-exclusions.mjs combines
+--  this DDL with that private roster in one transaction for approved rollout.
+--
+--  HISTORICAL BASELINE: applied to production 2026-09-13.
 --  The original two-column privacy fix was applied to production 2026-07-30 and verified
 --  anonymously: `dotnum` and `last_name_dotnum` both return 42703 (column does
 --  not exist), and the anon SELECT grant survived the DROP. This definition keeps
@@ -13,8 +24,8 @@
 --  view through the Supabase UI without updating this file, or the next person
 --  will have no way to know what it is supposed to contain.
 --
---  ORIGINAL DEPLOY NOTE (historical): run AFTER deploying the matching client
---  change. Ordering is safe in that direction and unsafe in the other:
+--  ORIGINAL DEPLOY NOTE (historical): apply SQL BEFORE a matching client change.
+--  Ordering is safe in that direction and unsafe in the other:
 --
 --    SQL first     -> old client still selects (first_name, count), which the
 --                     new view continues to provide. Nothing breaks.
@@ -56,6 +67,37 @@
 
 BEGIN;
 
+-- Private operational list, never a frontend name/initial blacklist. Existing
+-- attendance keys are compared using exactly the same lower/btrim identity
+-- rule as the ranking below. Seed/remove exact keys through authorized admin
+-- operations when the E-Board changes; no roster is guessed from public names.
+CREATE TABLE IF NOT EXISTS public.leaderboard_exclusions (
+  member_key text PRIMARY KEY,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT leaderboard_exclusions_normalized_key CHECK (
+    char_length(member_key) BETWEEN 1 AND 100
+    AND member_key = lower(btrim(member_key))
+  )
+);
+
+ALTER TABLE public.leaderboard_exclusions ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.leaderboard_exclusions FROM PUBLIC, anon, authenticated;
+GRANT SELECT, INSERT, DELETE ON TABLE public.leaderboard_exclusions TO authenticated;
+GRANT ALL ON TABLE public.leaderboard_exclusions TO service_role;
+
+DROP POLICY IF EXISTS leaderboard_exclusions_admin_guard ON public.leaderboard_exclusions;
+CREATE POLICY leaderboard_exclusions_admin_guard
+  ON public.leaderboard_exclusions AS RESTRICTIVE FOR ALL TO PUBLIC
+  USING (public.is_admin()) WITH CHECK (public.is_admin());
+DROP POLICY IF EXISTS leaderboard_exclusions_admin_access ON public.leaderboard_exclusions;
+CREATE POLICY leaderboard_exclusions_admin_access
+  ON public.leaderboard_exclusions FOR ALL TO authenticated
+  USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+COMMENT ON TABLE public.leaderboard_exclusions IS
+  'Private exact member keys excluded from the public leaderboard only. '
+  'Attendance and admin reporting are unchanged. Do not publish this roster.';
+
 -- CREATE OR REPLACE cannot drop columns from an existing view, so this must be
 -- DROP + CREATE. The transaction keeps the replacement atomic for readers.
 DROP VIEW IF EXISTS public.leaderboard;
@@ -74,10 +116,15 @@ WITH (security_invoker = false) AS
       lower(btrim(last_name_dotnum))                 AS member_key,
       max(first_name)                                AS first_name,
       count(DISTINCT lower(btrim(event_name)))       AS count
-    FROM public.attendance
+    FROM public.attendance AS attendance
     WHERE first_name IS NOT NULL
       AND last_name_dotnum IS NOT NULL
       AND btrim(last_name_dotnum) <> ''
+      AND NOT EXISTS (
+        SELECT 1
+        FROM public.leaderboard_exclusions AS excluded
+        WHERE excluded.member_key = lower(btrim(attendance.last_name_dotnum))
+      )
     GROUP BY lower(btrim(last_name_dotnum))
   ) AS ranked
   ORDER BY ranked.count DESC,
@@ -97,7 +144,7 @@ COMMENT ON VIEW public.leaderboard IS
   'PUBLIC + owner-privileged: readable by anon and bypasses RLS on attendance. '
   'Adding a column here publishes it with no policy change to review. '
   'Previously exposed last_name_dotnum. Keep to top-ten first_name + '
-  'derived last_initial + count.';
+  'derived last_initial + count. Private exclusions apply before the top-ten cap.';
 
 COMMIT;
 

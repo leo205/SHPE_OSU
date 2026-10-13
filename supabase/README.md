@@ -127,6 +127,104 @@ backend-first sequence and require approval for future production changes.
    review the old static roster because it may be stale. Never reopen browser
    Storage writes or drop user-edited listings as a recovery shortcut.
 
+## E-Board leaderboard exclusions — applied, owner-verified
+
+Prepared on `codex/exclude-eboard-leaderboard`; the owner applied the private
+transaction to production on 2026-10-12 and confirmed the website works. The canonical
+`leaderboard-view.sql` now creates the private `leaderboard_exclusions` table
+and filters exact normalized member keys **before** grouping/ranking and the
+ten-row cap. The public result is still exactly `first_name`, `last_initial`,
+and distinct-event `count`. No attendance is deleted or changed; admin reports
+still include the E-Board. A member can be excluded before their first check-in.
+
+Owner-provided verification: the precheck showed `postgres`, the existing admin
+helper and attendance/leaderboard relations, no prior exclusion table, and
+`postgres` view ownership. The owner reported successful execution of the full
+private transaction. Their post-update SQL screenshot shows **19 exclusions,
+10 public leaderboard rows, 433 attendance rows, RLS enabled, no anonymous
+SELECT grant on exclusions, and exactly `first_name`, `last_initial`, `count`**.
+The owner explicitly declined the additional leaderboard-definition export,
+noting that they keep event backups. No pre-update attendance count was shared,
+so 433 is a post-update observation, not a verified before/after comparison.
+The agent did not run this production SQL or independently re-query the live
+catalog. Preserve this distinction from the isolated PostgreSQL tests below.
+
+The new table has RLS and a restrictive admin guard. Anonymous roles have no
+table grants; authenticated nonadmins cannot see its rows or change them.
+Explicit admins can read, insert, and delete exclusions. They cannot update keys
+or truncate the table through the browser API. No admin editor is added by this
+change; use authorized database operations for roster maintenance.
+
+The owner-confirmed 19-member roster is stored **only** in Git-ignored
+`.leaderboard-local/eboard-identifiers.json`, outside `src/` and `public/`.
+It is not a frontend list, committed seed, or public view literal. Keep that
+directory private; do not upload it, include it in issue reports, or log its
+contents. Re-create the private file on another checkout from a trusted roster.
+The preparer accepts bare `surname.number` identifiers or `@osu.edu` addresses,
+normalizes case/outer spaces and that email suffix, and rejects duplicates or
+malformed input without guessing identifiers. Matching against attendance uses
+the existing exact `lower(btrim(last_name_dotnum))` rule; no fuzzy-name matching
+or extra email aliases are invented.
+
+```bash
+node scripts/prepare-leaderboard-exclusions.mjs
+```
+
+This generates a permission-restricted, Git-ignored
+`.leaderboard-local/eboard-rollout.sql`. It combines canonical DDL and the private
+roster insert inside **one transaction** and contacts no database. It reports
+only the record count and local output path. Regenerate it after changing the
+canonical SQL or roster; do not reuse a stale generated transaction.
+
+### Future approved rollouts
+
+The October 12 update is already applied; do not rerun it just to publish the
+repository changes. For a future approved rebuild or roster addition:
+
+1. Require explicit target/production approval. Inventory and back up the
+   current leaderboard definition, owner, grants, attendance counts, and any
+   existing exclusions without logging student records. Confirm `public.is_admin()`
+   exists and the executing/view-owning `postgres` role can read private attendance.
+2. After local synthetic tests pass, apply the generated private rollout as
+   `postgres` in the approved database. The roster and view take effect together;
+   applying only the committed SQL creates no E-Board entries. This is backend
+   SQL only: no frontend or Edge Function deployment is required.
+3. Verify unchanged attendance/admin totals, all 19 expected exclusions present,
+   no excluded identity contributing to the public result, up to ten eligible
+   members filling the ranking, unchanged three-column output/SELECT-only grants,
+   and private table ACL/RLS. Do not print raw identities during verification.
+   Refresh the Events page to fetch the updated ranking.
+4. On rollback, restore the approved prior view definition/permissions without
+   deleting attendance or reopening private table access. A frontend Git revert
+   does not undo this database update; keep the additive private table available.
+
+The insert is additive and replay-safe (`ON CONFLICT DO NOTHING`). Changing the
+JSON roster and rerunning does **not** remove outgoing E-Board members. At annual
+turnover, explicitly review and remove outgoing exact keys in an authorized
+transaction before adding the new roster. Avoid automatic expiry or broad
+attendance deletion. Exclusions remain active until explicitly removed.
+
+Local verification on October 12 passed: 494 tests in 50 files, lint, all five
+Edge bundles, frontend build, Markdown links, and whitespace checks. Both npm
+dependency audits were run: the production-only audit (`--omit=dev`) is clear,
+but the full audit reports eight affected development-dependency entries (six
+high, two moderate), so it is **not** a clean release gate. Nine new PostgreSQL tests exercise ranking
+refill, exact case/space matching, distinct counts, unchanged attendance/admin
+aggregates, future check-ins, permissions, restrictive-policy defense, and
+repeat application. Preparation tests cover synthetic roster validation and
+atomic SQL placement. Code/security reviewers reported no findings. The real
+roster files are ignored and permission-restricted; no new identifiers were
+introduced into nonignored files. These are local results, not hosted acceptance.
+
+Development audit follow-up: the findings are in `braces` through Tailwind's
+watch/glob dependencies, `postcss-selector-parser` through `postcss-nested`, and
+`source-map-js`. They concern processing crafted patterns, CSS, or source maps
+in the tooling tree; this SQL-only change neither adds dependencies nor exposes
+those parsers through a new public endpoint. Keep build inputs trusted and
+review focused transitive upgrades separately. npm's suggested Tailwind 4 jump
+is breaking: do not run `npm audit fix --force`. These residual findings need a
+dedicated upgrade/verification pass before claiming a clean full dependency audit.
+
 ## Production state
 
 The protected public-submission rollout was completed on **2026-09-13** against
@@ -136,7 +234,7 @@ state; query the catalog and endpoint behavior after every future change.
 
 | File or component | Production/live status | Verified evidence |
 |---|---|---|
-| `leaderboard-view.sql` | **Applied 2026-09-13.** | Anonymous result is capped at ten rows, exposes exactly `first_name`, a SQL-derived one-character `last_initial`, and distinct-event `count`, and grants public roles `SELECT` only; raw attendance remains private. |
+| `leaderboard-view.sql` | **Baseline applied September 13; exclusions applied by owner October 12.** | Owner screenshot: 19 exclusions, 10 public rows, RLS enabled, anonymous exclusion-table SELECT denied, and the unchanged three public columns. Owner confirmed the website works. This is owner-provided evidence, not an independent live inventory. |
 | `sponsor-auth.sql` | **Applied 2026-08-03.** | Recruiter codes were replaced by explicit Auth roles; anonymous resume/company reads and public resume-file reads remain closed. Public signup is disabled. |
 | `resume-submit.sql` | **Superseded.** | The historical browser RPC remains defined for migration compatibility, but anonymous/authenticated execution was revoked by `resume-lockdown.sql`. |
 | `attendance-submit.sql` | **Applied 2026-09-13.** | The shared durable limiter and service-only `submit_attendance()` RPC are live; a rolled-back service probe returned `accepted`. |
@@ -463,7 +561,9 @@ rerun every historical SQL file as an unordered bundle.
    paths, historical attendance duplicates, current policies, routine grants,
    bucket privacy, and file sizes. Resolve data conflicts manually; neither
    migration auto-deletes historical duplicates.
-3. Apply `leaderboard-view.sql` and verify anonymous reads return no more than
+3. Confirm `public.is_admin()` from the existing role setup is present before
+   applying the current `leaderboard-view.sql`. If E-Board exclusions are wanted,
+   use the reviewed private roster transaction above. Verify anonymous reads return no more than
    ten rows, in descending distinct-event order, with exactly `first_name`,
    `last_initial`, and `count`. Then apply `attendance-submit.sql`. Probe that `anon` and
    `authenticated` cannot

@@ -21,7 +21,7 @@ Current operational note: no sponsor accounts have been created yet, and the
 E-Board is responsible for adding the next upcoming events through the Admin
 Dashboard.
 
-> **Working on this?** Start with [`CLAUDE.md`](./CLAUDE.md) — it covers the current state, remaining work, branch policy, and the mistakes this codebase has already made once.
+> **Working on this?** Start with [`AGENTS.md`](./AGENTS.md) — provider-neutral project instructions, safety rules, branch policy, verification commands, and links to the handoff/security records.
 
 September 24 rollout: [`Admin-managed sponsors`](./docs/plans/sponsor-admin.md)
 release 1 is **live, with backend and frontend verification complete**. The owner
@@ -83,6 +83,19 @@ for hosted verification and rollout status. Merging the frontend alone does not
 apply its backend prerequisites; local fixtures never establish production state.
 
 ---
+
+## E-Board exclusion from the public leaderboard — applied
+
+The owner applied the October 12 database update and confirmed it works. It excludes confirmed
+E-Board member keys in Supabase before selecting the public top ten, without
+deleting attendance or changing admin reports. The 19-member roster stays in
+Git-ignored local files; it is never shipped in the browser or committed.
+No frontend change is needed. See the
+[private-roster workflow and rollout evidence](./supabase/README.md#e-board-leaderboard-exclusions--applied-owner-verified).
+The owner's post-update SQL results show 19 exclusions, 10 leaderboard rows,
+RLS enabled, anonymous access to the exclusion table denied, and the same three
+public columns. Git pushes do not apply database changes; this update was run
+separately in Supabase.
 
 ## 🚀 Key Features
 
@@ -282,11 +295,12 @@ shpe-osu/
 │   ├── App.jsx           # Client-side router declarations
 │   ├── index.css         # Tailwind utility styling
 │   └── main.jsx          # Entry point
-├── CLAUDE.md             # Working context — read this first
+├── AGENTS.md             # Provider-neutral project instructions — read first
+├── docs/agents/          # Read-only review-role instructions
 ├── REWRITE.md            # Plan for the ports-and-adapters rewrite
 ├── supabase/             # Database security model — READ supabase/README.md FIRST
 │   ├── README.md         # Security model, run order, and how to check live state
-│   ├── leaderboard-view.sql   # applied: first_name, last_initial, count; top ten
+│   ├── leaderboard-view.sql   # public top ten; private E-Board exclusions applied
 │   ├── sponsor-auth.sql       # (applied) sponsor logins + RLS lockdown
 │   ├── resume-submit.sql      # superseded legacy path; execution revoked
 │   ├── attendance-submit.sql  # applied: limiter + service-only RPC
@@ -394,10 +408,10 @@ codes/equivalent join routes without another explicit project-owner approval.
 
 ---
 
-## 🤖 Project Subagents
+## Project Review Roles
 
-`.claude/agents/` contains three reviewers preloaded with this codebase's actual
-failure modes — `security-auditor`, `code-reviewer`, and `deploy-preflight`. They
-are read-only and report rather than edit. Between them they have caught a
-role-gating hole, a check-in bug that would have broken a live GBM, and a
-timezone error that only misfired during meeting hours.
+[`docs/agents/`](./docs/agents/README.md) contains provider-neutral instructions
+for `security-auditor`, `code-reviewer`, and `deploy-preflight`. These roles are
+read-only and report findings rather than edit or deploy. Ask your coding tool
+to read the relevant file explicitly; the folder is documentation, not a
+provider-specific agent registry. No model or tool selection is imposed.

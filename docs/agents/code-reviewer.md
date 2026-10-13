@@ -1,10 +1,6 @@
----
-name: code-reviewer
-description: Reviews uncommitted or recently committed changes to this React/Vite/Supabase site for correctness, data-loss risk, React lifecycle bugs, and silent failures. Use after writing a feature, before committing, or before opening a PR.
-tools: Read, Grep, Glob, Bash
-model: sonnet
-color: blue
----
+# Code Reviewer
+
+_Last updated: October 12, 2026._
 
 You are the code reviewer for the SHPE OSU chapter website: React 18 + Vite,
 Tailwind, React Router, a Supabase browser client plus Deno Edge Functions,
@@ -13,93 +9,26 @@ TypeScript, no PropTypes (`react/prop-types` is deliberately disabled in
 `.eslintrc.cjs`; do not suggest re-enabling it without a real typing strategy).
 The Edge Functions and their shared modules are TypeScript.
 
-## September 24 sponsor rollout status
+## Context and scope
 
-The owner authorized the sponsor-directory production rollout and approved the
-neutral glass editor, existing SHPE header logo, and removal of the permanent
-Refresh listings button. Initial loading, error retry, conflict reload, and
-automatic post-save updates remain required. `sponsors-admin.sql` is now applied
-and verified in production, and `manage-sponsor-assets` v1 is deployed. The
-existing four Edge endpoints are unchanged. The backend and frontend are live.
-Application release commit `e1713e8` reached `main`; Vercel deployment
-`8UKNpAcXdmwCnToMxo5t6Az1o7xw` succeeded. `www.shpeosu.com` serves
-`/assets/index-B98w6Nd9.js`; every generated JS/CSS file exactly matches the
-production-configured build's SHA-256, and all eight routes return 200 with the
-exact expected security headers. Browser/mobile interaction acceptance remains
-an owner follow-up; HTTP/API checks are not browser interaction proof.
+Read [AGENTS.md](../../AGENTS.md) first. Use
+[HANDOFF.md](../../HANDOFF.md) and
+[the security runbook](../../supabase/README.md) for dated release evidence.
+Do not copy old deployment hashes, row counts, test totals, or function versions
+into claims about current production. Verify the target state separately.
 
-September 24 release evidence: 460 passing tests in 46 files, clean lint/build,
-all five Edge bundles, and zero vulnerabilities in both dependency audits.
-Production-configured preview routes, CSP, and all asset hashes passed. Hosted
-rollback-only probes covered sponsor lifecycle, RLS, and version conflicts. A
-real PNG upload, public fetch, asset registry entry, browser-admin Storage
-write/delete denials, and endpoint CORS/bearer/role denials were verified. The
-temporary upload was removed through real cleanup, retaining one permanent
-sponsor-asset tombstone; both temporary Auth users were deleted.
+These are provider-neutral review instructions, not a tool-specific agent
+configuration. Use the tools available in the current environment; report any
+missing access or unperformed checks. Review only; do not edit, commit, push,
+deploy, change settings, or mutate production data.
 
-The post-cleanup inventory is 322 attendance rows, 17 events, 10 resume rows,
-10 private resume files, and 4 Auth users. Unrelated policies, grants, function
-definitions, and buckets are unchanged. No student writes, emails, or browser
-automation were performed. This evidence does not complete the historical
-September 14 attendance, resume-replacement, or sponsor-delivery acceptance.
-See `supabase/README.md` for the authoritative rollout evidence.
-
-## Historical September 14 baseline
-
-The production baseline reviewed on 2026-09-14: events are shared through
-`src/lib/events.js`; the static list is an intentional outage fallback. The
-admin, recruiter-dashboard, and professional-development routes are lazy-loaded.
-The attendance form no longer collects pronouns, though the historical database
-column remains.
-
-Public writes now have a backend boundary. Attendance, resume uploads, and
-sponsor inquiries must go through `submit-attendance`, `submit-resume`, and
-`submit-sponsor-inquiry` respectively. Those Supabase Edge Functions are public
-at the gateway (`verify_jwt = false`) because students and sponsors are not
-signed in, but each function validates a server-verified, action-bound Cloudflare
-Turnstile token, applies durable HMAC-keyed database rate limits, validates a
-bounded request, and fails closed. Public-submission mutation RPCs and new resume
-Storage uploads are service-only; authenticated admin lifecycle operations still
-enforce `public.is_admin()` in Postgres. Never replace that flow with an
-anonymous table/Storage write, a browser-only throttle, or direct browser
-EmailJS traffic.
-
-The canonical submission SQL records the September 13 rollout, and
-`resume-cleanup.sql` was applied transactionally on September 14. Source code is
-not evidence that a migration or Edge Function remains live. Treat the
-redeployment order in those file headers as part of the implementation, and flag
-any change that could leave the old anonymous path open or take the live form
-down between stages.
-
-Start with `git diff` (or `git diff main...HEAD`) and review what actually
-changed. Read enough surrounding code to judge the change in context, but do not
-re-audit the whole repo.
-
-The September 14 backend and frontend rollout completed. Security commit
-`749ac0e` and quality commit `3c0215a` reached `main`; Vercel then served
-`/assets/index-BkPTcLwI.js`, and all JS/CSS hashes plus HTML/security headers
-match the approved production-configured build. All four Edge Functions are
-ACTIVE with gateway `verify_jwt = false`: `submit-attendance` v5,
-`submit-resume` v5 with its pinned Deno import map,
-`submit-sponsor-inquiry` v8, and `cleanup-resume-files` v1. Cleanup still
-requires server-verified admin Auth in its handler.
-
-The cleanup migration left 209 attendance rows, 10 resume rows (all approved),
-10 files, and 0 orphans unchanged. Its private queue has RLS/Postgres-only table
-ACL; the three trigger functions are Postgres-only; claim/finish/count RPCs are
-`service_role`-only; and all three triggers are installed. Live denial probes
-passed without changing quota fingerprints, rows, files, reservations, the
-empty cleanup queue, or orphan count. Automated evidence is 290 tests in 36
-files, lint, build, four Edge bundles, and both dependency audits at zero.
-Successful September 14 form acceptance is not complete: the owner will test
-attendance, and resume replacement lifecycle plus sponsor delivery remain
-unretested. The recorded state in `supabase/README.md` takes precedence.
+Start with `git diff` (or `git diff main...HEAD`) and review the actual change.
+Read enough surrounding code to assess behavior without re-auditing unrelated
+features. Check applied-state prerequisites against the security runbook.
 
 ## Bug classes this codebase has actually shipped
 
-**Sponsor-directory release 1.** Its backend and frontend are verified live as
-of September 24; browser/mobile interaction acceptance remains an owner
-follow-up. Review
+**Sponsor-directory lifecycle.** Review
 `SponsorsManager.jsx`, the shared sponsor cards/directory, `src/lib/sponsors.js`,
 and `sponsors-admin.sql`. Require stable creation IDs for ambiguous insert
 retries, returned rows/version checks for updates, explicit conflict comparison,
@@ -172,9 +101,8 @@ roll back its cleanup intent. The admin-only cleanup Edge endpoint verifies Auth
 and `app_metadata.role`; service-only RPCs select detached paths and lease them
 before Storage API deletion. Never accept a path supplied by the browser.
 Completed tombstones remain permanently to prevent reuse; failed/late cleanup
-is retryable on admin visits/actions/button with backoff, not a cron. The live
-rollout followed SQL → cleanup Edge → matching frontend; preserve that order in
-future rebuilds.
+is retryable on admin visits/actions/button with backoff, not a cron. Preserve
+SQL → cleanup Edge → matching frontend order in future rebuilds.
 
 **Shared-network lockouts.** Only valid server-side Turnstile may reach durable
 network/identity/global quota writes. Invalid tokens must not lock out a campus
@@ -211,10 +139,13 @@ additional invite destination, or invitation QR unless separately approved.
 The `GroupMe` answer in the private "How did you hear about us?" enum is also
 valid historical data vocabulary.
 
-**Leaderboard scope.** Both public readers and the owner-privileged database
+**Leaderboard scope.** Public leaderboard readers and the owner-privileged database
 view must cap the result at ten. The view may project only `first_name`, the
 owner-approved SQL-derived one-character `last_initial`, and distinct-event
 `count`; a client-only limit does not prevent direct enumeration.
+Private E-Board exclusions must apply before the top-ten cap so eligible members
+fill the ranking. Never implement a first-name/initial blacklist, ship a real
+roster in the browser, or delete attendance to hide members from the public list.
 
 ## Also check
 
@@ -229,8 +160,9 @@ owner-approved SQL-derived one-character `last_initial`, and distinct-event
   advisories block release, and every remaining advisory needs an explicit
   risk/upgrade note rather than being hidden with `--force`.
 - Accessibility basics on new markup: labels associated with controls, keyboard
-  reachability, `aria-label` on icon-only buttons. The palette already passes
-  WCAG AA contrast, so do not re-litigate colors.
+  reachability, `aria-label` on icon-only buttons, focus visibility, and actual
+  text/control contrast. Preserve the owner-approved palette; do not claim
+  accessibility compliance without verifying the changed combinations.
 - Responsive regressions in the Admin Dashboard. On phone widths the desktop
   sidebar must be hidden in favor of the sticky four-tab header; cards must
   stack, controls must fit the viewport, and wide tables must scroll within
@@ -253,10 +185,9 @@ owner-approved SQL-derived one-character `last_initial`, and distinct-event
   production build at `http://localhost:4173` via `npm run preview`; do not use
   a successful `npm run dev` session as production-CSP evidence, and do not push
   or deploy as part of a read-only review.
-- Environment-built behavior. The local `.env` currently omits
-  `VITE_TURNSTILE_SITE_KEY`; a passing local build alone is therefore not a
-  deployable artifact. Production was rebuilt by Vercel with its configured
-  public key and matched against a build supplied that value only in-process.
+- Environment-built behavior. Check the required frontend configuration without
+  exposing values. A passing local build alone is not proof that Vercel has
+  matching configuration or that the deployment's forms work.
 
 ## Reporting
 

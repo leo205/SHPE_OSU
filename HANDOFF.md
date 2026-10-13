@@ -1,8 +1,9 @@
 # SHPE OSU Website — Engineering Handoff
 
-_Last updated: 2026-09-24; sponsor-directory backend and frontend live and
-verified. Production browser/mobile acceptance and September 14 form acceptance
-remain separate, unfinished checks._
+_Documentation updated: 2026-10-12 (guidance, unused-file cleanup, and owner-applied leaderboard exclusions).
+The sponsor-directory release evidence below is dated 2026-09-24; this
+documentation update does not re-verify production. Production browser/mobile
+acceptance and September 14 form acceptance remain separate, unfinished checks._
 
 Developer documentation for the Digital Operations Chair and anyone maintaining
 the SHPE chapter website at The Ohio State University. Covers architecture,
@@ -199,6 +200,38 @@ production-configured comparison build's initial chunk is 502.20 KB minified /
 before this quality patch). No new dependencies or eager admin/Recharts imports
 were introduced; further bundle splitting is not part of this focused fix.
 
+### October 11 local source cleanup
+
+Removed the unreferenced `src/components/PublicLeaderboard.jsx` and empty
+`src/assets/` scaffold directory. The active leaderboard remains in `Events.jsx`
+and still uses the shared `src/lib/leaderboard.js` formatter and protected SQL
+view. No public assets, QR codes, SQL, tests, or operational scripts were removed.
+This is local source cleanup, not a production deployment.
+
+Local verification passed: lint, 471 tests in 48 files, all five Edge bundles,
+frontend build, Markdown links, and `git diff --check`. All 50 remaining runtime
+frontend modules are reachable from the app entry. Tailwind dropped 11 selectors
+used only by the removed component; retained CSS rules are unchanged. This does
+not establish new browser or production acceptance.
+
+### October 12 E-Board leaderboard exclusions — owner-applied
+
+The owner confirmed 19 exact identifiers, including a member who has not checked
+in. The SQL revision adds a private admin-maintained exclusion table and
+filters it before the public top-ten cap. Attendance records and all admin
+statistics remain unchanged. No first-name/initial matching or frontend roster
+is used, and no real identifiers are committed. The private roster and combined
+transaction are Git-ignored under `.leaderboard-local/`; the preparation script
+does not contact Supabase. See [the rollout runbook](./supabase/README.md#e-board-leaderboard-exclusions--applied-owner-verified)
+for target approval, verification, rollback, and explicit annual roster turnover.
+The owner applied the complete private SQL transaction and confirmed it works.
+Their post-update screenshot shows 19 exclusions, 10 public rows, 433 attendance
+rows, exclusion RLS enabled, anonymous exclusion-table read denied, and exactly
+the three permitted public columns. No pre-update attendance count was supplied,
+so this is not an independent before/after data comparison. The owner declined
+an additional definition export; event backups are owner-managed. No further
+frontend/Edge deployment or SQL reapplication is needed for these exclusions.
+
 ### What is still open
 
 *   **Upcoming events.** The first two Autumn 2026 events have passed. The E-Board
@@ -215,7 +248,6 @@ were introduced; further bundle splitting is not part of this focused fix.
     visitor or that the visitor attended. OSU SSO, a rotating event-scoped
     secret, or explicit admin review would be a separate product decision. The
     previously discussed form-lock workflow remains deferred.
-*   **`PublicLeaderboard.jsx`** is committed but imported nowhere. Delete or mount.
 *   **Gateway IP provenance.** The protected endpoints are live, but network
     limits remain defense in depth until a future staging environment proves
     which forwarding header Supabase supplies or overwrites when callers send
@@ -760,7 +792,7 @@ no error explaining why. Keep both readers going through `lib/events.js` — tha
 split is exactly the kind that produces a silent failure at a live meeting.
 
 ### 2.5 `leaderboard` (view)
-Read by `Events.jsx` and `PublicLeaderboard.jsx`. The original two-column privacy
+Read by `Events.jsx`. The original two-column privacy
 revision of `supabase/leaderboard-view.sql` was applied 2026-07-30, and the
 database-level top-ten cap plus the approved surname-initial display were applied
 and anonymously verified 2026-09-13. The view exposes exactly `first_name`, a
@@ -835,10 +867,10 @@ backend invariants, denial probes, live asset hashes, HTML, and headers are
 verified. Successful real attendance acceptance is next; resume replacement
 lifecycle and sponsor delivery also still need September 14 live retests.
 
-### Project subagents
+### Project review roles
 
-`.claude/agents/` holds three read-only reviewers preloaded with this codebase's
-actual failure modes:
+[`docs/agents/`](./docs/agents/README.md) holds provider-neutral, read-only review
+instructions. Read [`AGENTS.md`](./AGENTS.md) for shared project rules first:
 
 | Agent | Use it |
 |---|---|
@@ -846,8 +878,9 @@ actual failure modes:
 | `code-reviewer` | Before committing |
 | `deploy-preflight` | Before pushing to `main`, and at semester rollover |
 
-Invoke them by name in Claude Code, e.g. *"Use the security-auditor agent to
-check the current RLS posture."* They found the role-gating hole described in §3,
-a check-in bug that would have stranded an entire GBM, and a timezone error that
-only misfired during meeting hours — all in work that had already been reviewed
-by hand and passed both gates.
+Ask your coding assistant to read a role's Markdown file and perform that review,
+for example: *"Read docs/agents/security-auditor.md and review the current RLS
+posture without modifying anything."* Tools that require a registered subagent
+need separate tool-specific configuration; these files do not register one or
+select a model. Historical release evidence stays in this handoff and the
+security runbook rather than being repeated in each reviewer file.

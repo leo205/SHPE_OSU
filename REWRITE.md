@@ -76,9 +76,11 @@ that look fine until someone runs a report. Read it before you write any code.
 ### Where the weight is
 
 `pages/AdminDashboard.jsx` still contains five tabs and remains the main split
-target. `components/PublicLeaderboard.jsx` remains imported nowhere. Re-measure
-with `wc -l`/the production bundle before using file or chunk sizes to make a
-decision; the old point-in-time numbers were removed because they drifted.
+target. The unused `components/PublicLeaderboard.jsx` and empty `src/assets/`
+scaffold were removed in the October 11 local cleanup; the active leaderboard
+remains in `Events.jsx`. Re-measure with `wc -l`/the production bundle before
+using file or chunk sizes to make a decision; the old point-in-time numbers
+were removed because they drifted.
 
 ### Data-operation boundary
 
@@ -244,7 +246,7 @@ appear in this browser composition root.
 - `src/data/events.js` — becomes the static fallback adapter
 - All page JSX **markup** — the visual layer is fine
 - `vercel.json` — but see §7 on the CSP
-- `.claude/agents/` — the three reviewers
+- `AGENTS.md` and `docs/agents/` — shared project rules and the three review roles
 
 ### Rebuild
 
@@ -255,8 +257,6 @@ appear in this browser composition root.
 
 ### Delete
 
-- `components/PublicLeaderboard.jsx` — imported nowhere
-- `src/assets/` — empty Vite scaffolding
 - `company_access` usage — the table is vestigial
 - `profDevEvents` in ProfessionalDevelopment.jsx — 62 lines never rendered
   (decide: wire it up or drop it)

@@ -17,6 +17,7 @@ dist
 dist-ssr
 supabase/.temp/
 .sponsor-local/
+/.leaderboard-local/
 *.local
 
 # Editor directories and files
