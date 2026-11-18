@@ -22,6 +22,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 const CompanyDashboard = lazy(() => import('./pages/CompanyDashboard'));
 const ProfessionalDevelopment = lazy(() => import('./pages/ProfessionalDevelopment'));
+const EboardPreview = lazy(() => import('./pages/EboardPreview'));
 
 function RouteFallback() {
   return (
@@ -52,6 +53,7 @@ export default function App() {
                 <Route path="/" element={<Home />} />
                 <Route path="/events" element={<Events />} />
                 <Route path="/eboard" element={<Eboard />} />
+                <Route path="/eboard-preview" element={<EboardPreview />} />
                 <Route path="/sponsors" element={<Sponsors />} />
                 <Route path="/resources" element={<Resources />} />
                 <Route path="/professional-development" element={<ProfessionalDevelopment />} />

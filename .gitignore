@@ -3,6 +3,9 @@
 .env.local
 .env.*.local
 
+# Keep full-resolution photo originals locally; only optimized copies ship.
+/design-assets/eboard-fall-originals/
+
 # Logs
 logs
 *.log
