@@ -115,8 +115,39 @@ describe('protected resume submission gateway', () => {
     expect(options.body.get('submission_started_at')).toBe('1788364800000');
     expect(options.body.get('file')).toBe(file);
     expect(options.body.get('turnstile_token')).toBe('verified-token');
+    expect(options.body.has('linkedin_url')).toBe(false);
+    expect(options.body.has('company_ids')).toBe(false);
     expect(client.storage.from).not.toHaveBeenCalled();
     expect(client.rpc).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [{ linkedin_url: '', company_ids: [] }, '', '[]'],
+    [{ linkedin_url: 'https://www.linkedin.com/in/example-student/', company_ids: ['10000000-0000-4000-8000-000000000001'] }, 'https://www.linkedin.com/in/example-student/', '["10000000-0000-4000-8000-000000000001"]'],
+  ])('sends explicit extension values while retaining the protected multipart gateway', async (extensions, linkedin, companies) => {
+    const invoke = vi.fn().mockResolvedValue({ data: { status: 'accepted' }, error: null });
+    const result = await submitResume({ functions: { invoke } }, {
+      fields: { full_name: 'Example Student', email: 'example.student@osu.edu', major: 'Mechanical Engineering', graduation_year: '2028', ...extensions },
+      file: new File(['%PDF-fixture'], 'resume.pdf', { type: 'application/pdf' }),
+      submissionId: '10000000-0000-4000-8000-000000000002', submissionStartedAt: 1788364800000, turnstileToken: 'verified-token',
+    });
+    expect(result).toEqual({ ok: true });
+    const body = invoke.mock.calls[0][1].body;
+    expect(body.has('linkedin_url')).toBe(true); expect(body.get('linkedin_url')).toBe(linkedin);
+    expect(body.has('company_ids')).toBe(true); expect(body.get('company_ids')).toBe(companies);
+    expect(invoke).toHaveBeenCalledTimes(1);
+  });
+
+  it('maps a changed company catalog to review guidance without retrying an upload', async () => {
+    const invoke = vi.fn().mockResolvedValue({ data: null, error: { context: new Response(JSON.stringify({ error: 'company_choices_changed' }), { status: 409 }) } });
+    const result = await submitResume({ functions: { invoke } }, {
+      fields: { full_name: 'Example Student', email: 'example.student@osu.edu', major: 'Mechanical Engineering', graduation_year: '2028', linkedin_url: '', company_ids: [] },
+      file: new File(['%PDF-fixture'], 'resume.pdf', { type: 'application/pdf' }),
+      submissionId: '10000000-0000-4000-8000-000000000002', submissionStartedAt: 1788364800000, turnstileToken: 'verified-token',
+    });
+    expect(result).toEqual({ ok: false, reason: 'company_choices_changed' });
+    expect(resumeErrorMessage(result.reason)).toContain('Review the updated list');
+    expect(invoke).toHaveBeenCalledTimes(1);
   });
 
   it('does not invoke the function without a verification token', async () => {

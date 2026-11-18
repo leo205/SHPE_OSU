@@ -1,6 +1,6 @@
 # SHPE OSU Website — Engineering Handoff
 
-_Documentation updated: 2026-10-12 (guidance, unused-file cleanup, and owner-applied leaderboard exclusions).
+_Documentation updated: 2026-11-18 (recruiting backend and frontend live; browser acceptance remains pending).
 The sponsor-directory release evidence below is dated 2026-09-24; this
 documentation update does not re-verify production. Production browser/mobile
 acceptance and September 14 form acceptance remain separate, unfinished checks._
@@ -12,6 +12,95 @@ database design, the security model, maintenance protocols, and deployment.
 ---
 
 ## 0. Where the site stands today
+
+### November 18 recruiting frontend — live from main
+
+The owner explicitly authorized publication after reviewing the remaining checks.
+Code commit `1ebb210997b4985892383801a09586393dd26f35` was fast-forwarded and
+pushed; Vercel production deployment `JDrn26Cfo7ux9LMazDDCQx1RAAH7` succeeded.
+The entry `/assets/index-Dma6bCvf.js` and all nine generated JS/CSS assets match
+our production-configured build by SHA-256. Eleven route shells returned 200
+with all six configured security headers matching exactly.
+
+Fresh preflight passed 616 tests in 58 files, lint, all five Edge bundles,
+whitespace and the configured build; production dependency audit is zero. The
+previously disclosed 15 development-tool findings remain maintenance work.
+The separate E-Board experiment and private runtime exclusions were preserved.
+No new backend deployment or student mutation was needed for this publication.
+
+See [the frontend release record](docs/plans/recruiting-frontend-release.md).
+The owner accepted successful browser/Turnstile upload and mobile visual checks
+as post-deployment acceptance; they remain unverified. HTTP and asset checks do
+not establish those outcomes. Documentation-only commits may follow this code
+release. The following backend-only notes record the preceding release stage.
+
+### November 18 recruiting backend — deployed, frontend unchanged
+
+The owner approved the additive recruiting migration, updated upload function,
+and disposable live test. `recruiting-interests.sql` is applied, and only
+`submit-resume` advanced from version 5 to active version 6. Downloaded deployed
+source matches the reviewed handler, validation, fingerprint, PDF screen,
+production verifier and import configuration. The other four functions are
+unchanged. Main's ref and the live frontend asset URLs remained unchanged.
+
+Hosted testing passed real Auth roles/company scope, private raw interests,
+private pending/approved PDF signing/download, v2 queue/retries, atomic approval
+and replacement, old-client preservation, explicit clearing, catalog/assignment
+controls, and canonical lease/token-bound physical cleanup. All owned test rows,
+four disposable accounts, two companies, and four PDF objects were removed;
+four required completed tombstones/reservations remain. Original ten approved
+students, ten private files, four Auth users, original reservations and quota
+fingerprints remained intact; pending cleanup is zero.
+
+The real endpoint rejected an invalid challenge without quota/fixture writes.
+A successful fresh production Turnstile upload and actual browser/mobile review
+remain separate, unverified acceptance checks. Main/frontend publication is not
+authorized. See [the rollout/rollback record](docs/plans/recruiting-backend-rollout.md)
+for proof, private backup location, rollback limits, and the connected local
+real-data preview at `http://127.0.0.1:4173/admin?tab=resume` (normal admin login).
+The admin book lists all approved students before companies are configured.
+
+Latest checks: 616 tests in 58 files, lint, production-configured build and six
+local preview route/security-header checks passed. Pre-deploy five Edge bundle
+checks passed. Production audit is zero; existing 15 dev-tool advisories remain
+documented. Live credential files stayed outside the web root and were removed
+after the test. No actual student/role, real company, email setting or secret
+was changed; no email was sent.
+
+Follow-up presentation fixes removed numbered form headings, verbose upload copy,
+and student profile placeholders; submissions default to Approved/Public. At the
+owner's request, all eight currently published sponsors were copied into active
+recruiting choices without granting access or modifying sponsor listings. A
+false-pending cleanup warning was fixed: localhost's rejected maintenance check
+now reports unavailable in collapsed admin details, while the real queue is
+empty. Upload and cleanup CORS preflights reject localhost4173 and allow the
+production origin; widget messages now retain safe diagnostic codes. Real
+browser/Turnstile acceptance remains pending. Main/frontend deployment remains
+unchanged. See the rollout record's review-refinement section.
+
+### November 17 recruiting integration — branch only
+
+The approved recruiting UI has a connected implementation on
+`codex/resume-company-interests-preview`; it is **not merged or deployed**.
+See [the integration record](docs/plans/recruiting-integration.md) for code/data
+contracts, rehearsal logins, checks, caveats, and the required hosted rollout.
+The connected app runs at `http://127.0.0.1:5175` against the separate local
+`shpe-recruiting-local` Supabase project. Real local Auth/REST/RLS/Edge/Storage,
+private PDF access, approval/replacement, old-client preservation, company scope,
+and physical retired-file cleanup passed using synthetic records only.
+
+All 602 tests in 57 files passed, along with lint, both frontend builds, the
+five Edge bundles, and whitespace checks. Production dependency audit: zero;
+full audit: 15 existing development-tool findings (13 high, two moderate), with
+toolchain maintenance still needed before merge. Browser visual/mobile acceptance
+and live Turnstile acceptance remain separate. Independent review's two stale
+frontend response/identity findings were fixed and regression-tested.
+
+Zero-row hosted availability checks confirmed the recruiting catalog/context
+API is absent. No hosted schema, Edge function, account role, student record,
+or Storage object was changed. The owner must explicitly authorize the additive
+recruiting SQL and compatible `submit-resume` deploy before actual hosted
+student-data testing. Keep the backend rollout ahead of any new frontend release.
 
 ### Sponsor content management — backend and frontend live
 

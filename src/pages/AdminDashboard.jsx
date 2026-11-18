@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { isOtherMajor, customMajorText } from '../lib/majors';
 import { attendanceEventDate } from '../lib/events';
 import { cleanupRetiredResumeFiles } from '../lib/resumeCleanup';
 import { ADMIN_DATASET_NAMES, loadAdminDataset } from '../lib/adminData';
 import { formatAdminDate } from '../lib/adminDate';
+import { openResumePdf } from '../lib/recruiting';
 import SponsorsManager from '../components/admin/SponsorsManager';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
@@ -142,15 +143,36 @@ function TopMembersCard({ members }) {
 }
 
 // ── Main Page Redesigned with Brand Identity ──────────────────────────
-export default function AdminDashboard() {
+export default function AdminDashboard({ resumeWorkspace = null, previewNotice = null, resumeSections = [] }) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const hasResumeWorkspace = resumeWorkspace !== null;
 
   // Tab State: 'home' | 'directory' | 'companies' | 'events' | 'resume'
-  const [activeTab, setActiveTab] = useState(() => {
+  const [originalTab, setOriginalTab] = useState(() => {
     return searchParams.get('tab') || 'home';
   });
   const [sponsorSection, setSponsorSection] = useState('website');
+  // The isolated workspace adds subsection history, so its tab follows the URL
+  // directly, including Back/Forward. The connected dashboard keeps its defaults.
+  const requestedTab = searchParams.get('tab') || 'home';
+  const activeTab = hasResumeWorkspace
+    ? (ADMIN_TABS.some((tab) => tab.id === requestedTab) ? requestedTab : 'home')
+    : originalTab;
+  const requestedResumeSection = searchParams.get('section');
+  const activeResumeSection = resumeSections.some((section) => section.id === requestedResumeSection)
+    ? requestedResumeSection : 'submissions';
+  const isSidebarTabCurrent = (id) => activeTab === id
+    && (id !== 'resume' || activeResumeSection === 'submissions');
+  const setActiveTab = (tab) => {
+    if (!hasResumeWorkspace) { setOriginalTab(tab); return; }
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      next.set('tab', tab);
+      next.delete('section');
+      return next;
+    }, { replace: true });
+  };
 
   // Supabase Data States
   const [attendance, setAttendance] = useState([]);
@@ -173,6 +195,7 @@ export default function AdminDashboard() {
   const [searchResumes, setSearchResumes] = useState('');
   const [resumeActiveTab, setResumeActiveTab] = useState('approved'); // 'approved' | 'pending'
   const [resumeCleanupPending, setResumeCleanupPending] = useState(false);
+  const [resumeCleanupStatus, setResumeCleanupStatus] = useState('idle');
   const [resumeCleanupRunning, setResumeCleanupRunning] = useState(false);
   const cleanupRun = useRef(Promise.resolve());
 
@@ -183,6 +206,7 @@ export default function AdminDashboard() {
       setResumeCleanupRunning(true);
       const result = await cleanupRetiredResumeFiles(supabase);
       setResumeCleanupPending(result.pending);
+      setResumeCleanupStatus(result.status);
       setResumeCleanupRunning(false);
     });
     return cleanupRun.current;
@@ -203,8 +227,8 @@ export default function AdminDashboard() {
   const [savingId, setSavingId] = useState(null);
 
   useEffect(() => {
-    setSearchParams({ tab: activeTab }, { replace: true });
-  }, [activeTab, setSearchParams]);
+    if (!hasResumeWorkspace) setSearchParams({ tab: activeTab }, { replace: true });
+  }, [activeTab, hasResumeWorkspace, setSearchParams]);
 
   const loadDataset = useCallback(async (name) => {
     // An approval RPC can finish after navigation has already unmounted us.
@@ -301,10 +325,10 @@ export default function AdminDashboard() {
       if (error || data?.length !== 1) {
         console.error('[AdminDashboard] Resume revoke failed:', error);
         alert(`Could not revoke this resume: ${error?.message || 'the row was not found'}`);
-        return;
+        return { ok: false };
       }
       setResumes((prev) => prev.map((r) => (r.id === id ? { ...r, approved: false } : r)));
-      return;
+      return { ok: true };
     }
 
     // Approval is intentionally atomic in PostgreSQL: it publishes this row
@@ -318,7 +342,7 @@ export default function AdminDashboard() {
       // they published a resume that stayed hidden, or revoked one still live.
       console.error('[AdminDashboard] Approval toggle failed:', error);
       alert(`Could not approve this resume: ${error?.message || data || 'unknown error'}`);
-      return;
+      return { ok: false };
     }
 
     void retryResumeCleanup();
@@ -326,11 +350,12 @@ export default function AdminDashboard() {
     if (result.status === 'error') {
       alert('The resume was approved, but the list could not refresh. Use Retry loading to reload it.');
     }
+    return { ok: true, refreshFailed: result.status === 'error' };
   };
 
   // ── Resumes Delete ────────────────────────────────────────────────────
   const handleDeleteResume = async (id) => {
-    if (!window.confirm('Delete this resume? This cannot be undone.')) return;
+    if (!window.confirm('Delete this resume? This cannot be undone.')) return { ok: false, cancelled: true };
 
     // The RPC marks a protected submission reservation as superseded in the
     // same transaction as deleting its row. That prevents an exact public
@@ -341,37 +366,19 @@ export default function AdminDashboard() {
     if (dbError || data?.status !== 'deleted' || !data?.resume_path) {
       console.error('[AdminDashboard] Resume delete failed:', dbError);
       alert(`Could not delete this resume: ${dbError?.message || data?.status || 'unknown error'}`);
-      return;
+      return { ok: false };
     }
 
     setResumes((prev) => prev.filter((r) => r.id !== id));
     // The deletion transaction persisted its private file path in the cleanup
     // queue. Retrying no longer depends on a disappearing browser row.
     void retryResumeCleanup();
+    return { ok: true };
   };
 
   const handleViewResume = async (path) => {
-    // Opened synchronously so the click's user-gesture context survives the
-    // await — otherwise popup blockers swallow the new tab. See CompanyDashboard.
-    // NOTE: no 'noopener' here. Per spec, window.open() returns NULL when
-    // noopener is passed — the whole point is to sever the handle. That made
-    // `tab` null, so the code fell through to the popup-blocked fallback and
-    // navigated the CURRENT tab to the PDF, while the blank tab it had just
-    // opened sat there empty. Opener is severed below instead, which keeps the
-    // handle and still prevents reverse tabnabbing.
-    const tab = window.open('', '_blank');
-    if (tab) tab.opener = null;
-    const { data, error } = await supabase.storage.from('resumes').createSignedUrl(path, 60);
-
-    if (error || !data?.signedUrl) {
-      console.error('[AdminDashboard] Signed URL error:', error);
-      tab?.close();
-      alert('Could not open this resume. The file may have been removed.');
-      return;
-    }
-
-    if (tab) tab.location = data.signedUrl;
-    else window.location.assign(data.signedUrl);
+    const result = await openResumePdf(supabase, path);
+    if (!result.ok) alert(result.error);
   };
 
   // ── Recruiter Access Codes ────────────────────────────────────────────
@@ -825,10 +832,18 @@ export default function AdminDashboard() {
             </button>
           ))}
         </nav>
+        {activeTab === 'resume' && resumeSections.length > 0 && <nav aria-label="Resume tools" className="flex flex-wrap gap-1 border-t border-outline-variant/20 px-2 py-2">
+          {resumeSections.map(({ id, label, icon: Icon }) => <Link
+            key={id}
+            to={`/admin?tab=resume&section=${id}`}
+            aria-current={activeResumeSection === id ? 'page' : undefined}
+            className={`flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg px-2 py-2 text-center font-headline text-xs font-bold ${activeResumeSection === id ? 'bg-primary text-on-primary' : 'text-on-surface-variant hover:bg-surface-container'}`}
+          ><Icon className="h-4 w-4 shrink-0" />{label}</Link>)}
+        </nav>}
       </header>
 
       {/* ── SIDEBAR ─────────────────────────────────────────────────── */}
-      <aside className="hidden h-full w-64 shrink-0 flex-col justify-between border-r border-outline-variant/20 bg-surface-container-low px-4 py-6 md:flex">
+      <aside className="hidden h-full w-64 shrink-0 flex-col justify-between gap-8 overflow-y-auto border-r border-outline-variant/20 bg-surface-container-low px-4 py-6 md:flex">
         <div>
           <div className="mb-8 flex items-center px-2">
             <img
@@ -838,22 +853,29 @@ export default function AdminDashboard() {
             />
           </div>
 
-          <nav className="flex flex-col gap-1">
+          <nav aria-label="Admin sidebar" className="flex flex-col gap-1">
             {ADMIN_TABS.map(({ id, label, icon: Icon }) => (
               <button
                 key={id}
                 type="button"
                 onClick={() => { setActiveTab(id); setEditingId(null); }}
+                aria-current={isSidebarTabCurrent(id) ? 'page' : undefined}
                 className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[15px] font-headline transition ${
-                  activeTab === id
+                  isSidebarTabCurrent(id)
                     ? "bg-primary font-bold text-on-primary shadow-md"
                     : "text-on-surface-variant hover:bg-surface-container hover:text-on-surface"
                 }`}
               >
-                <Icon className="h-5 w-5" strokeWidth={activeTab === id ? 2.2 : 1.8} />
+                <Icon className="h-5 w-5" strokeWidth={isSidebarTabCurrent(id) ? 2.2 : 1.8} />
                 {label}
               </button>
             ))}
+            {resumeSections.map(({ id, label, icon: Icon }) => <Link
+              key={id}
+              to={`/admin?tab=resume&section=${id}`}
+              aria-current={activeTab === 'resume' && activeResumeSection === id ? 'page' : undefined}
+              className={`flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 text-left font-headline text-[15px] leading-snug transition ${activeTab === 'resume' && activeResumeSection === id ? 'bg-primary font-bold text-on-primary shadow-md' : 'text-on-surface-variant hover:bg-surface-container hover:text-on-surface'}`}
+            ><Icon className="h-5 w-5 shrink-0" strokeWidth={activeTab === 'resume' && activeResumeSection === id ? 2.2 : 1.8} />{label}</Link>)}
           </nav>
         </div>
 
@@ -878,7 +900,8 @@ export default function AdminDashboard() {
 
       {/* ── MAIN CONTENT AREA ───────────────────────────────────────── */}
       <main className="w-full min-w-0 px-4 py-5 sm:px-6 md:flex-1 md:overflow-y-auto md:px-8 md:py-8 lg:px-10">
-        {TAB_DATASETS[activeTab] && (
+        {previewNotice}
+        {TAB_DATASETS[activeTab] && !(activeTab === 'resume' && hasResumeWorkspace) && (
           <DatasetLoadStatus
             state={loadStates[TAB_DATASETS[activeTab]]}
             onRetry={() => { void loadDataset(TAB_DATASETS[activeTab]); }}
@@ -1728,7 +1751,19 @@ WHERE email = 'recruiter@company.com';`}</pre>
         )}
 
         {/* ── TAB 5: RESUME (SUBMISSIONS VERIFICATION) ────────────────── */}
-        {activeTab === 'resume' && loadStates.resumes.status === 'ready' && (
+        {activeTab === 'resume' && hasResumeWorkspace && (typeof resumeWorkspace === 'function'
+          ? resumeWorkspace({
+            resumes, resumeLoadState: loadStates.resumes,
+            onReloadResumes: () => loadDataset('resumes'),
+            onApprove: (id) => handleToggleResumeApproval(id, false),
+            onRevoke: (id) => handleToggleResumeApproval(id, true),
+            onDelete: handleDeleteResume,
+            onViewPdf: (submission) => handleViewResume(submission.resumePath),
+            cleanupPending: resumeCleanupPending, cleanupStatus: resumeCleanupStatus, cleanupRunning: resumeCleanupRunning,
+            onRetryCleanup: retryResumeCleanup,
+          })
+          : resumeWorkspace)}
+        {activeTab === 'resume' && !hasResumeWorkspace && loadStates.resumes.status === 'ready' && (
           <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>

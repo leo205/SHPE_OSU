@@ -74,6 +74,58 @@ describe('protected resume request validation', () => {
       .toBe('Other – Robotics');
   });
 
+  it('preserves omitted recruiting fields separately from explicit empty selections', async () => {
+    const legacy = await parseResumeFormData(form(), NOW);
+    expect(legacy).not.toHaveProperty('linkedin_url');
+    expect(legacy).not.toHaveProperty('company_ids');
+    expect(await parseResumeFormData(form({ linkedin_url: '', company_ids: '[]' }), NOW))
+      .toMatchObject({ linkedin_url: '', company_ids: [] });
+  });
+
+  it('normalizes an optional public LinkedIn profile and strips tracking data', async () => {
+    expect(await parseResumeFormData(form({ linkedin_url: 'https://linkedin.com/in/example-student?trk=sample#about' }), NOW))
+      .toMatchObject({ linkedin_url: 'https://www.linkedin.com/in/example-student/' });
+  });
+
+  it.each([
+    'http://www.linkedin.com/in/student/',
+    'https://linkedin.com.attacker.example/in/student/',
+    'https://user:password@linkedin.com/in/student/',
+    'https://linkedin.com:8443/in/student/',
+    'https://linkedin.com/company/example/',
+    'https://linkedin.com/in/student/extra/',
+    'https://linkedin.com/in/encoded%2fpath/',
+    'https://linkedin.com/in/encoded%0Aname/',
+    'https://linkedin.com/in/a b/',
+    'https://linkedin.com/in/a\\b/',
+    'https://linkedin.com/in/' + 'a'.repeat(2048),
+    'javascript:alert(1)',
+  ])('rejects malformed or foreign LinkedIn profile %s', async (linkedin_url) => {
+    expect(await parseResumeFormData(form({ linkedin_url }), NOW)).toBeNull();
+  });
+
+  it('canonicalizes selected company IDs by case, ordering, and uniqueness', async () => {
+    const first = 'aa85ed37-f923-4197-ad85-0f921ea143b5';
+    const second = 'bb85ed37-f923-4197-ad85-0f921ea143b5';
+    expect(await parseResumeFormData(form({ company_ids: JSON.stringify([second.toUpperCase(), first, second]) }), NOW))
+      .toMatchObject({ company_ids: [first, second] });
+  });
+
+  it.each([
+    '', '{}', 'null', '[1]', '["not-a-uuid"]', '["cb85ed37-f923-4197-ad85-0f921ea143b5 "]',
+    JSON.stringify(Array(101).fill(ID)),
+    ' '.repeat(8193) + '[]',
+  ])('rejects malformed or excessive company choices', async (company_ids) => {
+    expect(await parseResumeFormData(form({ company_ids }), NOW)).toBeNull();
+  });
+
+  it.each(['linkedin_url', 'company_ids'])('rejects duplicated or file-valued %s fields', async (name) => {
+    const duplicate = form({ [name]: name === 'company_ids' ? '[]' : '' });
+    duplicate.append(name, name === 'company_ids' ? '[]' : '');
+    expect(await parseResumeFormData(duplicate, NOW)).toBeNull();
+    expect(await parseResumeFormData(form({ [name]: validPdf() }), NOW)).toBeNull();
+  });
+
   it.each([
     ['bad UUID', { submission_id: 'not-a-uuid' }],
     ['old retry key', { submission_started_at: String(NOW - 25 * 60 * 60_000) }],

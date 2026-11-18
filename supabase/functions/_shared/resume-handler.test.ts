@@ -244,6 +244,93 @@ describe('protected resume Edge handler', () => {
     });
   });
 
+  it('queues normalized LinkedIn and company selections through v2 with presence flags', async () => {
+    const first = 'aa85ed37-f923-4197-ad85-0f921ea143b5';
+    const second = 'bb85ed37-f923-4197-ad85-0f921ea143b5';
+    const { handler, rpcMock } = setup();
+    const response = await handler(request(form({
+      linkedin_url: 'https://linkedin.com/in/sample-student/?trk=example',
+      company_ids: JSON.stringify([second.toUpperCase(), first, second]),
+    })));
+    expect(response.status).toBe(200);
+    expect(rpcMock).toHaveBeenLastCalledWith('queue_resume_submission_v2', {
+      p_submission_id: SUBMISSION_ID,
+      p_fingerprint: 'f'.repeat(64),
+      p_full_name: 'Brutus Buckeye',
+      p_email: 'buckeye.1@osu.edu',
+      p_major: 'Mechanical Engineering',
+      p_graduation_year: '2027',
+      p_resume_path: RESUME_PATH,
+      p_linkedin_url: 'https://www.linkedin.com/in/sample-student/',
+      p_company_ids: [first, second],
+      p_linkedin_provided: true,
+      p_company_interests_provided: true,
+    });
+    expect(rpcMock).not.toHaveBeenCalledWith('queue_resume_submission', expect.anything());
+  });
+
+  it.each([
+    [{ linkedin_url: '' }, true, false],
+    [{ company_ids: '[]' }, false, true],
+  ])('keeps omitted fields distinct from explicit empty fields in v2', async (fields, linkedinProvided, companiesProvided) => {
+    const { handler, rpcMock } = setup();
+    expect((await handler(request(form(fields)))).status).toBe(200);
+    expect(rpcMock).toHaveBeenLastCalledWith('queue_resume_submission_v2', expect.objectContaining({
+      p_linkedin_url: '', p_company_ids: [],
+      p_linkedin_provided: linkedinProvided,
+      p_company_interests_provided: companiesProvided,
+    }));
+  });
+
+  it('rejects invalid recruiting fields before verification or quota work', async () => {
+    const { handler, verifyChallenge, createAdmin, rpcMock } = setup();
+    const response = await handler(request(form({ linkedin_url: 'https://attacker.example/in/sample', company_ids: '[]' })));
+    expect(response.status).toBe(400);
+    expect(verifyChallenge).not.toHaveBeenCalled();
+    expect(createAdmin).not.toHaveBeenCalled();
+    expect(rpcMock).not.toHaveBeenCalled();
+  });
+
+  it('does no privileged work for rejected challenges even with valid recruiting fields', async () => {
+    const { handler, createAdmin, rpcMock, uploadMock } = setup({ challenge: 'rejected' });
+    const response = await handler(request(form({ linkedin_url: '', company_ids: '[]' })));
+    expect(response.status).toBe(403);
+    expect(createAdmin).not.toHaveBeenCalled();
+    expect(rpcMock).not.toHaveBeenCalled();
+    expect(uploadMock).not.toHaveBeenCalled();
+  });
+
+  it('fails closed without a legacy fallback when the v2 service is unavailable', async () => {
+    const rpc = vi.fn(async (name) => {
+      if (name === 'consume_public_submission_rate_limit') return { data: true, error: null };
+      if (name === 'reserve_resume_submission') return { data: { status: 'reserved', resume_path: RESUME_PATH }, error: null };
+      return { data: null, error: { code: 'PGRST202' } };
+    });
+    const { handler, removeMock } = setup({ rpc });
+    const response = await handler(request(form({ linkedin_url: '', company_ids: '[]' })));
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ error: 'service_unavailable' });
+    expect(rpc).toHaveBeenLastCalledWith('queue_resume_submission_v2', expect.anything());
+    expect(rpc).not.toHaveBeenCalledWith('queue_resume_submission', expect.anything());
+    expect(removeMock).not.toHaveBeenCalled();
+  });
+
+  it.each(['uploaded', 'exists'])('reports stale company choices and only removes a newly uploaded rejected object (%s)', async (uploadStatus) => {
+    const rpc = vi.fn(async (name) => {
+      if (name === 'consume_public_submission_rate_limit') return { data: true, error: null };
+      if (name === 'reserve_resume_submission') return { data: { status: 'reserved', resume_path: RESUME_PATH }, error: null };
+      return { data: 'invalid_companies', error: null };
+    });
+    const upload = vi.fn().mockResolvedValue({ status: uploadStatus, error: null });
+    const { handler, removeMock, logError } = setup({ rpc, upload });
+    const response = await handler(request(form({ company_ids: '["aa85ed37-f923-4197-ad85-0f921ea143b5"]' })));
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: 'company_choices_changed' });
+    if (uploadStatus === 'uploaded') expect(removeMock).toHaveBeenCalledWith('resumes', [RESUME_PATH]);
+    else expect(removeMock).not.toHaveBeenCalled();
+    expect(logError).not.toHaveBeenCalled();
+  });
+
   it('does not write metadata when Storage fails', async () => {
     const upload = vi.fn().mockResolvedValue({
       status: null,

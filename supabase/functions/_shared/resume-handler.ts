@@ -259,7 +259,8 @@ export function createResumeHandler(dependencies: ResumeHandlerDependencies) {
       return jsonResponse({ error: 'service_unavailable' }, 503, origin);
     }
 
-    const { data, error } = await admin.rpc('queue_resume_submission', {
+    const hasRecruitingFields = submission.linkedin_url !== undefined || submission.company_ids !== undefined;
+    const { data, error } = await admin.rpc(hasRecruitingFields ? 'queue_resume_submission_v2' : 'queue_resume_submission', {
       p_submission_id: submission.submission_id,
       p_fingerprint: draftFingerprint,
       p_full_name: submission.full_name,
@@ -267,6 +268,12 @@ export function createResumeHandler(dependencies: ResumeHandlerDependencies) {
       p_major: submission.major,
       p_graduation_year: submission.graduation_year,
       p_resume_path: resumePath,
+      ...(hasRecruitingFields ? {
+        p_linkedin_url: submission.linkedin_url ?? '',
+        p_company_ids: submission.company_ids ?? [],
+        p_linkedin_provided: submission.linkedin_url !== undefined,
+        p_company_interests_provided: submission.company_ids !== undefined,
+      } : {}),
     });
     if (error) {
       // The RPC may have committed before the response was interrupted. Keep
@@ -290,7 +297,7 @@ export function createResumeHandler(dependencies: ResumeHandlerDependencies) {
           logError('[submit-resume] Rejected-upload cleanup failed.', cleanup.error.code);
         }
       }
-      return jsonResponse({ error: 'invalid_submission' }, 400, origin);
+      return jsonResponse({ error: data === 'invalid_companies' ? 'company_choices_changed' : 'invalid_submission' }, 400, origin);
     }
 
     return jsonResponse({ status: 'accepted' }, 200, origin);

@@ -1,0 +1,61 @@
+.workspace { width: 100%; min-width: 0; }
+.statusTabs span { min-width: 22px; border-radius: 20px; padding: 2px 6px; background: #f0e8e2; font-size: 11px; }
+.headingRow { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 22px; margin-bottom: 24px; }
+.headingRow h1 { font-size: clamp(24px, 2.5vw, 32px); font-weight: 850; line-height: 1.25; letter-spacing: -.035em; color: #332f2c; }
+.headingRow p { max-width: 650px; margin-top: 9px; color: #68615c; font-size: 13px; line-height: 1.8; }
+.search { display: flex; align-items: center; gap: 9px; min-height: 44px; width: 280px; max-width: 100%; padding: 10px 14px; border: 1px solid #dfd9d4; border-radius: 24px; background: #fff; color: #6d665f; }
+.search input { width: 100%; min-width: 0; background: transparent; border: none; outline: none; font-size: 12px; color: #332f2c; }
+.search:focus-within { outline: 2px solid #a33700; outline-offset: 2px; }
+.statusTabs { display: flex; width: fit-content; max-width: 100%; flex-wrap: wrap; padding: 5px; gap: 3px; border-radius: 28px; background: #eee7e1; }
+.statusTabs button { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 9px 17px; border-radius: 22px; color: #6a625c; font-size: 12px; font-weight: 750; }
+.statusTabs button[aria-pressed="true"] { background: #fff; color: #332f2c; box-shadow: 0 1px 3px #40332816; }
+.reviewHint { margin-block: 16px 22px; color: #7a5541; font-size: 12px; line-height: 1.8; }
+.tableContainer { max-width: 100%; overflow-x: auto; border: 1px solid #e4ddd7; border-radius: 20px; background: #fff; }
+.table { width: 100%; min-width: 970px; border-collapse: collapse; text-align: left; font-size: 12px; }
+.table th { padding: 18px; background: #e9e1db; color: #655d57; text-transform: uppercase; font-size: 10px; font-weight: 800; letter-spacing: .035em; }
+.table td { vertical-align: top; padding: 22px 18px; border-top: 1px solid #eee9e4; color: #423b36; line-height: 1.7; }
+.table td:first-child { min-width: 205px; }
+.table td:nth-child(2) { min-width: 190px; }
+.table td strong { display: block; font-size: 14px; font-weight: 800; }
+.muted { display: block; margin-top: 3px; color: #756b63; font-size: 11px; overflow-wrap: anywhere; }
+.linkedin { display: inline-flex; align-items: center; gap: 3px; margin-top: 7px; color: #7b3f1d; text-decoration: underline; text-underline-offset: 3px; font-size: 11px; }
+.tags { display: flex; flex-wrap: wrap; gap: 5px; min-width: 155px; max-width: 235px; }
+.tags span { border-radius: 5px; background: #f4f1ee; color: #6a6059; padding: 3px 7px; font-size: 10px; }
+.pending, .approved { display: inline-block; white-space: nowrap; padding: 4px 8px; border-radius: 7px; font-size: 10px; font-weight: 750; }
+.pending { color: #755b20; background: #faf2dc; }
+.approved { color: #924010; background: #f6eae3; }
+.revision { display: block; min-width: 135px; max-width: 170px; margin-top: 8px; color: #7a6f66; font-size: 10px; line-height: 1.7; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; min-width: 200px; }
+.primaryButton, .secondaryButton { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 42px; padding: 10px 12px; border-radius: 10px; font-size: 11px; font-weight: 750; white-space: nowrap; }
+.primaryButton { background: #a33700; color: #fff; border: 1px solid #a33700; }
+.primaryButton:hover { background: #803000; }
+.secondaryButton { background: #fff; border: 1px solid #cfc2b8; color: #423b36; }
+.secondaryButton:hover { background: #f7f3f0; }
+.table .empty { padding: 45px 20px; text-align: center; color: #756b63; }
+.smallNote { margin-top: 15px; color: #7a7068; font-size: 11px; line-height: 1.8; }
+.success { margin-block: 15px; padding: 12px 16px; border-radius: 10px; background: #eaf4ec; color: #316841; font-size: 12px; line-height: 1.7; }
+.panel { padding: 28px; border: 1px solid #e4ddd7; border-radius: 20px; background: #fff; }
+.companyForm { max-width: 600px; margin-top: 20px; }
+.companyForm label, .companyPicker { display: block; color: #5b5048; font-size: 12px; font-weight: 750; }
+.companyForm > div { display: flex; gap: 8px; margin-top: 8px; }
+.companyForm input, .companyPicker select { width: 100%; min-width: 0; padding: 11px 12px; border-radius: 10px; border: 1px solid #dcd2c9; background: #fff; color: #423b36; font-size: 12px; }
+.companyPicker select { display: block; min-width: 210px; margin-top: 7px; font-weight: 500; }
+.companyList { margin-top: 25px; }
+.companyList li { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding: 18px 0; border-bottom: 1px solid #eee9e4; }
+.companyList strong { display: block; font-size: 13px; overflow-wrap: anywhere; }
+.companyList li div > span { display: block; margin-top: 5px; color: #7a7068; font-size: 11px; }
+.availability { display: grid; place-items: center; min-width: 44px; min-height: 44px; }
+.availability input { accent-color: #a33700; width: 18px; height: 18px; }
+.error { margin-top: 8px; color: #a12b22; font-size: 12px; }
+.footer { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-top: 26px; padding-bottom: 4px; color: #7a7068; font-size: 10px; }
+.footer button { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 8px 10px; border: 1px solid #dfd5cd; border-radius: 9px; background: #fff; }
+.workspace a:focus-visible, .workspace button:focus-visible, .workspace input:focus-visible, .workspace select:focus-visible, .tableContainer:focus-visible { outline: 3px solid #a33700; outline-offset: 3px; }
+@media (max-width: 640px) {
+  .search { width: 100%; }
+  .statusTabs { width: 100%; }
+  .statusTabs button { flex: 1; padding-inline: 10px; font-size: 11px; }
+  .panel { padding: 20px 16px; }
+  .companyForm > div { flex-wrap: wrap; }
+  .companyForm button { width: 100%; }
+  .companyPicker { width: 100%; }
+}

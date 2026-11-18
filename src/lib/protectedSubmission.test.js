@@ -18,6 +18,12 @@ describe('protected public-submission failures', () => {
     expect(shouldOfferOutageFallback(reason, 10)).toBe(false);
   });
 
+  it('preserves a changed recruiting catalog as a reviewable rejection, not an outage', async () => {
+    const reason = await protectedSubmissionFailureReason(functionError(409, { error: 'company_choices_changed' }));
+    expect(reason).toBe('company_choices_changed');
+    expect(shouldOfferOutageFallback(reason, 10)).toBe(false);
+  });
+
   it('preserves an ambiguous email-provider result for honest retry guidance', async () => {
     const reason = await protectedSubmissionFailureReason(
       functionError(502, { error: 'delivery_unconfirmed' }),

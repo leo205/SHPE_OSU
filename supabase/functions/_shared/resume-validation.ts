@@ -12,6 +12,9 @@ export type ResumeSubmission = {
   submission_started_at: number;
   turnstile_token: string;
   file: File;
+  // Absence is a legacy client, while '' / [] explicitly clears a choice.
+  linkedin_url?: string;
+  company_ids?: string[];
 };
 
 const PDF_MAGIC = [0x25, 0x50, 0x44, 0x46];
@@ -45,6 +48,44 @@ const MAJORS = new Set([
 function textField(form: FormData, name: string): string | null {
   const value = form.get(name);
   return typeof value === 'string' ? value.trim() : null;
+}
+
+function normalizedLinkedInUrl(value: string): string | null {
+  if (!value.trim()) return '';
+  if (value.length > 2048 || /[\s\\]/u.test(value)
+    || [...value].some((character) => {
+      const code = character.codePointAt(0)!;
+      return code <= 31 || (code >= 127 && code <= 159);
+    })) return null;
+  try {
+    const url = new URL(value);
+    if (url.protocol !== 'https:'
+      || !['linkedin.com', 'www.linkedin.com'].includes(url.hostname)
+      || url.username || url.password || url.port) return null;
+    const match = /^\/in\/([^/]+)\/?$/.exec(url.pathname);
+    if (!match) return null;
+    const profile = decodeURIComponent(match[1]);
+    if (/[\s/\\?#]/u.test(profile) || [...profile].some((character) => {
+      const code = character.codePointAt(0)!;
+      return code <= 31 || (code >= 127 && code <= 159);
+    })) return null;
+    return `https://www.linkedin.com/in/${match[1]}/`;
+  } catch {
+    return null;
+  }
+}
+
+function normalizedCompanyIds(value: string): string[] | null {
+  // Bound the JSON itself before parsing, as well as the number of IDs.
+  if (value.length > 8192) return null;
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (!Array.isArray(parsed) || parsed.length > 100
+      || !parsed.every((id) => typeof id === 'string' && UUID.test(id))) return null;
+    return [...new Set((parsed as string[]).map((id) => id.toLowerCase()))].sort();
+  } catch {
+    return null;
+  }
 }
 
 function validEmail(email: string): boolean {
@@ -105,6 +146,15 @@ export async function parseResumeFormData(
   const startedAtText = textField(form, 'submission_started_at');
   const turnstileToken = textField(form, 'turnstile_token');
   const file = form.get('file');
+  const linkedinProvided = form.has('linkedin_url');
+  const companiesProvided = form.has('company_ids');
+  const linkedinField = form.get('linkedin_url');
+  const companiesField = form.get('company_ids');
+  if ((linkedinProvided && (typeof linkedinField !== 'string' || form.getAll('linkedin_url').length !== 1))
+    || (companiesProvided && (typeof companiesField !== 'string' || form.getAll('company_ids').length !== 1))) return null;
+  const linkedinUrl = linkedinProvided ? normalizedLinkedInUrl(linkedinField as string) : undefined;
+  const companyIds = companiesProvided ? normalizedCompanyIds(companiesField as string) : undefined;
+  if (linkedinUrl === null || companyIds === null) return null;
 
   if (
     !fullName || fullName.length > 200 || CONTROL_CHARACTER.test(fullName)
@@ -144,5 +194,7 @@ export async function parseResumeFormData(
     submission_started_at: submissionStartedAt,
     turnstile_token: turnstileToken,
     file,
+    ...(linkedinProvided ? { linkedin_url: linkedinUrl as string } : {}),
+    ...(companiesProvided ? { company_ids: companyIds as string[] } : {}),
   };
 }

@@ -60,6 +60,10 @@ export async function submitResume(
   body.set('email', fields.email);
   body.set('major', fields.major);
   body.set('graduation_year', fields.graduation_year);
+  // Omitted extension fields identify an older client. Explicit empty values
+  // clear a new revision's preferences/profile after admin approval.
+  if (Object.prototype.hasOwnProperty.call(fields, 'linkedin_url')) body.set('linkedin_url', fields.linkedin_url);
+  if (Object.prototype.hasOwnProperty.call(fields, 'company_ids')) body.set('company_ids', JSON.stringify(fields.company_ids));
   body.set('submission_id', submissionId);
   body.set('submission_started_at', String(submissionStartedAt));
   body.set('turnstile_token', turnstileToken);
@@ -97,6 +101,8 @@ export function resumeErrorMessage(reason) {
       return 'Please export your resume as a standard PDF without a password, forms, or attachments, then upload it again (up to 10 pages).';
     case 'idempotency_conflict':
       return 'Those details changed after an earlier upload attempt. Review them, then submit again to start a fresh upload.';
+    case 'company_choices_changed':
+      return 'The company choices changed while you were submitting. Review the updated list and your selections, then try again.';
     default:
       return 'We could not confirm your upload. Complete a fresh verification and try once more, then contact an E-Board member if it still fails.';
   }
