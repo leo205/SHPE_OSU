@@ -13,6 +13,16 @@ database design, the security model, maintenance protocols, and deployment.
 
 ## 0. Where the site stands today
 
+### November 18 Fall E-Board — publication approved
+
+The owner approved replacing `/eboard` with the reviewed Fall red-polo layout.
+The active roster is `src/data/eboard.js`, and the lazy page is
+`src/pages/EboardRedPolos.jsx`. The preview URL redirects to `/eboard`; the
+legacy page remains in source for reference. All 19 public profiles and the
+owner's corrected photo order are preserved. Recruiting and backend behavior
+are unchanged. See [the release record](docs/plans/eboard-red-polo-release.md)
+for actual checks, remaining browser acceptance, deployment, and rollback.
+
 ### November 18 recruiting frontend — live from main
 
 The owner explicitly authorized publication after reviewing the remaining checks.
@@ -767,9 +777,9 @@ At the start of a new semester (Autumn/Spring):
         visitor's local today. Mirror an important current event there before a
         high-stakes meeting if check-in must survive a Supabase outage.
 2.  **E-Board Roster Update**:
-    *   Collect new E-board member headshots, convert them to `.webp`, and place them in `public/photos/eboard/`.
-    *   Open `src/pages/Eboard.jsx`. Update the `eboardMembers` array with names, majors, graduation years, and roles.
-    *   To adjust vertical/horizontal alignment of any headshot, modify the conditional class mapping in `LoteriaCard` (e.g. `member.id === X ? 'object-top' : 'object-center'`).
+    *   Keep full-resolution originals outside `public`; export 640px and 1440px WebP copies into `public/photos/eboard-preview/` (the adopted Fall photo directory).
+    *   Update public names, roles, majors, year labels, internships, and Lotería labels in `src/data/eboard.js`.
+    *   Update photo groups, owner-confirmed left-to-right member IDs, and `position` cropping in `src/pages/EboardRedPolos.jsx`. Keep each member represented once. The old `Eboard.jsx` is a legacy reference, not the routed page.
 3.  **Database Attendance Rollover**:
     *   Go to the Supabase Dashboard → SQL Editor.
     *   It is recommended to run a query to back up the current semester's check-ins before truncation, or export the full history to CSV from the Admin Dashboard.

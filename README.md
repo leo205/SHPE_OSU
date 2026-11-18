@@ -121,7 +121,7 @@ separately in Supabase.
     *   **Member Spotlight Carousel**: An interactive selector showing student internship experiences at top employers like GM, Ford, and Lincoln Electric.
     *   **National Convention Guide**: Step-by-step prep timeline (Registration, Resume, Company Research, Elevator Pitch, Business Attire, Follow-up) and logistics overview.
     *   **SponsorSHPE Call to Action**: Invites corporate partners to collaborate and redirects them to the Sponsors portal.
-*   **E-Board Roster (`/eboard`)**: Displays student leaders in a custom, Loteria-styled grid layout. Cards use consistent modest corner radii around both the card and headshot, remain still on hover, and use responsive flexbox sizing to align the orphaned last row cleanly on all screen sizes.
+*   **E-Board Roster (`/eboard`)**: Displays all 19 leaders in the Fall red-polo portraits, grouped by leadership and shared roles. Each member keeps their name, role, major, year, internship, and Lotería label. Responsive cards and photos have modest curves and remain still on hover. Maintain the roster in `src/data/eboard.js` and photo groups in `src/pages/EboardRedPolos.jsx`; `/eboard-preview` redirects here.
 *   **Corporate Sponsor Portal (`/sponsors`)**: Partner benefits and tiers (Buckeye $500, Carmen $1,000, Scarlet & Gray $1,500, Platinum $2,000). Current sponsors are grouped by the tier they actually purchased, and empty tiers hide themselves. Each tier's **Get Started** button preselects that tier in the contact form. Inquiries go through a Turnstile-protected Supabase Edge Function; EmailJS credentials and traffic never enter the browser.
 *   **Resource Hub (`/resources`)**: Provides study tips, tutoring links, and a direct link to view and read the official chapter **First-Year Guide PDF** (`/photos/First-Year-Guide.pdf`).
 
@@ -283,7 +283,8 @@ shpe-osu/
 ├── .github/              # GitHub configurations
 ├── public/
 │   ├── photos/
-│   │   ├── eboard/       # Standardized webp headshots of the 19 E-Board members
+│   │   ├── eboard/       # Legacy E-Board headshots retained for reference
+│   │   ├── eboard-preview/ # Adopted Fall red-polo portraits (640px/1440px WebP)
 │   │   ├── events/       # Event calendar cards
 │   │   ├── picsMain/     # Home page hero/mission background images
 │   │   ├── profDev/      # Professional Development section assets
@@ -293,6 +294,7 @@ shpe-osu/
 ├── src/
 │   ├── components/       # Reusable layout UI components (Navbar, Footer, ProtectedRoute, etc.)
 │   ├── data/
+│   │   ├── eboard.js     # Active public E-Board roster
 │   │   └── events.js     # Bundled outage fallback for database events
 │   ├── lib/
 │   │   ├── supabase.js   # Supabase client initialization (loads credentials from env)

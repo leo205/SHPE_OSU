@@ -1,5 +1,8 @@
 import ImagePlaceholder from '../components/ImagePlaceholder';
 
+// Legacy layout retained for reference. The public /eboard route now uses
+// EboardRedPolos.jsx; maintain the current roster in src/data/eboard.js.
+
 /*
  * ── E-BOARD MEMBERS ────────────────────────────────────────────
  * To update a member:

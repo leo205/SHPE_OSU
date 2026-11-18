@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowDown, ArrowUpRight, Sun, BriefcaseBusiness } from 'lucide-react';
-import { previewMembers } from '../data/eboardPreview';
+import { eboardMembers } from '../data/eboard';
 import { scrollToAnchor } from '../lib/scroll';
-import styles from './EboardPreview.module.css';
+import styles from './EboardRedPolos.module.css';
 
-const membersById = new Map(previewMembers.map((member) => [member.id, member]));
+const membersById = new Map(eboardMembers.map((member) => [member.id, member]));
 
 // Member IDs follow the owner-confirmed left-to-right order in each photograph.
 const leadership = [
@@ -104,7 +104,7 @@ function GroupCard({ group, leadershipCard = false, chapterCard = false }) {
   );
 }
 
-export default function EboardPreview() {
+export default function EboardRedPolos() {
   return (
     <main className={styles.page}>
       <header className={styles.hero}>
@@ -124,7 +124,7 @@ export default function EboardPreview() {
       </header>
 
       <div className={styles.indexBar}>
-        <p><Sun size={19} aria-hidden="true" /><strong>{previewMembers.length} leaders.</strong> One shared purpose.</p>
+        <p><Sun size={19} aria-hidden="true" /><strong>{eboardMembers.length} leaders.</strong> One shared purpose.</p>
         <nav aria-label="E-Board sections">
           <a href="#leadership" onClick={(event) => scrollToAnchor(event, 'leadership')}>Leadership</a>
           <a href="#chairs" onClick={(event) => scrollToAnchor(event, 'chairs')}>The chairs</a>
@@ -164,7 +164,6 @@ export default function EboardPreview() {
         <div><p className={styles.eyebrow}>There’s a place for you here.</p><h2 id="join-heading">Come meet the familia.</h2><p>Find your next event. Say hello. Make yourself at home.</p></div>
         <Link to="/events" className={styles.primaryLink}>Find an event <ArrowUpRight size={19} aria-hidden="true" /></Link>
       </section>
-      <div className={styles.originalLink}><Link to="/eboard">View original E-Board page <ArrowUpRight size={15} aria-hidden="true" /></Link></div>
     </main>
   );
 }

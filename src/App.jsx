@@ -5,7 +5,6 @@ import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import Home from './pages/Home';
 import Events from './pages/Events';
-import Eboard from './pages/Eboard';
 import Sponsors from './pages/Sponsors';
 import Resources from './pages/Resources';
 import Attendance from './pages/Attendance';
@@ -15,14 +14,13 @@ import ProtectedRoute from './components/ProtectedRoute';
 /*
  * Lazily loaded routes.
  *
- * The whole app used to ship as a single ~950 KB chunk. These three routes are
- * the heaviest and least visited, so splitting them keeps the admin dashboard
- * and its charting library out of the bundle every public visitor pays for.
+ * Keep page-specific code, including the admin dashboard and its charting
+ * library, out of the bundle every public visitor pays for.
  */
 const AdminDashboard = lazy(() => import('./pages/ConnectedAdminDashboard'));
 const CompanyDashboard = lazy(() => import('./pages/CompanyDashboard'));
 const ProfessionalDevelopment = lazy(() => import('./pages/ProfessionalDevelopment'));
-const EboardPreview = lazy(() => import('./pages/EboardPreview'));
+const Eboard = lazy(() => import('./pages/EboardRedPolos'));
 
 function RouteFallback() {
   return (
@@ -53,7 +51,7 @@ export default function App() {
                 <Route path="/" element={<Home />} />
                 <Route path="/events" element={<Events />} />
                 <Route path="/eboard" element={<Eboard />} />
-                <Route path="/eboard-preview" element={<EboardPreview />} />
+                <Route path="/eboard-preview" element={<Navigate to="/eboard" replace />} />
                 <Route path="/sponsors" element={<Sponsors />} />
                 <Route path="/resources" element={<Resources />} />
                 <Route path="/professional-development" element={<ProfessionalDevelopment />} />

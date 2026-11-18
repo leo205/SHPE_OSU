@@ -7,10 +7,11 @@
   color: var(--ink);
   background: var(--paper);
   padding-top: 7.5rem;
+  padding-bottom: 3.5rem;
   overflow: clip;
 }
 
-.hero, .indexBar, .section, .closing, .originalLink {
+.hero, .indexBar, .section, .closing {
   width: calc(100% - 5rem);
   max-width: 1260px;
   margin-inline: auto;
@@ -126,12 +127,10 @@
 .closing .eyebrow { color: var(--orange); }
 .closing h2 { margin-block: .65rem; font-family: 'Plus Jakarta Sans', sans-serif; font-size: clamp(1.8rem, 3vw, 2.4rem); font-weight: 800; line-height: 1.2; letter-spacing: -.05em; }
 .closing p:last-child { color: var(--muted); font-size: .8rem; line-height: 1.9; }
-.originalLink { display: flex; justify-content: center; padding-block: 1.8rem 3.5rem; }
-.originalLink a { display: inline-flex; align-items: center; gap: .5rem; font-size: .7rem; color: var(--muted); text-decoration: underline; text-underline-offset: .3rem; padding: .75rem; }
 .page a:focus-visible { outline: 3px solid var(--orange); outline-offset: 5px; }
 
 @media (max-width: 1100px) {
-  .hero, .indexBar, .section, .closing, .originalLink { width: calc(100% - 3rem); }
+  .hero, .indexBar, .section, .closing { width: calc(100% - 3rem); }
   .hero { gap: 1.5rem; }
   .leadershipGrid { gap: 1rem; }
   .profiles { padding: 1.2rem 1rem; gap: 1rem; }
@@ -162,7 +161,7 @@
 
 @media (max-width: 700px) {
   .page { padding-top: 6.5rem; }
-  .hero, .indexBar, .section, .closing, .originalLink { width: calc(100% - 2.5rem); }
+  .hero, .indexBar, .section, .closing { width: calc(100% - 2.5rem); }
   .hero { grid-template-columns: 1fr; gap: 1.5rem; padding-block: 1rem 3rem; min-height: 0; }
   .hero h1 { font-size: clamp(3.7rem, 12vw, 5.6rem); margin-block: 1.5rem; }
   .heroCopy > .primaryLink { margin-top: 1.4rem; }

@@ -1,7 +1,10 @@
-# E-Board Fall photo experiment
+# E-Board Fall photos
 
-Local route: `/eboard-preview` on `codex/eboard-red-polo-experiment`.
-The original `/eboard`, its roster, and its images are unchanged.
+The owner approved the Fall design for the public `/eboard` route on November
+18, 2026. `/eboard-preview` redirects to that route. The old `Eboard.jsx` and
+its images remain as legacy references; Git history preserves the prior layout.
+See [the release record](../docs/plans/eboard-red-polo-release.md) for checks
+and deployment status.
 
 Full-resolution JPGs live in the Git-ignored `eboard-fall-originals/` folder.
 They were copied out of `dist/photos/eboard/` before running a build: `dist/`
@@ -22,15 +25,16 @@ The shared portraits include members of different roles; each person's original
 role and profile information is retained. The hero uses only the larger trio
 photo; its former smaller Digital Operations photo/caption was removed.
 
-`src/data/eboardPreview.js` is an intentional experimental snapshot of the public
-roster, preserving all 19 members and their existing displayed details. If the
-design is adopted, reconcile the two pages into shared roster data. Do not add
-private student identifiers or leaderboard exclusions here.
+`src/data/eboard.js` is the active public roster, preserving all 19 members and
+their existing displayed details. Photo groups and cropping live in
+`src/pages/EboardRedPolos.jsx`, with styles in `EboardRedPolos.module.css`.
+Do not add private student identifiers or leaderboard exclusions here.
 
-The experiment is lazy-loaded and unlisted in the main navigation. To discard
-it, remove its route/import, preview page/CSS/data, and optimized preview images.
-Do not delete the full-resolution originals or the existing E-Board assets.
-Nothing has been published by creating the preview.
+The adopted page is lazy-loaded through the existing E-Board navigation link.
+The image directory retains its preview name to preserve existing URLs. Only
+the 22 optimized images ship; never add the full-resolution originals to Git.
+Use a focused revert if the design needs to be withdrawn, preserving recruiting
+and other releases rather than resetting `main`.
 
 ## Local verification — November 14, 2026
 

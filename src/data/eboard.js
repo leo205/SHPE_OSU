@@ -1,6 +1,6 @@
-// Experimental snapshot of the public Eboard.jsx roster. Keep the existing page
-// untouched while this design is reviewed. Reconcile into shared data if adopted.
-export const previewMembers = [
+// Public roster for the Fall red-polo layout. Photo grouping and the confirmed
+// left-to-right order are defined in EboardRedPolos.jsx.
+export const eboardMembers = [
   {
     "id": 1,
     "role": "President",
