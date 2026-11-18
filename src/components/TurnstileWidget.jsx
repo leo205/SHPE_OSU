@@ -5,6 +5,34 @@ const SCRIPT_SRC = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render
 
 let scriptPromise;
 
+function verificationFailure(rawCode) {
+  // Only display Cloudflare's bounded public diagnostic code, never arbitrary
+  // callback data. See Cloudflare's Turnstile client-side error-code reference.
+  const code = /^\d{6}$/.test(String(rawCode)) ? String(rawCode) : '';
+  if (code === '110200') {
+    const local = ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname);
+    return {
+      code,
+      message: local
+        ? 'Security verification is not enabled for this local address. Use shpeosu.com to submit.'
+        : 'Security verification is not enabled for this website address. Please let an E-Board member know.',
+    };
+  }
+  if (['110100', '110110', '400020', '400021', '400070'].includes(code)) {
+    return { code, message: 'Security verification needs a site configuration update. Please let an E-Board member know.' };
+  }
+  if (code === '110600' || code === '110620') {
+    return { code, message: 'Verification timed out. Please retry.' };
+  }
+  if (code === '200100') {
+    return { code, message: 'Check your device’s date and time, then reload this page and retry verification.' };
+  }
+  if (code.startsWith('300') || code.startsWith('600')) {
+    return { code, message: 'Verification did not complete. Retry, or try another browser if it continues.' };
+  }
+  return { code, message: 'Verification could not load. Check your connection or content blockers, then retry.' };
+}
+
 function loadTurnstile() {
   if (window.turnstile) return Promise.resolve(window.turnstile);
   if (scriptPromise) return scriptPromise;
@@ -50,7 +78,7 @@ export default function TurnstileWidget({ siteKey, action, onToken, resetKey = 0
   const containerRef = useRef(null);
   const widgetIdRef = useRef(null);
   const onTokenRef = useRef(onToken);
-  const [loadFailed, setLoadFailed] = useState(false);
+  const [failure, setFailure] = useState(null);
   const [loadAttempt, setLoadAttempt] = useState(0);
 
   useEffect(() => {
@@ -61,7 +89,7 @@ export default function TurnstileWidget({ siteKey, action, onToken, resetKey = 0
     if (!siteKey) return undefined;
 
     let cancelled = false;
-    setLoadFailed(false);
+    setFailure(null);
 
     loadTurnstile()
       .then((turnstile) => {
@@ -70,16 +98,22 @@ export default function TurnstileWidget({ siteKey, action, onToken, resetKey = 0
           sitekey: siteKey,
           action,
           theme: 'light',
-          callback: (token) => onTokenRef.current(token),
-          'expired-callback': () => onTokenRef.current(''),
-          'error-callback': () => {
+          callback: (token) => {
+            if (cancelled) return;
+            setFailure(null);
+            onTokenRef.current(token);
+          },
+          'expired-callback': () => { if (!cancelled) onTokenRef.current(''); },
+          'error-callback': (code) => {
+            if (cancelled) return true;
             onTokenRef.current('');
-            setLoadFailed(true);
+            setFailure(verificationFailure(code));
+            return true;
           },
         });
       })
       .catch(() => {
-        if (!cancelled) setLoadFailed(true);
+        if (!cancelled) setFailure(verificationFailure());
       });
 
     return () => {
@@ -94,14 +128,14 @@ export default function TurnstileWidget({ siteKey, action, onToken, resetKey = 0
 
   useEffect(() => {
     if (widgetIdRef.current !== null && window.turnstile) {
-      setLoadFailed(false);
+      setFailure(null);
       window.turnstile.reset(widgetIdRef.current);
       onTokenRef.current('');
     }
   }, [resetKey]);
 
   const retryVerification = () => {
-    setLoadFailed(false);
+    setFailure(null);
     onTokenRef.current('');
     // Re-run the complete mount path. It handles both a failed script download
     // (where no widget exists) and an in-widget error after the script loaded.
@@ -119,11 +153,12 @@ export default function TurnstileWidget({ siteKey, action, onToken, resetKey = 0
   return (
     <div className="space-y-2">
       <div ref={containerRef} className="min-h-[65px]" />
-      {loadFailed && (
+      {failure && (
         <div role="alert" className="space-y-2">
           <p className="text-sm font-bold text-error">
-            Verification could not load. Disable content blockers for this page, then retry.
+            {failure.message}
           </p>
+          {failure.code && <p className="text-xs text-on-surface-variant">Verification code: {failure.code}</p>}
           <button
             type="button"
             onClick={retryVerification}

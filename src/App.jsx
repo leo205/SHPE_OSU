@@ -19,7 +19,7 @@ import ProtectedRoute from './components/ProtectedRoute';
  * the heaviest and least visited, so splitting them keeps the admin dashboard
  * and its charting library out of the bundle every public visitor pays for.
  */
-const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
+const AdminDashboard = lazy(() => import('./pages/ConnectedAdminDashboard'));
 const CompanyDashboard = lazy(() => import('./pages/CompanyDashboard'));
 const ProfessionalDevelopment = lazy(() => import('./pages/ProfessionalDevelopment'));
 
@@ -90,6 +90,10 @@ export default function App() {
               <Navigate to="/admin?tab=resume" replace />
             </ProtectedRoute>
           }
+        />
+        <Route
+          path="/admin/recruiting-companies"
+          element={<ProtectedRoute requireAdmin><Navigate to="/admin?tab=resume&section=companies" replace /></ProtectedRoute>}
         />
       </Routes>
       </Suspense>

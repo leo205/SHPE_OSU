@@ -1,0 +1,38 @@
+# Disposable recruiting rehearsal. Never linked to the hosted project.
+project_id = "shpe-recruiting-local"
+
+[api]
+port = 55531
+schemas = ["public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 55532
+shadow_port = 55530
+major_version = 17
+
+[db.seed]
+enabled = false
+
+[auth]
+site_url = "http://127.0.0.1:5175"
+additional_redirect_urls = ["http://localhost:5175"]
+enable_signup = false
+
+[analytics]
+enabled = false
+
+[local_smtp]
+port = 55534
+
+[edge_runtime]
+enabled = true
+policy = "per_worker"
+inspector_port = 8095
+
+[functions.submit-resume]
+verify_jwt = false
+
+[functions.cleanup-resume-files]
+verify_jwt = false

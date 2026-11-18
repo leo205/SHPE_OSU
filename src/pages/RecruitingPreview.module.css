@@ -1,0 +1,92 @@
+.page {
+  min-height: 100vh;
+  background: #f8f9fb;
+  color: #191b20;
+  padding: 30px max(24px, calc((100vw - 1200px) / 2)) 24px;
+  font-family: Manrope, sans-serif;
+}
+
+.previewHeader { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding-bottom: 28px; }
+.brand { display: flex; align-items: center; gap: 20px; }
+.brand img { width: 104px; height: auto; }
+.brand > span { border-left: 1px solid #dcdfe4; padding-left: 20px; font-size: 14px; font-weight: 750; letter-spacing: -.015em; }
+.brand small { display: block; margin-top: 4px; color: #727782; font-size: 11px; font-weight: 500; }
+.resetButton { display: inline-flex; align-items: center; gap: 7px; flex-shrink: 0; padding: 10px 12px; font-size: 12px; font-weight: 650; color: #5b616b; border: 1px solid #dfe2e7; border-radius: 9px; background: #fff; }
+.resetButton:hover { border-color: #9a9fa8; color: #191b20; }
+.workspaceBar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 18px; margin-bottom: 18px; }
+.viewNav { display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 5px; border: 1px solid #e0e3e8; border-radius: 12px; background: #eef0f3; }
+.viewNav a { display: inline-flex; align-items: center; gap: 8px; padding: 10px 15px; border-radius: 8px; font-size: 12px; font-weight: 700; color: #626873; }
+.viewNav a[aria-current] { color: #20232a; background: #fff; box-shadow: 0 1px 4px #242c3a0d; }
+.viewNav a:hover { color: #191b20; }
+.previewNotice { display: flex; align-items: center; gap: 8px; margin: 0 0 22px; color: #69707a; font-size: 11px; line-height: 1.7; }
+.previewNotice strong { color: #424854; font-weight: 700; }
+.demoDot { display: block; flex: 0 0 6px; width: 6px; height: 6px; border-radius: 50%; background: #a33700; }
+.adminLayout { display: block; }
+.panel { min-width: 0; background: #fff; border: 1px solid #e0e3e8; border-radius: 22px; padding: 30px; }
+.eyebrow { margin-bottom: 12px; font-size: 11px; color: #727782; font-weight: 700; }
+.sectionTitle { display: flex; flex-wrap: wrap; align-items: start; justify-content: space-between; gap: 16px; }
+.sectionTitle h1, .panelTitle { font-size: 25px; font-weight: 750; line-height: 1.3; letter-spacing: -.04em; }
+.sectionTitle p, .description { margin-top: 9px; color: #727782; font-size: 12px; line-height: 1.8; }
+.count { flex-shrink: 0; border: 1px solid #e7e9ed; background: #f8f9fb; border-radius: 20px; padding: 5px 10px; color: #606775; font-size: 11px; }
+.notice:empty { display: none; }
+.notice { margin-top: 18px; border-radius: 10px; background: #edf6ee; padding: 12px 14px; color: #28633a; font-size: 12px; line-height: 1.7; }
+.reviewList { margin-top: 10px; }
+.reviewRow { display: flex; flex-wrap: wrap; align-items: start; justify-content: space-between; gap: 20px; padding-block: 24px; border-bottom: 1px solid #eceef1; }
+.reviewRow:last-child { padding-bottom: 0; border-bottom: none; }
+.reviewDetails { min-width: 0; flex: 1 1 220px; overflow-wrap: anywhere; }
+.rowTitle { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.rowTitle h2 { font-size: 17px; font-weight: 750; }
+.reviewDetails > p { margin-top: 6px; font-size: 12px; color: #646b75; line-height: 1.7; }
+.reviewDetails > .secondaryText { font-size: 11px; color: #727782; }
+.reviewLinkedin { display: inline-flex; align-items: center; gap: 4px; margin-top: 6px; color: #40576d; font-size: 11px; text-decoration: underline; text-underline-offset: 3px; }
+.reviewDetails > .fileName { display: inline-block; font-size: 10px; border-radius: 5px; background: #f3f4f6; padding: 3px 7px; margin-top: 10px; }
+.pendingBadge { color: #6a5a30; background: #fbf6e9; padding: 4px 7px; border-radius: 6px; font-size: 9px; font-weight: 650; }
+.interestTags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.interestTags > span { background: #f3f4f6; color: #555d69; padding: 4px 8px; border-radius: 6px; font-size: 10px; }
+.reviewDetails > .revisionNote { margin-top: 12px; max-width: 350px; color: #737a84; font-size: 10px; }
+.darkButton { display: inline-flex; align-items: center; justify-content: center; gap: 6px; flex-shrink: 0; padding: 10px 12px; border: 1px solid #23262c; border-radius: 8px; background: #23262c; color: #fff; font-size: 11px; font-weight: 700; }
+.darkButton:hover { background: #3c414b; }
+.addCompanyForm { margin-top: 24px; }
+.addCompanyForm label { display: block; font-size: 11px; font-weight: 700; margin-bottom: 8px; }
+.addCompanyForm > div { display: flex; gap: 8px; }
+.addCompanyForm input { min-width: 0; width: 100%; padding: 10px; border: 1px solid #dfe2e7; border-radius: 8px; background: #fff; color: #23262c; font-size: 12px; }
+.error { color: #a32822; margin-top: 8px; font-size: 11px; }
+.companyList { margin-top: 24px; }
+.companyList li { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 16px; border-bottom: 1px solid #eceef1; }
+.companyList li:last-child { border-bottom: none; }
+.companyList strong { display: block; font-size: 12px; overflow-wrap: anywhere; }
+.companyList li div > span { display: block; margin-top: 4px; font-size: 10px; color: #727782; }
+.availability { display: flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; }
+.availability input { accent-color: #272a30; width: 17px; height: 17px; }
+.smallNote { margin-top: 12px; font-size: 10px; line-height: 1.8; color: #727782; }
+.empty { display: grid; justify-items: center; padding: 56px 16px; text-align: center; color: #727782; }
+.empty h2 { margin-top: 16px; color: #303640; font-size: 17px; font-weight: 700; }
+.empty p { margin-block: 9px 18px; font-size: 12px; line-height: 1.8; }
+.empty a { display: inline-flex; align-items: center; gap: 5px; color: #454c57; font-size: 12px; text-decoration: underline; text-underline-offset: 4px; }
+.footer { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 24px 4px 0; color: #777e88; font-size: 10px; line-height: 1.8; }
+.page a:focus-visible, .page button:focus-visible, .page input:focus-visible, .page select:focus-visible { outline: 3px solid #a33700; outline-offset: 3px; }
+
+@media (max-width: 1000px) {
+  .adminLayout { grid-template-columns: 1fr; }
+  .reviewRow { flex-wrap: nowrap; }
+}
+
+@media (max-width: 640px) {
+  .page { padding: 20px 14px; }
+  .previewHeader { align-items: start; padding-bottom: 22px; }
+  .brand { gap: 12px; }
+  .brand img { width: 78px; }
+  .brand > span { padding-left: 12px; font-size: 11px; }
+  .brand small { font-size: 9px; }
+  .resetButton { padding: 8px; font-size: 10px; }
+  .resetButton svg { width: 12px; }
+  .workspaceBar { gap: 12px; }
+  .viewNav { width: 100%; justify-content: stretch; gap: 2px; }
+  .viewNav a { flex: 1; justify-content: center; padding: 10px 5px; gap: 5px; font-size: 10px; }
+  .viewNav svg { width: 13px; }
+  .panel { padding: 22px 18px; border-radius: 18px; }
+  .reviewRow { flex-wrap: wrap; }
+  .reviewRow > button { width: 100%; }
+  .sectionTitle h1, .panelTitle { font-size: 23px; }
+  .footer { justify-content: center; text-align: center; }
+}

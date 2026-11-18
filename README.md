@@ -31,6 +31,17 @@ listings, logos, tiers, ordering, and draft/publish/archive controls into the
 existing Admin Dashboard. Package prices/benefits and the packet remain unchanged
 and are planned separately. Recruiter access and sponsor inquiries are unchanged.
 
+### Isolated recruiting review
+
+The connected recruiting branch has a separate local Supabase rehearsal:
+[`Recruiting integration`](./docs/plans/recruiting-integration.md). Use
+`local:recruiting:setup`, `local:recruiting:functions`, `local:recruiting:smoke`,
+and `local:recruiting:dev` to test actual protected uploads, review, private PDFs,
+company interests, and recruiter assignments with fictional records on port 5175.
+The backend was deployed and disposable-live-tested on November 18; the frontend
+remains on the branch, with a real-data review at <http://127.0.0.1:4173/admin>.
+See the [rollout/rollback record](./docs/plans/recruiting-backend-rollout.md).
+
 ### Isolated sponsor review
 
 Use a working checkout and a running Docker-compatible engine (Docker Desktop

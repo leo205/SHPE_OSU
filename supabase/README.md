@@ -8,6 +8,28 @@ uploaded PDFs must be enforced by Supabase or another trusted server. The anon
 key is present in the public JavaScript bundle, so a React check controls what is
 rendered, never what an attacker can call directly.
 
+## Recruiting interests — backend deployed November 18, frontend branch-only
+
+November 18, 2026: the owner authorized and applied
+[`recruiting-interests.sql`](recruiting-interests.sql) and deployed the compatible
+**submit-resume version 6**. Disposable hosted Auth/RLS/Storage/queue/approval and
+guarded-cleanup checks passed. All test accounts, companies, rows and PDF objects
+were removed; required completed cleanup/reservation history remains. Original
+10 approved rows, 10 private PDFs, four Auth users, existing reservation/quota
+fingerprints and existing policies/functions/bucket settings were unchanged.
+Main and the deployed frontend are unchanged; the branch can be reviewed locally
+against real data on port 4173. See [the rollout and rollback record](../docs/plans/recruiting-backend-rollout.md).
+
+See [the integration record](../docs/plans/recruiting-integration.md) for exact
+semantics, local rehearsal commands, limits, and the required authorized rollout.
+Backend SQL and upload-handler deployment preceded the frontend. Add actual
+companies/assignments in the authorized admin UI before recruiter onboarding;
+no demo entries were retained. A fresh successful production Turnstile upload and
+browser/mobile visual acceptance remain unverified. Do not replay historical
+migrations/local bootstraps or mistake direct API lifecycle proof for that check.
+Membership availability is distinct from the existing sponsor-role resume/PDF
+entitlement. Preserve private preferences and old-client revision inheritance.
+
 ## Admin-managed sponsors — release 1
 
 Implemented on `feature/admin-managed-sponsors` from `4778478`, 2026-09-23.

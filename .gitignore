@@ -15,6 +15,9 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+dist-recruiting-preview
+.recruiting-local/
+.recruiting-live/
 supabase/.temp/
 .sponsor-local/
 /.leaderboard-local/

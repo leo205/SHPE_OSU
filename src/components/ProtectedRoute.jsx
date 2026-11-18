@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { isAdmin, isSignedIn } from '../lib/auth';
@@ -19,15 +19,18 @@ export default function ProtectedRoute({ children, requireAdmin = false }) {
   const [session, setSession] = useState(undefined); // undefined = still checking
 
   useEffect(() => {
+    let active = true;
+    let authEvents = 0;
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-    });
+      if (active && authEvents === 0) setSession(session);
+    }).catch(() => { if (active && authEvents === 0) setSession(null); });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      authEvents++;
       setSession(session);
     });
 
-    return () => subscription.unsubscribe();
+    return () => { active = false; subscription.unsubscribe(); };
   }, []);
 
   // Still checking session
@@ -56,5 +59,7 @@ export default function ProtectedRoute({ children, requireAdmin = false }) {
     return <Navigate to="/admin/login" replace />;
   }
 
-  return children;
+  // A different signed-in account must never inherit private rows or company
+  // interest flags already loaded by the previous account in this tab.
+  return <Fragment key={`${session.user.id}:${session.user.app_metadata?.role || ''}`}>{children}</Fragment>;
 }

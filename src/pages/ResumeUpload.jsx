@@ -1,383 +1,213 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { ArrowRight, Check, FileText, Search, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { formatMajor } from '../lib/majors';
+import { normalizeLinkedInUrl } from '../lib/linkedin';
 import {
-  MAX_RESUME_BYTES,
-  MIN_RESUME_BYTES,
-  buildGraduationYears,
-  createResumeDraftKey,
-  formatFileSize,
-  isOSUEmail,
-  isValidPDF,
-  resumeErrorMessage,
-  submitResume,
+  MAX_RESUME_BYTES, MIN_RESUME_BYTES, buildGraduationYears, createResumeDraftKey,
+  formatFileSize, isOSUEmail, isValidPDF, resumeErrorMessage, submitResume,
 } from '../lib/resume';
 import { TURNSTILE_SITE_KEY } from '../lib/turnstile';
 import TurnstileWidget from '../components/TurnstileWidget';
+import styles from './ResumeUpload.module.css';
 
-// ── Constants ───────────────────────────────────────────────────────────────
-/**
- * Graduation years, derived from the current date rather than hardcoded.
- *
- * The previous list was a literal 2024–2029 plus a stray "2029+" that duplicated
- * 2029, and by 2026 it was offering years that had already passed. Deriving the
- * range means it stays correct without anyone remembering to edit it at
- * rollover — one less thing on the semester checklist to forget.
- *
- * Spans the current year through +5, which covers a first-year starting now.
- */
 const GRADUATION_YEARS = buildGraduationYears();
-
 const MAJORS = [
-  'Aerospace Engineering',
-  'Biomedical Engineering',
-  'Chemical Engineering',
-  'Civil Engineering',
-  'Computer Science & Engineering',
-  'Computer & Information Science',
-  'Data Analytics',
-  'Electrical and Computer Engineering',
-  'Engineering Physics',
-  'Environmental Engineering',
-  'Food, Agricultural, & Biological Engineering',
-  'Industrial & Systems Eng.',
-  'Materials Science Engineering',
-  'Mechanical Engineering',
-  'Welding Engineering',
-  'Other',
+  'Aerospace Engineering', 'Biomedical Engineering', 'Chemical Engineering',
+  'Civil Engineering', 'Computer Science & Engineering', 'Computer & Information Science',
+  'Data Analytics', 'Electrical and Computer Engineering', 'Engineering Physics',
+  'Environmental Engineering', 'Food, Agricultural, & Biological Engineering',
+  'Industrial & Systems Eng.', 'Materials Science Engineering', 'Mechanical Engineering',
+  'Welding Engineering', 'Other',
 ];
+const EMPTY_FORM = { full_name: '', email: '', major: '', graduation_year: '', linkedin_url: '' };
+const COMPANY_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// ── Component ────────────────────────────────────────────────────────────────
 export default function ResumeUpload() {
-  const [formData, setFormData] = useState({
-    full_name: '',
-    email: '',
-    major: '',
-    graduation_year: '',
-  });
+  const [formData, setFormData] = useState({ ...EMPTY_FORM });
   const [customMajor, setCustomMajor] = useState('');
   const [file, setFile] = useState(null);
-  const [status, setStatus] = useState('idle'); // idle | uploading | success | error
+  const [status, setStatus] = useState('idle');
   const [errorMsg, setErrorMsg] = useState('');
   const [submissionKey, setSubmissionKey] = useState(null);
   const [turnstileToken, setTurnstileToken] = useState('');
   const [turnstileResetKey, setTurnstileResetKey] = useState(0);
+  const [catalog, setCatalog] = useState({ status: 'loading', companies: [] });
+  const [catalogReload, setCatalogReload] = useState(0);
+  const [companyIds, setCompanyIds] = useState([]);
+  const [companySearch, setCompanySearch] = useState('');
+  const companyNames = useRef(new Map());
   const submittingRef = useRef(false);
+  const availableIds = new Set(catalog.companies.map((company) => company.id));
+  const visibleCompanies = catalog.companies.filter((company) => company.name.toLocaleLowerCase().includes(companySearch.trim().toLocaleLowerCase()));
 
-  // ── Core upload logic ──────────────────────────────────────────────────────
-  const doUpload = async (draftKey) => {
-    setStatus('uploading');
+  useEffect(() => {
+    const controller = new AbortController();
+    let cancelled = false;
+    setCatalog((current) => ({ ...current, status: 'loading' }));
+    async function loadCompanies() {
+      try {
+        const { data, error, count } = await supabase.from('recruiting_companies')
+          .select('id,name,active', { count: 'exact' }).eq('active', true)
+          .order('name').range(0, 999).abortSignal(controller.signal);
+        if (cancelled) return;
+        if (error || !Array.isArray(data) || count !== data.length || data.some((company) =>
+          !company || !COMPANY_ID.test(company.id) || typeof company.name !== 'string'
+          || !company.name.trim() || company.name.length > 150 || company.active !== true
+        ) || new Set(data.map((company) => company.id)).size !== data.length) {
+          throw new Error('Company catalog unavailable');
+        }
+        for (const company of data) companyNames.current.set(company.id, company.name);
+        setCatalog({ status: 'ready', companies: data });
+      } catch {
+        if (!cancelled) setCatalog((current) => ({ ...current, status: 'error' }));
+      }
+    }
+    void loadCompanies();
+    return () => { cancelled = true; controller.abort(); };
+  }, [catalogReload]);
+
+  const markDraftChanged = () => {
+    setSubmissionKey(null);
+    if (status === 'error') setStatus('idle');
     setErrorMsg('');
+  };
+  const changeField = (event) => {
+    markDraftChanged();
+    const { name, value } = event.target;
+    setFormData((current) => ({ ...current, [name]: value }));
+  };
+  const toggleCompany = (id) => {
+    markDraftChanged();
+    setCompanyIds((current) => current.includes(id) ? current.filter((value) => value !== id) : [...current, id]);
+  };
+  const retryChallenge = () => {
+    setTurnstileToken('');
+    setTurnstileResetKey((key) => key + 1);
+  };
 
+  const handleUpload = async (event) => {
+    event.preventDefault();
+    if (submittingRef.current) return;
+    setErrorMsg('');
+    if (!formData.full_name.trim() || !formData.major || !formData.graduation_year) { setErrorMsg('Complete your name, major, and graduation year.'); return; }
+    if (!isOSUEmail(formData.email)) { setErrorMsg('Use an osu.edu, buckeyemail.osu.edu, or alumni.osu.edu email address.'); return; }
+    if (formData.major === 'Other' && !customMajor.trim()) { setErrorMsg('Please describe your major.'); return; }
+    if (formData.major === 'Other' && customMajor.trim().length > 150) { setErrorMsg('Major description is too long.'); return; }
+    const linkedinUrl = normalizeLinkedInUrl(formData.linkedin_url);
+    if (linkedinUrl === null) { setErrorMsg('Enter a LinkedIn profile URL such as https://www.linkedin.com/in/your-name/, or leave it blank.'); return; }
+    if (catalog.status !== 'ready') { setErrorMsg('The company list is not available. Retry loading it before submitting.'); return; }
+    if (companyIds.length > 100) { setErrorMsg('Select no more than 100 companies.'); return; }
+    if (companyIds.some((id) => !availableIds.has(id))) { setErrorMsg('A selected company is no longer available. Remove it and review your selections.'); return; }
+    if (!file) { setErrorMsg('Please select a PDF file.'); return; }
+    if (file.size < MIN_RESUME_BYTES) { setErrorMsg('That file looks empty or incomplete. Please upload your full resume PDF.'); return; }
+    if (file.size > MAX_RESUME_BYTES) {
+      setErrorMsg(`Your file is ${formatFileSize(file.size)}, and resumes must be under ${formatFileSize(MAX_RESUME_BYTES)}. Try re-exporting as a text-based PDF or compressing the file.`);
+      return;
+    }
+    if (!turnstileToken) { setErrorMsg('Please complete the security check before submitting.'); return; }
+
+    // Lock before the first await, so one challenge cannot be sent twice by
+    // rapid clicks. Exact retries retain their key; any draft edit clears it.
+    submittingRef.current = true;
+    setStatus('uploading');
     try {
+      let pdfValid;
+      try {
+        pdfValid = await isValidPDF(file);
+      } catch {
+        setErrorMsg('The selected file could not be read. Please choose the PDF again.');
+        setStatus('error');
+        return;
+      }
+      if (!pdfValid) {
+        setErrorMsg('The selected file does not appear to be a valid PDF. Only PDF files are accepted.');
+        setStatus('error');
+        return;
+      }
+      const draftKey = submissionKey ?? createResumeDraftKey();
+      if (!submissionKey) setSubmissionKey(draftKey);
       const result = await submitResume(supabase, {
         fields: {
           full_name: formData.full_name.trim(),
           email: formData.email.trim().toLowerCase(),
           major: formatMajor(formData.major, customMajor),
           graduation_year: formData.graduation_year,
+          linkedin_url: linkedinUrl,
+          company_ids: [...new Set(companyIds)].sort(),
         },
-        file,
-        submissionId: draftKey.id,
-        submissionStartedAt: draftKey.startedAt,
-        turnstileToken,
+        file, submissionId: draftKey.id, submissionStartedAt: draftKey.startedAt, turnstileToken,
       });
-
       if (!result.ok) {
         if (result.reason === 'idempotency_conflict') setSubmissionKey(null);
-        setTurnstileToken('');
-        setTurnstileResetKey((key) => key + 1);
+        if (result.reason === 'company_choices_changed') setCatalogReload((value) => value + 1);
+        retryChallenge();
         setErrorMsg(resumeErrorMessage(result.reason));
         setStatus('error');
         return;
       }
-
       setStatus('success');
-    } catch (err) {
-      console.error('[ResumeUpload] Upload error:', err);
-      setTurnstileToken('');
-      setTurnstileResetKey((key) => key + 1);
-      setErrorMsg(resumeErrorMessage('service_unavailable'));
-      setStatus('error');
-    }
-  };
-
-  const markDraftChanged = () => {
-    if (submissionKey) setSubmissionKey(null);
-    if (status === 'error') setStatus('idle');
-    setErrorMsg('');
-  };
-
-  // ── Form submit handler ────────────────────────────────────────────────────
-  const handleUpload = async (e) => {
-    e.preventDefault();
-    if (submittingRef.current) return;
-
-    if (!file) { setErrorMsg('Please select a PDF file.'); return; }
-    if (file.size < MIN_RESUME_BYTES) { setErrorMsg('That file looks empty or incomplete. Please upload your full resume PDF.'); return; }
-    if (file.size > MAX_RESUME_BYTES) {
-      // Say the actual size and a concrete next step — a student with a
-      // 300 KB Canva export otherwise has no idea what to do about it.
-      setErrorMsg(
-        `Your file is ${formatFileSize(file.size)}, and resumes must be under ${formatFileSize(MAX_RESUME_BYTES)}. ` +
-        'Large files are usually caused by embedded images or a photo — try re-exporting as a text-based PDF, ' +
-        'or run it through a free PDF compressor. Still stuck? Send it to an E-Board member and we\'ll upload it for you.'
-      );
-      return;
-    }
-    if (!isOSUEmail(formData.email)) { setErrorMsg('Please use your OSU email address (e.g. name.1@osu.edu).'); return; }
-    if (formData.major === 'Other' && !customMajor.trim()) { setErrorMsg('Please describe your major.'); return; }
-    if (formData.major === 'Other' && customMajor.trim().length > 150) { setErrorMsg('Major description is too long.'); return; }
-
-    if (!turnstileToken) {
-      setErrorMsg('Please complete the security check before submitting.');
-      return;
-    }
-
-    // Set this before the first await. A rapid double click would otherwise
-    // send the same single-use challenge twice and could show a false failure
-    // even though the first request was accepted.
-    submittingRef.current = true;
-    setStatus('uploading');
-    try {
-      const pdfValid = await isValidPDF(file);
-      if (!pdfValid) {
-        setErrorMsg('The selected file does not appear to be a valid PDF. Only PDF files are accepted.');
-        setStatus('error');
-        return;
-      }
-
-      // The timestamp/UUID pair is created only when the first real request is
-      // ready. Exact retries retain it; editing any draft field clears it.
-      const draftKey = submissionKey ?? createResumeDraftKey();
-      if (!submissionKey) setSubmissionKey(draftKey);
-
-      // No client-side duplicate lookup any more. It could only see approved
-      // rows, so a pending resume produced a duplicate instead of a replacement.
-      // The protected Edge endpoint queues the submission server-side.
-      await doUpload(draftKey);
     } catch {
-      setErrorMsg('The selected file could not be read. Please choose the PDF again.');
+      // Do not log names, email, file details, or backend response payloads.
+      retryChallenge();
+      setErrorMsg(resumeErrorMessage('service_unavailable'));
       setStatus('error');
     } finally {
       submittingRef.current = false;
     }
   };
 
-  // ── Success screen ─────────────────────────────────────────────────────────
-  if (status === 'success') {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-surface px-4">
-        <div className="bg-surface-container-lowest p-8 rounded-2xl shadow-xl max-w-md w-full text-center border border-outline-variant/20">
-          <div className="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto mb-6">
-            <span className="material-symbols-outlined text-4xl">check_circle</span>
+  const startAnother = () => {
+    setStatus('idle'); setFile(null); setSubmissionKey(null); retryChallenge();
+    setCustomMajor(''); setFormData({ ...EMPTY_FORM }); setCompanyIds([]); setCompanySearch(''); setErrorMsg('');
+    setCatalogReload((value) => value + 1);
+  };
+
+  return <main className={styles.page}>
+    <header className={styles.pageHeader}><a href="/" aria-label="SHPE at Ohio State home"><img src="/photos/shpeLogo.png" alt="SHPE at Ohio State" width="500" height="155" /></a><span>SHPE at Ohio State<small>Student resources</small></span></header>
+    {status === 'success' ? <section className={`${styles.panel} ${styles.success}`} aria-labelledby="resume-success-title">
+      <span className={styles.successIcon}><Check size={28} aria-hidden="true" /></span>
+      <p className={styles.eyebrow}>Resume submitted</p><h1 id="resume-success-title">Ready for a second look.</h1>
+      <p role="status">Your submission is in the review queue. Once approved by the E-Board, it will appear in the recruiter directory.</p>
+      <div className={styles.successDetails}><strong>{formData.full_name}</strong><span>{companyIds.length ? `Interested in ${companyIds.map((id) => companyNames.current.get(id)).join(', ')}` : 'No company preferences provided'}</span></div>
+      <p className={styles.finePrint}>Your currently approved resume stays available until this new version is approved.</p>
+      <button type="button" className={styles.primaryButton} onClick={startAnother}>Submit another resume <ArrowRight size={17} aria-hidden="true" /></button>
+    </section> : <section className={styles.panel} aria-labelledby="resume-title">
+      <header className={styles.header}><h1 id="resume-title">Student Resume Submission</h1></header>
+      <p className={styles.intro}>Add your details, attach your resume, and choose the companies you’re interested in.</p>
+      <form onSubmit={handleUpload} aria-busy={status === 'uploading'}>
+        <fieldset className={styles.fieldset} disabled={status === 'uploading'}>
+          <legend className={styles.sectionTitle}>Your profile</legend>
+          <div className={styles.fields}>
+            <label htmlFor="full-name">Full name <span aria-hidden="true">*</span><input id="full-name" name="full_name" value={formData.full_name} onChange={changeField} autoComplete="name" maxLength={200} required /></label>
+            <label htmlFor="email">OSU email <span aria-hidden="true">*</span><input id="email" name="email" type="email" value={formData.email} onChange={changeField} placeholder="name.1@osu.edu" autoComplete="email" maxLength={254} required /></label>
+            <label htmlFor="major">Major <span aria-hidden="true">*</span><select id="major" name="major" value={formData.major} onChange={changeField} required><option value="">Choose your major</option>{MAJORS.map((major) => <option key={major}>{major}</option>)}</select></label>
+            <label htmlFor="grad-year">Graduation year <span aria-hidden="true">*</span><select id="grad-year" name="graduation_year" value={formData.graduation_year} onChange={changeField} required><option value="">Choose your year</option>{GRADUATION_YEARS.map((year) => <option key={year}>{year}</option>)}</select></label>
+            <label className={styles.fullWidth} htmlFor="linkedin-url">LinkedIn profile <span>(optional)</span><input id="linkedin-url" name="linkedin_url" type="url" inputMode="url" value={formData.linkedin_url} onChange={changeField} placeholder="https://www.linkedin.com/in/your-name/" maxLength={2048} aria-describedby="linkedin-help" /><small id="linkedin-help" className={styles.fieldHelp}>Recruiters can open this profile alongside your approved resume.</small></label>
+            {formData.major === 'Other' && <label className={styles.fullWidth} htmlFor="custom-major">Your major <span aria-hidden="true">*</span><input id="custom-major" value={customMajor} onChange={(event) => { markDraftChanged(); setCustomMajor(event.target.value); }} maxLength={150} required /></label>}
           </div>
-          <h2 className="font-headline text-3xl font-bold mb-4 text-on-surface">Upload Successful</h2>
-          <p className="text-on-surface-variant mb-8">
-            Your resume has been submitted to the E-Board for review. If a resume
-            under this email is already approved, it stays available until an
-            admin reviews and approves this submission.
-          </p>
-          <button
-            onClick={() => {
-              setStatus('idle');
-              setFile(null);
-              setSubmissionKey(null);
-              setTurnstileToken('');
-              setTurnstileResetKey((key) => key + 1);
-              setCustomMajor('');
-              setFormData({ full_name: '', email: '', major: '', graduation_year: '' });
-            }}
-            className="text-primary font-bold hover:underline"
-          >
-            Submit another resume
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-surface py-24 px-4">
-      <div className="max-w-2xl mx-auto bg-surface-container-lowest p-8 md:p-12 rounded-2xl shadow-xl border border-outline-variant/20">
-        <div className="mb-10 text-center">
-          <span className="inline-block px-4 py-1 bg-tertiary-container text-on-tertiary-container text-xs font-bold uppercase tracking-widest rounded-full mb-4">
-            Members Only
-          </span>
-          <h1 className="font-headline text-4xl font-extrabold text-primary mb-2">Resume Portal</h1>
-          <p className="text-on-surface-variant">
-            Upload your resume to be featured in the official SHPE OSU Resume Book, accessible to our corporate sponsors and recruiters.
-          </p>
-        </div>
-
-        {/* Error banner — gated on errorMsg, not status. Every validation
-            early-return sets errorMsg and returns without touching status, so
-            keying this off status meant a student picking an oversized file or a
-            non-OSU email saw absolutely nothing happen when they hit Submit. */}
-        {errorMsg && (
-          <div className="mb-6 p-4 bg-error-container text-on-error-container rounded-xl font-medium text-sm">
-            {errorMsg}
-          </div>
-        )}
-
-        <form onSubmit={handleUpload} aria-busy={status === 'uploading'}>
-          <fieldset disabled={status === 'uploading'} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label htmlFor="full-name" className="block text-sm font-bold text-on-surface mb-2">Full Name</label>
-              <input
-                id="full-name"
-                required
-                type="text"
-                maxLength={200}
-                value={formData.full_name}
-                onChange={(e) => {
-                  markDraftChanged();
-                  setFormData({ ...formData, full_name: e.target.value });
-                }}
-                className="w-full px-4 py-3 rounded-xl border border-outline-variant bg-surface-bright focus:outline-none focus:ring-2 focus:ring-primary/50"
-                placeholder="Brutus Buckeye"
-              />
-            </div>
-            <div>
-              <label htmlFor="email" className="block text-sm font-bold text-on-surface mb-2">
-                Email <span className="text-xs font-normal text-on-surface-variant">(OSU email required)</span>
-              </label>
-              <input
-                id="email"
-                required
-                type="email"
-                maxLength={254}
-                value={formData.email}
-                onChange={(e) => {
-                  markDraftChanged();
-                  setFormData({ ...formData, email: e.target.value });
-                }}
-                className="w-full px-4 py-3 rounded-xl border border-outline-variant bg-surface-bright focus:outline-none focus:ring-2 focus:ring-primary/50"
-                placeholder="buckeye.1@osu.edu"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label htmlFor="major" className="block text-sm font-bold text-on-surface mb-2">Major</label>
-              <select
-                id="major"
-                required
-                value={formData.major}
-                onChange={(e) => {
-                  markDraftChanged();
-                  setFormData({ ...formData, major: e.target.value });
-                }}
-                className="w-full px-4 py-3 rounded-xl border border-outline-variant bg-surface-bright focus:outline-none focus:ring-2 focus:ring-primary/50"
-              >
-                <option value="" disabled>Select Major</option>
-                {MAJORS.map((m) => (
-                  <option key={m} value={m}>{m}</option>
-                ))}
-              </select>
-              {formData.major === 'Other' && (
-                <div className="mt-3">
-                  <label htmlFor="custom-major" className="block text-sm font-bold text-on-surface mb-2">
-                    Please describe your major *
-                  </label>
-                  <input
-                    id="custom-major"
-                    type="text"
-                    maxLength={150}
-                    required
-                    value={customMajor}
-                    onChange={(e) => {
-                      markDraftChanged();
-                      setCustomMajor(e.target.value);
-                    }}
-                    placeholder="e.g. Environmental Engineering"
-                    className="w-full px-4 py-3 rounded-xl border border-outline-variant bg-surface focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-                  />
-                </div>
-              )}
-            </div>
-            <div>
-              <label htmlFor="grad-year" className="block text-sm font-bold text-on-surface mb-2">Graduation Year</label>
-              <select
-                id="grad-year"
-                required
-                value={formData.graduation_year}
-                onChange={(e) => {
-                  markDraftChanged();
-                  setFormData({ ...formData, graduation_year: e.target.value });
-                }}
-                className="w-full px-4 py-3 rounded-xl border border-outline-variant bg-surface-bright focus:outline-none focus:ring-2 focus:ring-primary/50"
-              >
-                <option value="" disabled>Select Year</option>
-                {GRADUATION_YEARS.map((y) => (
-                  <option key={y} value={y}>{y}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <label htmlFor="resume-file" className="block text-sm font-bold text-on-surface mb-2">
-              Upload Resume (PDF only, up to 250 KB)
-            </label>
-            <div className="border-2 border-dashed border-outline-variant rounded-xl p-8 text-center bg-surface-bright hover:bg-surface-container transition-colors cursor-pointer relative">
-              <input
-                id="resume-file"
-                required
-                type="file"
-                accept=".pdf,application/pdf"
-                onChange={(e) => {
-                  setErrorMsg('');
-                  if (status === 'error') setStatus('idle');
-                  const selectedFile = e.target.files[0] || null;
-                  setFile(selectedFile);
-                  setSubmissionKey(null);
-                }}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-              />
-              <span className="material-symbols-outlined text-4xl text-on-surface-variant mb-2">
-                upload_file
-              </span>
-              {file ? (
-                <div>
-                  <p className="font-bold text-primary">{file.name}</p>
-                  <p className={`text-xs mt-1 ${file.size > MAX_RESUME_BYTES ? 'text-error font-bold' : 'text-on-surface-variant'}`}>
-                    {formatFileSize(file.size)}
-                    {file.size > MAX_RESUME_BYTES && ` — over the ${formatFileSize(MAX_RESUME_BYTES)} limit`}
-                  </p>
-                </div>
-              ) : (
-                <p className="text-on-surface-variant text-sm font-medium">
-                  Click or drag and drop to upload your PDF
-                </p>
-              )}
-            </div>
-          </div>
-
-          <TurnstileWidget
-            siteKey={TURNSTILE_SITE_KEY}
-            action="resume_submit"
-            onToken={setTurnstileToken}
-            resetKey={turnstileResetKey}
-          />
-
-          <button
-            type="submit"
-            disabled={status === 'uploading' || !turnstileToken}
-            className="w-full bg-primary text-on-primary py-4 rounded-xl font-bold text-lg hover:bg-primary-fixed-dim transition-all shadow-md flex items-center justify-center gap-2 disabled:opacity-70"
-          >
-            {status === 'uploading' ? (
-              <><span className="material-symbols-outlined animate-spin">progress_activity</span>
-              Uploading...</>
-            ) : (
-              'Submit Resume'
-            )}
-          </button>
-          </fieldset>
-        </form>
-      </div>
-    </div>
-  );
+        </fieldset>
+        <fieldset className={styles.fieldset} disabled={status === 'uploading'}>
+          <legend className={styles.sectionTitle}>Your resume</legend>
+          <div className={styles.fileBox}><label className={styles.fileLabel} htmlFor="resume-file">Attach resume<input id="resume-file" type="file" accept=".pdf,application/pdf" required onChange={(event) => { markDraftChanged(); setFile(event.target.files?.[0] || null); }} aria-describedby="resume-file-help" /></label><p>PDF only · 10–250 KB · Up to 10 pages</p></div>
+          <p id="resume-file-help" className={styles.fieldHelp}>Use a standard PDF without passwords, forms, or attachments.</p>
+          {file && <p className={styles.fileStatus}><FileText size={16} aria-hidden="true" />{file.name} · {formatFileSize(file.size)}</p>}
+        </fieldset>
+        <fieldset className={styles.fieldset} disabled={status === 'uploading'} aria-describedby="company-help">
+          <legend className={styles.sectionTitle}>Which companies are you interested in?</legend>
+          <p className={styles.sectionDescription}>Select all that apply. This part is optional.</p>
+          <p id="company-help" className={styles.interestNote}>Your choices highlight your interest. Authorized recruiters can still view your approved resume. Leaving this blank means no preferences provided.</p>
+          {catalog.status === 'loading' ? <p role="status" className={styles.empty}>Loading companies…</p> : catalog.status === 'error' ? <div role="alert" className={styles.empty}>The company list could not be loaded. Your form is still here. <button type="button" className={styles.textButton} onClick={() => setCatalogReload((value) => value + 1)}>Retry loading companies</button></div> : <>
+            {catalog.companies.length > 5 && <label className={styles.search} htmlFor="company-search"><Search size={18} aria-hidden="true" /><span className={styles.srOnly}>Search companies</span><input id="company-search" type="search" value={companySearch} onChange={(event) => setCompanySearch(event.target.value)} placeholder="Search companies" /></label>}
+            {!catalog.companies.length ? <p className={styles.empty}>No companies are listed yet. You can still submit without preferences.</p> : !visibleCompanies.length ? <p className={styles.empty}>No companies match your search. <button type="button" className={styles.textButton} onClick={() => setCompanySearch('')}>Clear search</button></p> : <div className={styles.companyList}>{visibleCompanies.map((company) => <label className={styles.companyOption} key={company.id}><input type="checkbox" checked={companyIds.includes(company.id)} onChange={() => toggleCompany(company.id)} /><span className={styles.checkCircle} aria-hidden="true">{companyIds.includes(company.id) && <Check size={16} strokeWidth={2.5} />}</span><span>{company.name}</span></label>)}</div>}
+          </>}
+          <div className={styles.selectionSummary}><p className={styles.selectionTitle}>Your selections <span>{companyIds.length}</span></p><div aria-live="polite">{companyIds.length ? <div className={styles.chips}>{companyIds.map((id) => <button key={id} type="button" className={styles.chip} onClick={() => toggleCompany(id)} aria-label={`Remove ${companyNames.current.get(id) || 'unavailable company'} from your selections`}>{companyNames.current.get(id) || 'Previously selected company'}{catalog.status === 'ready' && !availableIds.has(id) && ' (unavailable)'}<X size={14} aria-hidden="true" /></button>)}</div> : <p className={styles.noSelection}>No preferences selected. You will still appear in the approved resume book.</p>}</div></div>
+        </fieldset>
+        <fieldset className={styles.verification} disabled={status === 'uploading'}><legend className={styles.srOnly}>Submission verification</legend><TurnstileWidget siteKey={TURNSTILE_SITE_KEY} action="resume_submit" onToken={setTurnstileToken} resetKey={turnstileResetKey} /></fieldset>
+        {errorMsg && <p role="alert" className={styles.error}>{errorMsg}</p>}
+        <div className={styles.submitRow}><p>Your resume becomes visible to recruiters after E-Board approval.</p><button type="submit" disabled={status === 'uploading' || !turnstileToken || catalog.status !== 'ready'} className={styles.primaryButton}>{status === 'uploading' ? 'Submitting…' : 'Submit for review'}<ArrowRight size={17} aria-hidden="true" /></button></div>
+      </form>
+    </section>}
+    <footer className={styles.pageFooter}>SHPE OSU · Supporting the next generation of Hispanic STEM talent.</footer>
+  </main>;
 }

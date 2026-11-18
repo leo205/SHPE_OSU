@@ -22,6 +22,12 @@ export async function resumeFingerprint(submission: ResumeSubmission): Promise<s
     submission_id: submission.submission_id,
     submission_started_at: submission.submission_started_at,
     file_sha256: fileHash,
+    // Preserve the byte-for-byte legacy canonical representation when fields
+    // are omitted. Explicit empty choices must still change draft identity.
+    ...(submission.linkedin_url !== undefined ? { linkedin_url: submission.linkedin_url } : {}),
+    ...(submission.company_ids !== undefined
+      ? { company_ids: [...new Set(submission.company_ids.map((id) => id.toLowerCase()))].sort() }
+      : {}),
   });
   return sha256Hex(new TextEncoder().encode(canonical));
 }
