@@ -17,11 +17,23 @@ That last one shapes the architecture more than anything else. The E-Board turns
 
 Built with React 18, Vite, Tailwind CSS and Supabase: fast, responsive, and serverless, so it costs the chapter nothing to run.
 
-Current operational note: no sponsor accounts have been created yet, and the
-E-Board is responsible for adding the next upcoming events through the Admin
-Dashboard.
+Operational note: recruiter accounts and their company assignments require
+separate setup; use the onboarding guide in [HANDOFF.md](./HANDOFF.md#onboarding-a-corporate-sponsor).
+The E-Board adds upcoming events through the Admin Dashboard. Account and event
+inventories are live data, not facts established by this documentation update.
 
 > **Working on this?** Start with [`AGENTS.md`](./AGENTS.md) — provider-neutral project instructions, safety rules, branch policy, verification commands, and links to the handoff/security records.
+
+### Latest releases — November 18, 2026
+
+The connected resume book/recruiting flow and the Fall red-polo E-Board page are
+deployed on `main`. Start with the [recruiting release](./docs/plans/recruiting-frontend-release.md)
+and [E-Board release](./docs/plans/eboard-red-polo-release.md) for deployed
+commits, verification, and focused rollback instructions. The latest recorded
+deployment is documentation commit `e147cbe`; the runtime entry remains
+`/assets/index-DjxDcHB0.js`. This docs-only review is not a new deployment or
+backend inventory. Real desktop/mobile browser acceptance and a successful
+fresh production Turnstile upload remain unverified.
 
 September 24 rollout: [`Admin-managed sponsors`](./docs/plans/sponsor-admin.md)
 release 1 is **live, with backend and frontend verification complete**. The owner
@@ -33,13 +45,14 @@ and are planned separately. Recruiter access and sponsor inquiries are unchanged
 
 ### Isolated recruiting review
 
-The connected recruiting branch has a separate local Supabase rehearsal:
+The deployed recruiting implementation also has a separate local Supabase rehearsal:
 [`Recruiting integration`](./docs/plans/recruiting-integration.md). Use
 `local:recruiting:setup`, `local:recruiting:functions`, `local:recruiting:smoke`,
 and `local:recruiting:dev` to test actual protected uploads, review, private PDFs,
 company interests, and recruiter assignments with fictional records on port 5175.
-The backend and recruiting frontend are live as of November 18; a local real-data
-review is also available at <http://127.0.0.1:4173/admin>. See the
+The backend and recruiting frontend are live as of November 18. Port 4173 was
+used for a local production-configured review; start a preview explicitly before
+using it, and remember hosted upload/cleanup CORS does not allow localhost. See the
 [frontend release](./docs/plans/recruiting-frontend-release.md) and
 [backend rollout/rollback](./docs/plans/recruiting-backend-rollout.md) records.
 Successful real browser/Turnstile upload and mobile acceptance remain separate
@@ -103,7 +116,9 @@ apply its backend prerequisites; local fixtures never establish production state
 The owner applied the October 12 database update and confirmed it works. It excludes confirmed
 E-Board member keys in Supabase before selecting the public top ten, without
 deleting attendance or changing admin reports. The 19-member roster stays in
-Git-ignored local files; it is never shipped in the browser or committed.
+Git-ignored local files; its private email/dot-number identifiers are never
+shipped in the browser or committed. This is separate from the intentionally
+public names and biographies in `src/data/eboard.js`.
 No frontend change is needed. See the
 [private-roster workflow and rollout evidence](./supabase/README.md#e-board-leaderboard-exclusions--applied-owner-verified).
 The owner's post-update SQL results show 19 exclusions, 10 leaderboard rows,
@@ -148,6 +163,7 @@ claims protect the operations behind them.
 
 #### 2. Student Resume Upload (`/resume-upload`)
 *   **Secure Student Uploads**: Members can upload a PDF copy of their resume to be compiled into the official resume book.
+*   **Recruiting Preferences**: Students can provide an optional LinkedIn profile and select multiple active recruiting companies. Preferences belong to the pending resume revision; recruiters can browse all approved students as well as students interested in their company. A LinkedIn URL does not import a profile photo.
 *   **PDF Screening**: Client checks provide quick size/type feedback. The September 14 follow-up adds bounded structural and active-content screening in Edge after verified Turnstile and quotas, before upload. It accepts static PDFs up to ten pages; scripts, attachments, encrypted files, and unsupported features are rejected. This is not antivirus. See the rollout status below.
 *   **OSU Email Domain Lock**: Restricts uploads to the exact `osu.edu`, `buckeyemail.osu.edu`, and `alumni.osu.edu` domains. The Edge Function and database both enforce it; suffixes such as `osu.edu.evil.example` are rejected.
 *   **Server-Side Submission**: A Turnstile-protected Edge Function validates the multipart body, reserves an idempotent submission, generates the Storage path, uploads privately, and queues a separate pending revision. A new submission cannot de-list an already approved resume; approval and deletion use atomic admin RPCs.
@@ -156,12 +172,12 @@ claims protect the operations behind them.
 *   **Safe File Naming**: Discards the original filename and uses a server-generated `submissions/<timestamp>_<uuid>.pdf` path to prevent traversal, collision, and client-selected object replacement.
 
 #### 3. Recruiter Portal (`/company` & `/company/dashboard`)
-*   **Operational status**: The portal is implemented, but no sponsor accounts exist yet.
-*   **Real Accounts**: Recruiters sign in with an email and password. Accounts are created by the E-Board in the Supabase dashboard and granted a `sponsor` role; an account without that role can reach nothing, so a half-finished setup fails closed.
+*   **Operational status**: The connected portal is deployed. Verify account and company-assignment setup before handing access to a recruiter; historical rollout counts are not a current account inventory.
+*   **Real Accounts**: Recruiters sign in with an email and password. Create the Auth account and grant the `sponsor` role separately from assigning the existing account under **Recruiting companies**. Publishing a sponsor or adding a recruiting choice does not grant access.
 *   **Database-Enforced Access**: What a recruiter can see is decided by Postgres Row-Level Security, not by JavaScript. Sponsors see approved resumes only — never the pending queue, attendance records, or anything else.
-*   **Resume Book Browser**: Filter student resumes by name, major, and graduation year.
-*   **Temporary Signed URLs**: View/Download actions are served via Supabase Storage signed URLs that expire after 60 seconds, and are only issued for resumes that are actually approved.
-*   **Revocation**: Deleting the user, or clearing their role, removes access immediately.
+*   **Resume Book Browser**: Assigned recruiters start on **Interested in us** and can switch to **All students**, search by name/major, and filter graduation year. The server derives their company from their Auth UID; only admins can preview another company. Recruiters see no student-form/admin navigation or company selector.
+*   **Temporary Signed URLs**: **View PDF** opens an authorized private resume in a new tab using a signed URL that expires after 60 seconds. LinkedIn opens separately when provided.
+*   **Revocation**: Disabling an assignment removes company context, but the baseline sponsor role still authorizes approved rows/PDFs. Remove that role for full book revocation and account for issued JWTs and still-valid signed URLs; do not promise instant invalidation. See the onboarding guide.
 
 > **Note:** this replaced a shared 8-character access-code system. The codes were
 > stored in a table that was publicly readable, so anyone could list every code —
@@ -169,8 +185,8 @@ claims protect the operations behind them.
 > `supabase/README.md`.
 
 #### 4. Secure Admin Panel (`/admin` & `/admin/resumes`)
-*   **Admin Authentication**: Protected behind Supabase Email/Password authentication. Redirect guards secure the paths.
-*   **Responsive Admin Navigation**: Phones use a sticky compact header and four-tab navigation instead of the desktop sidebar. Dashboard cards stack, controls fill the available width, and wide data tables scroll within their own containers rather than forcing the entire page off-screen.
+*   **Admin Authentication**: Uses Supabase Email/Password authentication. Redirect guards handle navigation; server-side role checks, RLS, and RPC grants enforce access.
+*   **Responsive Admin Navigation**: Phones use a sticky compact header and four main tabs, with separate resume-tool links when Resume is active. The desktop sidebar puts **Resume book** and **Recruiting companies** below **Resume**. Wide data tables scroll inside their containers.
 *   **Interactive Attendance Analytics**:
     *   **Overview Cards**: Displays overall unique members, total check-ins, and number of events.
     *   **Most Active Members Leaderboard**: Ranks members by the number of **distinct events** attended, so a duplicate check-in at one meeting cannot inflate a ranking.
@@ -184,11 +200,11 @@ claims protect the operations behind them.
 *   **Calendar Management**: Admins can add, edit, or delete calendar events.
     Editing reuses the event form, preserves the existing image unless a
     replacement is selected, and updates the shared calendar/check-in source.
-*   **Resume Book Admin Dashboard (`/admin/resumes`)**:
-    *   **Review Pipeline**: Admins can view, approve, revoke, or delete pending resume submissions.
-    *   **Retired File Cleanup**: Replaced/deleted files are queued transactionally and removed by the deployed admin-only server endpoint. Failed work persists for the next admin visit or **Retry file cleanup** action.
-    *   **Sponsor Onboarding**: Step-by-step instructions for creating a recruiter account and granting the `sponsor` role.
-    *   **Inline Major Editing**: Admins can modify a student's major directly in the resume book table to fix spelling errors.
+*   **Resume Tools**:
+    *   **Resume (`/admin?tab=resume`)**: Defaults to **Approved & public**, with **Pending review** second. Open **View PDF** in a new tab before approving a pending revision; the old approved version stays available until replacement approval. `/admin/resumes` redirects here.
+    *   **Resume book (`/admin?tab=resume&section=book`)**: Browses all approved students, with an optional admin-only company preview. Rows include name, major, year, PDF, and optional LinkedIn.
+    *   **Recruiting companies (`/admin?tab=resume&section=companies`)**: Manages active student choices and company assignments for existing recruiter accounts. `/admin/recruiting-companies` redirects here; sponsor branding stays under Sponsors.
+    *   **Retired File Cleanup**: Replaced/deleted files are queued transactionally. Collapsed **File maintenance** details appear for pending or unavailable status and hide when complete; **Retry maintenance** runs the admin-only endpoint. A failed localhost status check does not prove that files are awaiting removal.
 
 ---
 
@@ -200,7 +216,7 @@ claims protect the operations behind them.
 | **Routing** | React Router DOM v7 | Navigation, nested layouts, and admin route guards |
 | **Styling** | Tailwind CSS | Modern styling system with custom SHPE palette |
 | **Data Viz** | Recharts | Graphs, pie charts, and trends for the Admin Dashboard |
-| **Database** | Supabase (PostgreSQL) | Stores attendance, resumes, and company access records |
+| **Database** | Supabase (PostgreSQL) | Stores attendance, resume revisions, sponsor branding, and private recruiting preferences/assignments |
 | **Storage** | Supabase Storage Buckets | Stores student resume PDF files securely |
 | **Authentication** | Supabase Auth | Handles role-gated Email/Password logins for E-Board admins and sponsors |
 | **Public-write gateway** | Supabase Edge Functions + Cloudflare Turnstile | Validates and rate-limits attendance, resume, and sponsor submissions server-side |
@@ -304,10 +320,12 @@ shpe-osu/
 │   │   ├── majors.js     # Shared "Other – major" formatting
 │   │   ├── attendance.js # Protected attendance Edge client
 │   │   ├── resume.js     # Protected resume Edge client + validation
+│   │   ├── recruiting.js # Company catalog, assignments, directory, and private PDF helpers
+│   │   ├── linkedin.js   # LinkedIn profile URL normalization
 │   │   ├── sponsorInquiry.js # Protected sponsor Edge client
 │   │   ├── navigation.js # Nav links — shared by Navbar AND Footer
 │   │   └── scroll.js     # Smooth in-page anchor scrolling (opt-in)
-│   ├── pages/            # Core page components (Home, Events, Eboard, Sponsors, Resources, etc.)
+│   ├── pages/            # Includes EboardRedPolos and ConnectedAdminDashboard; Eboard is legacy
 │   ├── App.jsx           # Client-side router declarations
 │   ├── index.css         # Tailwind utility styling
 │   └── main.jsx          # Entry point
@@ -324,7 +342,9 @@ shpe-osu/
 │   ├── resume-edge-submit.sql # applied: reservations/admin RPCs
 │   ├── resume-cleanup.sql     # applied: private transactional cleanup
 │   ├── resume-lockdown.sql    # applied: no legacy public upload path
-│   └── functions/             # Three public submission functions + admin cleanup
+│   ├── recruiting-interests.sql # applied: revision preferences, company catalog/memberships
+│   ├── sponsors-admin.sql     # applied: published branding and managed logo lifecycle
+│   └── functions/             # Three public submission functions + two admin maintenance functions
 ├── tailwind.config.js    # Customized color system (SHPE branding palette)
 ├── vercel.json           # Vercel deployment headers & Content Security Policy (CSP)
 └── package.json          # Node dependencies
@@ -356,6 +376,10 @@ shpe-osu/
         `submit_resume()` browser RPC is revoked.
     *   `company_access`, `events`: admin-only writes; `events` is publicly
         readable so the calendar works logged out.
+    *   `recruiting_companies`: active choices are public; admins manage them.
+        `resume_company_interests` and revision-presence metadata remain private.
+        Sponsors receive only their own-company interest flag through an
+        authorized directory RPC, while admins manage company assignments.
     *   Storage: resume PDFs are readable only by an admin, or by a sponsor when
         the corresponding row is approved.
 *   **Roles in `app_metadata`, never `user_metadata`**: a signed-in user can
@@ -390,7 +414,8 @@ cutover and the replacement exists only in Supabase Edge secrets. See
 **September 14 follow-up is deployed; successful form acceptance is pending.** Invalid
 Turnstile attempts no longer consume shared Wi-Fi quotas; the backend adds
 structural PDF screening; and resume replacement/deletion persists a private
-cleanup queue. The cleanup SQL and all four Edge Functions are live; rejected
+cleanup queue. The cleanup SQL and the four functions in that September
+follow-up were deployed; rejected
 verification and private-data denial probes passed without changing records,
 files, or quota counters. The matching frontend was pushed to `main` and its live
 asset hashes/security headers verified; the owner will now test real attendance.

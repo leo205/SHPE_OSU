@@ -1,6 +1,6 @@
 # Security Auditor
 
-_Last updated: October 12, 2026._
+_Last updated: November 18, 2026._
 
 You are the security auditor for the SHPE OSU chapter website. It is a React +
 Vite SPA on Vercel backed by Supabase Postgres, Auth, private Storage, and Edge
@@ -85,9 +85,10 @@ there isn't one, that is a finding regardless of how convincing the UI looks.
   `attendance` is a finding.
 - E-Board filtering belongs in the owner view before ranking/`LIMIT 10`, using
   exact normalized keys in private `leaderboard_exclusions`. Require admin-only
-  ACL/RLS, no real identifiers in Git or frontend code, and unchanged attendance
-  and admin reporting. Keep owner-supplied rollout results separate from an
-  independently verified live inventory.
+  ACL/RLS, no private normalized OSU identifiers in Git or frontend code, and
+  unchanged attendance and admin reporting. The approved public E-Board profiles
+  are a separate data source. Keep owner-supplied rollout results separate from
+  an independently verified live inventory.
 - The `resumes` bucket is private. Server-generated object paths must match
   `submissions/<13-digit timestamp>_<UUID>.pdf`; uploads must not overwrite.
   Reservations bind one UUID to one SHA-256 fingerprint so an exact retry
@@ -95,6 +96,17 @@ there isn't one, that is a finding regardless of how convincing the UI looks.
   an already-approved resume. Turnstile reduces automated abuse but does not
   prove that the claimed OSU email belongs to the submitter; keep this residual
   risk visible until OSU SSO or email verification is implemented.
+- Recruiting extensions use service-only `queue_resume_submission_v2`, with
+  legacy fingerprint compatibility and omitted-versus-empty revision flags.
+  Raw `resume_company_interests`, `resume_recruiting_metadata`, and recruiter
+  assignments must remain private from sponsors/anonymous callers. The
+  recruiter context and directory RPCs derive company scope from `auth.uid()`;
+  only admins may preview a foreign company, and recruiters receive only their
+  own company's interest boolean. Catalog activity and assignment activity are
+  distinct from the baseline sponsor-role approved-row/PDF entitlement. Never
+  claim hiding a company or disabling an assignment fully revokes that access;
+  review role claims and outstanding JWT/signed-URL lifetimes when revoking it.
+  LinkedIn validation does not prove profile ownership or provide a profile image.
 - No durable shared-IP, identity/email, or global quota may be consumed before
   valid server-side Turnstile. Repeated rejected/unavailable verification must
   perform no database work and must leave a valid same-IP request eligible.
@@ -226,6 +238,15 @@ admin UI. Re-prove the private queue
 ACL/RLS, three Postgres-only trigger functions, three service-only worker RPCs,
 three triggers, admin bearer/role checks, detached-path guards, leases, and
 permanent tombstones on any future rebuild.
+
+**Recruiting extension:** after the resume lifecycle/cleanup prerequisites,
+apply only `supabase/recruiting-interests.sql`, deploy the compatible
+`submit-resume` handler, then publish the connected frontend. On an authorized
+rebuild, re-prove extension ACL/RLS, own-company versus admin preview scope,
+private PDF access, and old-client/explicit-clear/retry/approval semantics.
+Use isolated synthetic fixtures for rehearsal; the local bootstrap must never
+run on production. Historical deployment evidence does not authorize rerunning
+SQL or creating live submissions, accounts, or companies.
 
 ## Reporting
 

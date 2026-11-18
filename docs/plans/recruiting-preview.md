@@ -1,13 +1,20 @@
 # Recruiting interests — local UI comparison
 
-Connected follow-up: see [recruiting-integration.md](recruiting-integration.md)
-for the implemented real-client flow, isolated Supabase rehearsal, and pending
-hosted rollout. This document records the separate fictional comparison mode.
+**Status — November 18, 2026:** the connected recruiting feature is deployed to
+`main`, with its backend and frontend release checks recorded in
+[the integration guide](recruiting-integration.md),
+[backend rollout](recruiting-backend-rollout.md), and
+[frontend release](recruiting-frontend-release.md). The subsequent
+[E-Board release](eboard-red-polo-release.md) preserved recruiting behavior.
+A successful fresh production browser/Turnstile upload and desktop/mobile
+browser acceptance remain unverified.
 
-Branch: `codex/resume-company-interests-preview`.
-Worktree: `/Users/leonardomedina/Documents/SHPE_web/shpe-recruiting-preview`.
-Prepared November 17, 2026. This is a local interactive prototype with fictional
-data, not a deployed company-interest feature or a new authorization boundary.
+This document records the separate fictional comparison mode and its historical
+November 17 review, originally developed on
+`codex/resume-company-interests-preview`. Its data, sample accounts, and local
+controls are not the production feature or an authorization boundary. The
+comparison remains available through its explicit preview scripts; use the
+linked release records for production operations.
 
 ## Agreed behavior
 
@@ -51,13 +58,15 @@ JPMorgan Chase account, representing a server-assigned company in production.
   operations as well as routing.
 
 The local prototype intentionally uses fictional data and does not implement
-these new connected permissions. Existing live authorization is unchanged.
+connected permissions. The separately deployed connected version enforces its
+permissions in Auth, Postgres, and Storage, as documented in the integration
+guide; a prototype screen or local storage cannot grant production access.
 
 ## Run and compare
 
 The existing dependencies are sufficient; no package versions were changed.
-This worktree currently reuses the original checkout's `node_modules` through
-an ignored local symlink. On another checkout, install from the lockfile.
+The original review checkout reused another checkout's `node_modules` through
+an ignored local symlink. On a fresh checkout, install from the lockfile.
 No `.env`, Supabase keys, recruiter login, or network service is required.
 
 ```bash
@@ -80,7 +89,7 @@ Use **Use sample details** on the student form, select companies, and submit.
 The sample enters the pending queue. Open the separate admin-review URL, approve
 it, then open the recruiter URL to see the counts and lists change. Recruiters
 have no links or controls for switching to the student/admin screens. Real
-authorization is still a separate production-integration requirement.
+authorization is enforced by the separate connected application, not this demo.
 
 There are eight approved fictional students and two pending submissions at
 startup. JPMorgan Chase initially has three explicit matches. One pending
@@ -107,17 +116,19 @@ intermediate dialog or text-resume option. This local prototype uses a clearly
 labeled generic sample PDF. It does not open the file selected in the form;
 actual bytes are still not retained. The sample PDF contains fictional
 experience unrelated to the selected submission. The
-connected admin page already has private signed PDF viewing; wiring the new
-layout to that lifecycle is future work after this UI is approved.
+connected admin page uses the real private signed-PDF lifecycle; that integration
+was subsequently implemented and released, as recorded in the linked guides.
 
-The main application entry, original upload form, recruiter portal, Supabase
-handlers/SQL, and E-Board worktree are untouched. The shared `AdminDashboard`
-accepts an optional Resume workspace/notice used only by this preview; its
-normal default still renders the existing connected table. The standalone
+During the original comparison stage, the main application entry, upload form,
+recruiter portal, Supabase handlers/SQL, and E-Board worktree were untouched.
+The shared `AdminDashboard` accepts an optional Resume workspace/notice; the
+production route now supplies its connected workspace through
+`ConnectedAdminDashboard`. The standalone
 HTML/entry and Vite config keep the experiment out of the normal production
 module graph (the public sample PDF fixture is copied as an unused public asset).
 `npm run build:recruiting-preview` creates ignored `dist-recruiting-preview/`.
-The usual `npm run build` still builds the original app.
+The usual `npm run build` builds the current production application, including
+the released connected recruiting and E-Board pages.
 
 The admin shell is lazy-loaded in this preview. Its transitive Supabase imports
 are replaced by a preview-only Vite resolver with an inert local adapter. It
@@ -129,9 +140,11 @@ The dev server's role-specific paths are mapped only by
 `vite.recruiting-preview.config.js`; this does not install routes or permissions
 in the live application. The normal production output excludes this entry.
 
-## Boundaries for a future connected implementation
+## Historical requirements for the connected implementation
 
-These are follow-up requirements, not claims about the prototype's security:
+These requirements guided the subsequently released connected implementation;
+they are not claims about the prototype's security. Verified-email/login-based
+student self-service remains future work, as noted in item 7.
 
 1. Create a stable recruiting-company catalog maintained by admins. It can
    reference public branding, but public sponsor publication/archival must not
@@ -166,11 +179,16 @@ These are follow-up requirements, not claims about the prototype's security:
    The current public upload does not authenticate email ownership; do not add
    email-based lookup or overwrite as a shortcut.
 
-The UI comparison does not require production migrations, account creation,
-emails, or real student uploads. Those operations need their own reviewed
-implementation and target authorization after the design is accepted.
+The UI comparison itself does not require production migrations, account
+creation, emails, or real student uploads. The separate hosted rollout had
+explicit authorization and disposable targets. Do not rerun it or mutate a
+production target merely to review this fictional UI.
 
-## Verification
+## Historical prototype verification
+
+The checks below belong to the original comparison/review stages. Their test
+and advisory totals are dated evidence, not current inventory. The later
+production checks are recorded in the linked release records.
 
 - Sidebar follow-up: lint, both builds, and a one-off DOM integration flow
   passed. Checks covered sidebar order and single-item highlighting, mobile

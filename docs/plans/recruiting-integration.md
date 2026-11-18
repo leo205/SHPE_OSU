@@ -6,8 +6,17 @@ rollout is complete: the additive migration and upload function version 6 passed
 disposable live tests. The owner subsequently authorized publishing the frontend
 to main; [the production release](recruiting-frontend-release.md) is now verified.
 See [the backend record](recruiting-backend-rollout.md) for backend rollback proof.
-Browser/Turnstile acceptance remains pending. The local real-data preview is on 4173;
-the isolated connected test app is on port 5175 and fictional comparison on 5174.
+A successful fresh production browser/Turnstile upload and actual desktop/mobile
+browser acceptance remain pending. The subsequent
+[Fall E-Board release](eboard-red-polo-release.md) preserved the recruiting code
+and provides the latest documented frontend deployment evidence.
+
+Normal operations use the deployed `/resume-upload`, `/company`, and `/admin`
+routes. Local review ports are 4173 for a production-configured preview, 5175
+for the isolated connected fixture, and 5174 for the fictional comparison when
+their respective servers are started. Localhost does not establish production
+challenge/origin acceptance. The checks and rollout sequence below are dated
+implementation evidence, not instructions to reapply completed production SQL.
 
 ## Implemented behavior
 
@@ -21,7 +30,7 @@ the isolated connected test app is on port 5175 and fictional comparison on 5174
   tab synchronously and then navigates to a private, 60-second signed URL.
 - **Resume book** and **Recruiting companies** are sidebar items directly below
   **Resume**, with mobile access below the four primary navigation tabs.
-  Admins can preview a company's directory, manage student choices, and assign
+  Admins can preview a company's directory, manage company choices, and assign
   existing recruiter accounts to companies. New accounts/emails are not created.
 - `/company/dashboard` derives its company from the authenticated user's private
   assignment. Recruiters can see their interested students and all approved
@@ -104,7 +113,7 @@ therefore proves local Auth/REST/RLS, real upload handling, SQL, Storage, and
 lifecycle behavior; live challenge hostname/action acceptance and visual browser
 behavior are separate checks.
 
-## Checks and live readiness
+## Dated rehearsal checks and release evidence
 
 The local API/Edge rehearsal passed actual uploads, exact retries, changed-draft
 conflicts, stale choices, raw-preference/role/company-scope denials, admin-only
@@ -116,18 +125,18 @@ cover failures, actual private-path callbacks, no fake fallbacks, and account
 switch/late-response privacy regressions. Independent security/code review found
 two frontend stale-response issues; both were fixed and regression-tested.
 
-The full suite passed **603 tests in 57 files**. Lint, the normal and separate
+At the connected rehearsal stage, the full suite passed **603 tests in 57 files**. Lint, the normal and separate
 comparison builds, all five Edge bundles, and whitespace checks passed. The
 connected application's six representative routes served the main app entry
 with HTTP 200. Browser automation was unavailable; real desktop/mobile visual
 review and native new-tab PDF interaction remain unverified.
 
-The current production-dependency audit reports zero findings. The full audit
-reports **15 development-tool findings (13 high, two moderate)** in
+The November 18 release production-dependency audit reported zero findings. The
+full audit reported **15 development-tool findings (13 high, two moderate)** in
 `@vitest/mocker`, `anymatch`, `chokidar`, `fast-glob`, `fdir`, `micromatch`,
 `picomatch`, `postcss-selector-parser`, `readdirp`, `source-map-js`, `sucrase`,
 `tailwindcss`, `tinyglobby`, `vite`, and `vitest`. Dependency versions/lockfile
-were not changed by this feature. These are actual current maintenance findings;
+were not changed by this feature. These remain documented maintenance findings;
 review compatible toolchain patches as maintenance rather than running a forced
 major upgrade inside the feature. The owner authorized publication after these
 findings were disclosed. The local servers bind only to loopback;
@@ -140,7 +149,15 @@ setup, verified disposable lifecycle operations, and removed its test resources;
 see the linked release record. No actual student rows/files or original roles
 were changed, and no emails were sent.
 
-## Hosted rollout order and remaining acceptance
+## Historical hosted rollout order and remaining acceptance
+
+The following order was used for the owner-authorized rollout. Backend setup,
+disposable API/lifecycle checks, and frontend publication are complete; do not
+replay these steps against production without a new scoped change and approval.
+The review-stage browser checks in step 5 were not completed and remain separate
+post-deployment acceptance work. Eight then-published sponsor names were copied
+once into the independent company catalog; recruiter provisioning/assignments
+remain an admin operation, separate from sponsor publication.
 
 1. Inventory the actual target schema, lifecycle definitions, grants/RLS, and
    private bucket. Back up the existing function/policy definitions and inventory

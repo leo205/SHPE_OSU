@@ -13,6 +13,13 @@ screening, transactional retired-file cleanup, and the matching frontend.
 Live denial and asset checks passed; successful real-form acceptance is still
 pending. Preserve these contracts; see `supabase/README.md` for the evidence._
 
+_November 18 source review: the architectural rewrite is still a proposal.
+Admin-managed sponsors, recruiting interests/LinkedIn, and the Fall red-polo
+E-Board page shipped independently and are the UI/data baseline to preserve.
+See the [recruiting release](docs/plans/recruiting-frontend-release.md) and
+[E-Board release](docs/plans/eboard-red-polo-release.md). Their HTTP/backend
+evidence does not complete the remaining real browser/Turnstile/mobile checks._
+
 This is the working document for rebuilding the site on a hexagonal
 (ports-and-adapters) architecture. It is written to be handed to someone starting
 a fresh project with the existing UI, so it deliberately over-explains the parts
@@ -54,29 +61,36 @@ that look fine until someone runs a report. Read it before you write any code.
 
 ## 1. Where the code is today
 
-### Routes (14, including the fallback)
+### Routes (16 page/redirect entries, including the fallback)
 
 | Route | Page | Auth |
 |---|---|---|
 | `/` | Home | public |
 | `/events` | Events calendar | public |
-| `/eboard` | E-Board roster | public |
+| `/eboard` | Fall red-polo roster (`EboardRedPolos.jsx`) | public |
+| `/eboard-preview` | redirect → `/eboard` | public |
 | `/sponsors` | Sponsor tiers + contact form | public |
 | `/resources` | Resource hub | public |
 | `/professional-development` | Prof dev hub | public |
 | `/attendance` | Student check-in | public (unlisted) |
 | `/resume-upload` | Student resume upload | public (unlisted) |
 | `/company` | Sponsor login | public |
-| `/company/dashboard` | Resume book | sponsor |
+| `/company/dashboard` | Approved resume book with company-interest view | sponsor + active assignment for the directory RPC |
 | `/admin/login` | Admin login | public |
-| `/admin` | Admin dashboard (5 tabs) | admin |
+| `/admin` | Four primary tabs + Resume book/Recruiting companies links | admin |
 | `/admin/resumes` | redirect → `/admin?tab=resume` | admin |
+| `/admin/recruiting-companies` | redirect → `/admin?tab=resume&section=companies` | admin |
 | `*` | falls through to Home | — |
 
 ### Where the weight is
 
-`pages/AdminDashboard.jsx` still contains five tabs and remains the main split
-target. The unused `components/PublicLeaderboard.jsx` and empty `src/assets/`
+`pages/ConnectedAdminDashboard.jsx` composes `AdminDashboard.jsx` with the
+connected resume workspace. Four primary tabs remain Home, Sponsors, Events,
+and Resume; Resume book and Recruiting companies have separate navigation links
+using `?tab=resume&section=book` and `?tab=resume&section=companies`. Existing
+resume components already separate part of this work; preserve that composition
+instead of recreating a monolith. `AdminDashboard.jsx` remains a split target.
+The unused `components/PublicLeaderboard.jsx` and empty `src/assets/`
 scaffold were removed in the October 11 local cleanup; the active leaderboard
 remains in `Events.jsx`. Re-measure with `wc -l`/the production bundle before
 using file or chunk sizes to make a decision; the old point-in-time numbers
@@ -86,7 +100,8 @@ were removed because they drifted.
 
 Inventory the exact operations with `rg` before each rewrite phase. The browser
 currently contains public reads, authenticated admin/sponsor operations, and
-three protected public Edge invocations plus an admin-only cleanup invocation.
+three protected public Edge invocations plus admin-only cleanup and sponsor-asset
+management invocations.
 The three public submission paths are
 security boundaries, not ordinary repositories: preserve the named Edge
 Functions and never reintroduce direct anonymous table/Storage writes or
@@ -244,6 +259,8 @@ appear in this browser composition root.
   not "improve" it.**
 - `src/index.css`
 - `src/data/events.js` — becomes the static fallback adapter
+- `src/data/eboard.js`, the adopted `EboardRedPolos.jsx`/CSS module, and the
+  owner's photo grouping/cropping; the unrouted `Eboard.jsx` is a legacy reference
 - All page JSX **markup** — the visual layer is fine
 - `vercel.json` — but see §7 on the CSP
 - `AGENTS.md` and `docs/agents/` — shared project rules and the three review roles
@@ -252,7 +269,8 @@ appear in this browser composition root.
 
 - Every `supabase.*` call → adapters
 - Every `useState` holding server data → use case + hook
-- `AdminDashboard.jsx` → five separate tab components
+- `AdminDashboard.jsx` → separate primary workspaces, retaining the connected
+  resume composition and its book/company navigation
 - Validation scattered in components → `domain/`
 
 ### Delete
@@ -317,13 +335,16 @@ In this order, easiest first:
 
 ### Phase 4 — Split AdminDashboard
 
-Only now, with data access already behind ports. Five tabs → five files. This is
-mechanical once phases 2–3 are done, and near-impossible before.
+Only now, with data access already behind ports. Split the four primary
+workspaces while retaining the existing connected resume components and
+subsection links. Inventory those components first; this phase must not replace
+working recruiting interfaces with the legacy resume markup.
 
 ### Phase 5 — Clean up
 
 Delete dead code and drop `company_access`. Route-level splitting for `/admin`,
-the recruiter dashboard, and professional development was already completed
+the recruiter dashboard, professional development, and the adopted E-Board page
+was already completed
 outside this rewrite. A 2026-08-30 build produced an initial JavaScript chunk of
 about 484 KB plus a separate admin chunk of about 456 KB; preserve that boundary
 and improve it only when measurements justify the work.
@@ -368,6 +389,8 @@ Every one of these is a bug that reached production. They are not hypothetical.
 ✓ client magic-byte feedback is not sufficient to authorize upload
 ✓ backend rejects magic-only/truncated PDFs, active content, and excess budgets
 ✓ complete supported static PDFs up to ten pages pass the backend screen
+✓ optional LinkedIn is a normalized HTTPS /in/ profile, never an image source
+✓ company selections are bounded UUIDs for active catalog entries
 ```
 
 ### Domain — major
@@ -390,6 +413,10 @@ Every one of these is a bug that reached production. They are not hypothetical.
 ✓ failed cleanup stays retryable; tombstones prevent retired-path resurrection
 ✓ recordCheckIn rejects an event not in the current list
 ✓ listResumeBook returns only approved resumes
+✓ recruiter scope is derived from Auth, with only its company's interest flag
+✓ old-client omitted preferences inherit/rebase; explicit empty values clear
+✓ exact retries converge after catalog changes without changing legacy fingerprints
+✓ an unavailable cleanup status is not presented as pending deletion
 ✓ every use case surfaces errors — none may fail silently
     Regression: `if (!error) {...}` with no else was the repo's most
     common bug. An admin thought they had published a resume; they hadn't.
@@ -441,10 +468,13 @@ an event date, build the string from `getFullYear()/getMonth()/getDate()`.
 
 ### 6.5 Database schema
 
-Tables: `attendance`, `resumes`, `company_access` (vestigial), `events`,
-`leaderboard` (view), plus internal
-`public_submission_rate_limits`/`resume_submission_reservations` and the deployed
-`resume_file_cleanup` queue/tombstones. Full schema
+Key schema includes `attendance`, `resumes`, `company_access` (vestigial),
+`events`, `leaderboard` (view), private `leaderboard_exclusions`, sponsor
+branding/asset/audit tables, and internal
+`public_submission_rate_limits`/`resume_submission_reservations` and
+`resume_file_cleanup` queue/tombstones. Recruiting adds `recruiting_companies`,
+`resume_company_interests`, `resume_recruiting_metadata`,
+`recruiting_memberships`, and optional `resumes.linkedin_url`. Full schema
 and rollout state are in `HANDOFF.md` §2 and `supabase/README.md`. Do not change
 these security migrations as an incidental part of the architecture rewrite.
 
@@ -477,6 +507,15 @@ these security migrations as an incidental part of the architecture rewrite.
   The backend structural PDF screen runs after verification/quotas and before
   reservation/upload. Keep pinned parsers backend-only and preserve input,
   expanded-stream, nesting, object, and page budgets; screening is not antivirus.
+- Recruiting metadata uses service-only `queue_resume_submission_v2` after the
+  additive migration. Preserve legacy fingerprints and omitted-versus-empty
+  revision semantics. Private raw interests and presence flags must not leak.
+  Recruiter RPCs derive company scope from Auth and return only its interest
+  boolean; the admin may preview a selected company or all approved students.
+  Company catalog publication, active assignment, and baseline sponsor-role
+  resume/PDF access are distinct. Hiding a catalog entry or deactivating an
+  assignment does not fully revoke sponsor-role access. LinkedIn remains an
+  optional validated link, not an identity check or fetched profile photo.
 - Retired resume paths are queued by a transactional delete trigger. Only the
   admin-authenticated cleanup Edge handler may use service-only claim/finish
   RPCs and remove server-selected detached objects. Retain lease checks and
@@ -538,7 +577,7 @@ URL, and produces quarantined/untrusted rows for manual review.
 [ ] Phase 2  Events slice: port, two adapters, use case, hook
 [ ]          ↑ STOP. Does the shape feel right? Fix it here.
 [ ] Phase 3  Attendance → Auth → Resumes → Sponsor inquiry
-[ ] Phase 4  Split AdminDashboard into five tab files
+[ ] Phase 4  Split remaining primary workspaces, preserving connected resume UI
 [ ] Phase 5  Delete dead code and vestigial company_access usage
 [x]          Route-level code splitting (completed independently)
 ```

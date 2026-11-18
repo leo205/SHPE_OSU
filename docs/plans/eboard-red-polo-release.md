@@ -19,8 +19,15 @@ production-configured local build byte-for-byte by SHA-256. An independent
 read-only review confirmed deployment success, five live routes, and the entry,
 E-Board JS/CSS, and hero photo hashes. These checks include the existing student,
 recruiter, and admin route shells but do not establish authenticated rendering
-or browser behavior. Subsequent documentation-only commits may advance main
-without changing these verified runtime assets.
+or browser behavior.
+
+Documentation commit `e147cbe92700f19df2229176dfc98d959c24b94c` subsequently
+deployed successfully through
+[deployment FuZWU8d9bGbX9UsfNXyQMvVUFr2Z](https://vercel.com/leonardomedina05707-8965s-projects/shpe-osu/FuZWU8d9bGbX9UsfNXyQMvVUFr2Z).
+The same 18 routes, six security headers, 12 generated assets, and 22 portraits
+were checked again after that deployment and retained the same entry and exact
+hash matches. These are the recorded November 18 checks; later documentation
+edits do not imply a fresh deployment or new browser acceptance.
 
 ## Published behavior
 
@@ -34,7 +41,7 @@ without changing these verified runtime assets.
 - The owner-requested badge, copy, section/card numbering, and clipped bottom
   sun are removed. The top photo is straight; the event invitation uses a
   simple bordered panel. Card hover animation remains absent.
-- Exactly 22 optimized 640px/1440px WebPs ship, totaling 3,079,150 bytes. Their
+- The release adds 22 optimized 640px/1440px WebPs, totaling 3,079,150 bytes. Their
   image chunks contain no EXIF/XMP metadata. Original-resolution photos remain
   outside `public` and Git-ignored.
 

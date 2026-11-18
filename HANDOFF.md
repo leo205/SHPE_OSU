@@ -13,6 +13,13 @@ database design, the security model, maintenance protocols, and deployment.
 
 ## 0. Where the site stands today
 
+The November 18 frontend and E-Board entries below describe the latest recorded
+release. Earlier stage notes are historical evidence, including then-current
+branch-only restrictions, asset hashes, local ports, and database counts; they
+are not a fresh live inventory. This documentation review changes no runtime
+code or production state. Use the maintenance sections for current workflows
+and the linked release records for the remaining acceptance checks.
+
 ### November 18 Fall E-Board — live from main
 
 The owner approved replacing `/eboard` with the reviewed Fall red-polo layout.
@@ -40,7 +47,8 @@ with all six configured security headers matching exactly.
 Fresh preflight passed 616 tests in 58 files, lint, all five Edge bundles,
 whitespace and the configured build; production dependency audit is zero. The
 previously disclosed 15 development-tool findings remain maintenance work.
-The separate E-Board experiment and private runtime exclusions were preserved.
+At that release stage, the separate E-Board experiment and private runtime
+exclusions were preserved; the E-Board was subsequently published as above.
 No new backend deployment or student mutation was needed for this publication.
 
 See [the frontend release record](docs/plans/recruiting-frontend-release.md).
@@ -49,7 +57,11 @@ as post-deployment acceptance; they remain unverified. HTTP and asset checks do
 not establish those outcomes. Documentation-only commits may follow this code
 release. The following backend-only notes record the preceding release stage.
 
-### November 18 recruiting backend — deployed, frontend unchanged
+### November 18 recruiting backend — historical pre-frontend stage
+
+This entry records the backend rollout before the frontend publication above.
+Its then-current main/frontend restrictions were superseded by that explicit
+release approval; its backend evidence and rollback limits remain relevant.
 
 The owner approved the additive recruiting migration, updated upload function,
 and disposable live test. `recruiting-interests.sql` is applied, and only
@@ -65,14 +77,16 @@ controls, and canonical lease/token-bound physical cleanup. All owned test rows,
 four disposable accounts, two companies, and four PDF objects were removed;
 four required completed tombstones/reservations remain. Original ten approved
 students, ten private files, four Auth users, original reservations and quota
-fingerprints remained intact; pending cleanup is zero.
+fingerprints remained intact; pending cleanup was zero at that test's end.
 
 The real endpoint rejected an invalid challenge without quota/fixture writes.
 A successful fresh production Turnstile upload and actual browser/mobile review
-remain separate, unverified acceptance checks. Main/frontend publication is not
-authorized. See [the rollout/rollback record](docs/plans/recruiting-backend-rollout.md)
+remain separate, unverified acceptance checks. Main/frontend publication was
+not yet authorized at this stage. See [the rollout/rollback record](docs/plans/recruiting-backend-rollout.md)
 for proof, private backup location, rollback limits, and the connected local
-real-data preview at `http://127.0.0.1:4173/admin?tab=resume` (normal admin login).
+real-data preview then served at `http://127.0.0.1:4173/admin?tab=resume` (normal
+admin login). Local servers must be started explicitly; production upload and
+cleanup origins do not allow localhost.
 The admin book lists all approved students before companies are configured.
 
 Latest checks: 616 tests in 58 files, lint, production-configured build and six
@@ -90,16 +104,17 @@ false-pending cleanup warning was fixed: localhost's rejected maintenance check
 now reports unavailable in collapsed admin details, while the real queue is
 empty. Upload and cleanup CORS preflights reject localhost4173 and allow the
 production origin; widget messages now retain safe diagnostic codes. Real
-browser/Turnstile acceptance remains pending. Main/frontend deployment remains
-unchanged. See the rollout record's review-refinement section.
+browser/Turnstile acceptance remains pending. Main/frontend deployment was
+unchanged during this refinement stage. See the rollout record's review-refinement section.
 
-### November 17 recruiting integration — branch only
+### November 17 recruiting integration — historical branch-only rehearsal
 
-The approved recruiting UI has a connected implementation on
-`codex/resume-company-interests-preview`; it is **not merged or deployed**.
+The approved recruiting UI was implemented on
+`codex/resume-company-interests-preview`; it was not merged or deployed at this
+stage. The November 18 backend/frontend entries above supersede that status.
 See [the integration record](docs/plans/recruiting-integration.md) for code/data
 contracts, rehearsal logins, checks, caveats, and the required hosted rollout.
-The connected app runs at `http://127.0.0.1:5175` against the separate local
+The connected rehearsal uses `http://127.0.0.1:5175` when started against the separate local
 `shpe-recruiting-local` Supabase project. Real local Auth/REST/RLS/Edge/Storage,
 private PDF access, approval/replacement, old-client preservation, company scope,
 and physical retired-file cleanup passed using synthetic records only.
@@ -111,17 +126,21 @@ toolchain maintenance still needed before merge. Browser visual/mobile acceptanc
 and live Turnstile acceptance remain separate. Independent review's two stale
 frontend response/identity findings were fixed and regression-tested.
 
-Zero-row hosted availability checks confirmed the recruiting catalog/context
-API is absent. No hosted schema, Edge function, account role, student record,
-or Storage object was changed. The owner must explicitly authorize the additive
-recruiting SQL and compatible `submit-resume` deploy before actual hosted
-student-data testing. Keep the backend rollout ahead of any new frontend release.
+Zero-row hosted availability checks then confirmed the recruiting catalog/context
+API was absent. No hosted schema, Edge function, account role, student record,
+or Storage object was changed during that rehearsal. The later authorized
+November 18 rollout applied the additive recruiting SQL and compatible
+`submit-resume` function before frontend publication. Preserve this rollout
+order when rebuilding; do not rerun applied migrations from these historical notes.
 
 ### Sponsor content management — backend and frontend live
 
 Release 1's **Sponsors → Website sponsors** manages
-company listings; **Recruiter access** retains the separate historical access
-workflow. Existing `?tab=companies` links and four-tab mobile navigation remain.
+company listings; **Recruiter access** retains the separate Auth-account/role
+onboarding instructions. **Recruiting companies** under Resume manages the
+independent student-choice catalog and company assignments, not sponsor branding.
+Existing `?tab=companies` links and four main mobile tabs remain; Resume also
+has separate tool links.
 Use <https://www.shpeosu.com/admin?tab=companies> with an existing admin account.
 The owner approved the neutral glass UI with the SHPE header logo and no
 permanent **Refresh listings** button. Initial loading, automatic list updates
@@ -338,11 +357,16 @@ frontend/Edge deployment or SQL reapplication is needed for these exclusions.
 
 ### What is still open
 
-*   **Upcoming events.** The first two Autumn 2026 events have passed. The E-Board
-    will add the next dates through the Admin Dashboard (§4). The bundled event
-    list is only the outage fallback and should not be treated as the editor.
-*   **Sponsor accounts.** No recruiter accounts exist yet, so nobody can use the
-    corporate portal. Two steps, and people forget the second one (§4).
+*   **Upcoming events.** Verify upcoming dates in the Admin Dashboard and add
+    new events there (§4). Historical event seeds are not a current inventory;
+    the bundled list is an outage fallback, not the content editor.
+*   **Recruiter onboarding.** Create the Auth account, grant its sponsor role,
+    and assign the existing account to a company (§4). A published sponsor or
+    active recruiting choice does not grant access. Verify live accounts rather
+    than treating old rollout counts as an account inventory.
+*   **Browser acceptance.** Live assets, headers, backend fixture checks, and
+    the local design review do not establish desktop/mobile interaction or a
+    successful fresh production Turnstile upload. These remain unverified.
 *   **Resume ownership.** Submissions are keyed on email with no proof of
     ownership. Turnstile limits automation but does not prove the claimant owns
     that address. Bounded, not solved — see §3.
@@ -356,9 +380,10 @@ frontend/Edge deployment or SQL reapplication is needed for these exclusions.
     limits remain defense in depth until a future staging environment proves
     which forwarding header Supabase supplies or overwrites when callers send
     conflicting values.
-*   **Admin maintainability.** `AdminDashboard.jsx` is still one large five-tab
-    file. The heavy admin, company, and professional-development routes are now
-    code-split, but the dashboard itself should eventually be divided by tab.
+*   **Admin maintainability.** The shared `AdminDashboard.jsx` remains large;
+    `ConnectedAdminDashboard.jsx` injects the connected resume tools and links.
+    Admin, recruiter, professional-development, and E-Board pages are lazy
+    loaded, but the shared dashboard can still be divided further by concern.
 
 ## 1. System Architecture
 
@@ -412,6 +437,15 @@ branding bucket. Browser Storage writes are denied even to admins; only the
 validated admin endpoint uploads and cleans eligible files. See the canonical
 schema/access contracts in `supabase/README.md` rather than copying its SQL.
 
+The November 18 recruiting release adds an optional `resumes.linkedin_url`,
+`recruiting_companies` (active choices public, admin-managed), private
+`resume_company_interests` and `resume_recruiting_metadata` (revision presence
+flags), and `recruiting_memberships` (existing Auth UID to company assignment).
+The directory RPC returns only the assigned company's interest flag to sponsors;
+raw preference lists remain private. The catalog is independent of published
+sponsor branding. See `recruiting-interests.sql` and the security runbook for
+the authoritative schema, grants, and replacement/inheritance contracts.
+
 ### 1. `attendance`
 Stores all student check-in records.
 ```sql
@@ -440,6 +474,7 @@ CREATE TABLE resumes (
   email text NOT NULL,
   major text NOT NULL,
   graduation_year text NOT NULL,
+  linkedin_url text, -- optional normalized profile URL; added by recruiting migration
   resume_path text NOT NULL, -- Format: submissions/timestamp_uuid.pdf
   approved boolean DEFAULT false NOT NULL,
   submission_id uuid,                  -- idempotency key
@@ -500,6 +535,13 @@ was effectively `USING (true)`. Public. The `sessionStorage` token in
 | submission limiter/reservations | — | internal only | — | no direct client grant |
 | `events` | SELECT | SELECT | SELECT | full |
 | `leaderboard` view | `first_name`, derived `last_initial`, `count`; top ten | SELECT | SELECT | SELECT |
+
+The November extensions retain those baseline grants. Active recruiting choices
+are public; private preference/presence rows and memberships are not public.
+Company-scoped directory RPCs require an active assignment, while baseline
+sponsor RLS can still read approved rows and PDFs without one. Disabling an
+assignment is therefore not full resume-book revocation. See the security
+runbook for the complete sponsor/admin RPC boundaries.
 
 Turnstile is an automation signal, not authentication. CORS is browser
 containment, not an anti-spam boundary. The security boundary is the combination
@@ -575,6 +617,11 @@ Rename them `⚠️ OLD — DO NOT RUN`.
     in authenticated-admin atomic RPCs instead of trusting a zero-row browser
     update. The deployed cleanup extension queues every deleted sibling path in
     that same transaction. Cleanup never removes the replacement's active file.
+    LinkedIn and company interests belong to each revision: omitted extension
+    fields from older clients inherit the approved preferences, while an
+    explicitly supplied empty value clears them on approval. The compatible
+    extension fingerprint preserves the legacy retry binding; keep the v2
+    queue and extension-aware upload function together.
 
 4.  **Sponsor Access — Supabase Auth**:
     Recruiters sign in with an email and password and are granted a `sponsor`
@@ -582,6 +629,10 @@ Rename them `⚠️ OLD — DO NOT RUN`.
     publicly-readable table, with the session held in `sessionStorage` — which a
     recruiter could simply write by hand. All of that machinery is deleted;
     `src/lib/companySession.js` no longer exists. Enforcement is in the database.
+    Connected directory context comes from the active Auth-UID company
+    assignment. Recruiters can view interested students and all approved
+    students, but cannot select another company's interest context. Public
+    sponsor publication and catalog choices never grant an Auth role.
 
 5.  **Sponsor inquiry delivery**:
     EmailJS service, template, and public credentials exist only in
@@ -705,10 +756,12 @@ from the private queue. It deletes through the Storage API; browser requests
 cannot supply paths. Permanent tombstones and reference guards prevent retired
 paths from being reused, and late in-flight uploads become eligible again.
 
-The dashboard requests a pass on visits and successful approval/deletion. If
-**Some retired resume files still need removal** appears, the files remain
-private and the queue retains the work. **Retry file cleanup** requests another
-pass; failed attempts become eligible after 30 seconds, increasing up to one
+The dashboard requests a pass on visits and successful approval/deletion.
+Collapsed **File maintenance** details appear for **pending** or **unavailable**
+status and hide when cleanup is complete. A request failure (including rejected localhost CORS)
+does not prove a pending queue. When cleanup reports pending work, files remain
+private and the queue retains the work. **Retry maintenance** inside those
+details requests another pass; failed attempts become eligible after 30 seconds, increasing up to one
 hour. Interrupted claims expire after two minutes. There is no scheduled worker:
 eligibility requires a later admin visit/action to run cleanup. Never truncate
 the queue, delete its completed tombstones, or turn this into an automatic
@@ -756,14 +809,29 @@ Current production configuration:
           coalesce(raw_app_meta_data,'{}'::jsonb) || '{"role":"sponsor"}'::jsonb
     WHERE email = 'recruiter@company.com';
     ```
-    **This step is the one people forget.** Without it they sign in successfully
-    and see an empty resume book. The dashboard now says so explicitly rather
-    than showing "no resumes match your criteria", but it still wastes everyone's
-    time.
-3.  Send them the credentials. They sign in at `/company`.
+    Without the sponsor role, authenticated sign-in does not grant approved-resume
+    access; the connected directory reports an assignment/access error. Refresh
+    the session after granting the role, then complete the company assignment.
+3.  In **Recruiting companies** at
+    `/admin?tab=resume&section=companies`, add/enable the recruiting choice if
+    needed, then assign the existing account by its email to that company.
+    This does not create the account or grant a role. Multiple recruiters may
+    share a company; each Auth UID has one current assignment. Student choices
+    and published sponsor branding are managed separately.
+4.  Send the account details through the chapter's approved process. Recruiters
+    sign in at `/company` and use `/company/dashboard`; **Interested in us** is
+    the default, with **All students** available for the approved book. An
+    unassigned account gets an assignment error in the connected UI.
 
-Revoking access is deleting the user, or clearing the role. The same steps are
-shown in the Admin Dashboard's Companies tab.
+Disabling an assignment removes company context from the connected directory,
+but does not remove baseline sponsor-role access to approved metadata/PDFs.
+Remove the sponsor role for full book revocation and account for existing JWT
+and signed-URL lifetimes. Role checks read server-issued JWT claims; changing
+an account does not instantly invalidate every already-issued access token or
+60-second PDF URL. Verify effective denial as part of access removal rather
+than promising immediate revocation. The **Sponsors → Recruiter access** panel
+retains account/role setup instructions; **Recruiting companies** manages
+company assignments.
 
 ### Adding an E-Board Admin
 
@@ -939,8 +1007,8 @@ confirm the browser Network panel shows Vercel's same-origin analytics request.
 The current CSP already permits the Vercel-managed same-origin endpoint; do not
 add a broad external script or connection source without evidence it is needed.
 
-The app lazily loads the admin dashboard, recruiter dashboard, and
-professional-development page. Preserve that boundary and investigate the
+The app lazily loads the connected admin dashboard, recruiter dashboard,
+professional-development page, and E-Board page. Preserve that boundary and investigate the
 build output if a change collapses them back into one eager bundle.
 
 ### Protected-submission redeployment order
@@ -969,7 +1037,13 @@ or materially changing the boundary:
 The September 14 extension followed SQL → four Edge Functions → frontend. Its
 backend invariants, denial probes, live asset hashes, HTML, and headers are
 verified. Successful real attendance acceptance is next; resume replacement
-lifecycle and sponsor delivery also still need September 14 live retests.
+lifecycle was subsequently exercised with disposable live fixtures on November
+18. Successful browser/Turnstile acceptance and sponsor delivery remain separate
+unverified checks. Later additions also have their own prerequisite order:
+`sponsors-admin.sql` → `manage-sponsor-assets` → matching branding UI, and
+`recruiting-interests.sql` → compatible `submit-resume` → connected recruiting UI.
+The E-Board layout required no backend deployment. Do not rerun migrations that
+are already applied; inventory the target first and follow the specific runbook.
 
 ### Project review roles
 

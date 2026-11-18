@@ -1,5 +1,22 @@
 # Admin-managed sponsors
 
+Documentation reconciled November 18, 2026. Release 1 remains part of the
+deployed application; the September implementation and verification records
+below are historical. Their entry hashes, database counts, five-company seed,
+and audit totals are not a current production inventory. The latest recorded
+frontend deployment is in the
+[Fall E-Board release record](eboard-red-polo-release.md).
+
+The November [recruiting release](recruiting-frontend-release.md) adds separate
+**Resume book** and **Recruiting companies** navigation under **Resume**.
+Recruiting companies manages student-interest choices and assignments for
+existing recruiter accounts. **Sponsors → Website sponsors** continues to
+manage published branding independently; publishing or archiving a sponsor
+does not grant or revoke resume-book access, and branding edits do not
+automatically synchronize the recruiting catalog. Sponsor package editing
+(release 2) remains a proposal. No new hosted sponsor checks were performed
+for this documentation update.
+
 Status on **2026-09-24: release 1 backend and frontend live and verified**.
 The owner explicitly authorized
 production rollout after local visual approval. Implementation began on
@@ -70,10 +87,12 @@ These are repository observations, not a fresh production database audit.
 
 ## Release 1: website sponsor listings
 
-Reuse the existing **Companies** navigation slot, relabel it **Sponsors**, and
-provide two clearly separated sections: **Website sponsors** and **Recruiter
-access**. Preserve existing `?tab=companies` links and the four-item mobile
-navigation. Do not delete historical access records or alter recruiter access.
+Release 1 reused the existing **Companies** navigation slot, relabeled it
+**Sponsors**, and provided two sections: **Website sponsors** and **Recruiter
+access**. Existing `?tab=companies` links and the four primary mobile tabs were
+preserved. The later recruiting release adds its own resume tools as described
+above. Preserve historical access records and keep branding separate from
+recruiter authorization.
 
 Website sponsors lets an admin:
 
@@ -267,8 +286,9 @@ server-held credentials, and exactly one provider attempt per submission.
   cleanup removed the temporary logo and retained one tombstone. Both temporary
   Auth users were deleted. No student writes, emails, or browser automation
   occurred.
-- Commit `e1713e8` is live through successful Vercel deployment
-  `8UKNpAcXdmwCnToMxo5t6Az1o7xw`. The site serves `/assets/index-B98w6Nd9.js`;
+- Commit `e1713e8` was deployed through successful Vercel deployment
+  `8UKNpAcXdmwCnToMxo5t6Az1o7xw`. At that release the site served
+  `/assets/index-B98w6Nd9.js`;
   all generated JS/CSS SHA-256 hashes match the production-configured build,
   and eight routes return 200 with exact expected security headers. The exact
   public frontend query returns five published listings (`Content-Range: 0-4/5`);
@@ -294,8 +314,12 @@ publishing, conflict detection, audit history, and recoverable archive matter.
 
 ## Implementation and rollout checklist
 
-1. Confirm release-1 scope and the currently published five-company/tier
-   mapping with the chapter owner. Preserve those names, logos, and tier
+This records the original release-1 sequence. For future changes, inventory
+current published content and applied state first; do not assume the original
+five-company seed is still the live directory or rerun it to replace admin edits.
+
+1. Confirm scope and the reviewed company/tier inventory with the chapter
+   owner. Preserve those names, logos, and tier
    assignments during migration; leave unknown years/dates unset. No historical
    recruiter-code or student records are deleted.
 2. Implement on a feature branch from updated `main`. Test the additive schema
@@ -308,7 +332,8 @@ publishing, conflict detection, audit history, and recoverable archive matter.
    Do not rerun the repository's historical SQL files as a bundle.
 4. Apply schema/bucket permissions and seed first, then the admin asset
    endpoint, then the frontend. Old code remains compatible with these
-   additive changes. Verify all five listings before switching public reads.
+   additive changes. Verify the reviewed listing inventory before switching
+   public reads.
 5. Verify create, preview, publish, edit, reorder, archive, restore, failed
    upload/save, missing logo, stale-editor conflict, empty list, and data outage.
    Probe direct API denial for anonymous and non-admin authenticated writers,

@@ -1,6 +1,6 @@
 # SHPE OSU — Project and Agent Guidelines
 
-_Last updated: October 12, 2026._
+_Last updated: November 18, 2026._
 
 Read this before working on the repository. These instructions apply to human
 contributors and coding agents regardless of provider or model.
@@ -54,8 +54,9 @@ interface, not require a source-code edit.
   `first_name`, one-character `last_initial`, and distinct-event `count`.
   Full surnames, dot numbers, and raw attendance stay private.
 - Exclude E-Board member keys through private `leaderboard_exclusions` before
-  ranking and the ten-row cap. Keep real roster identifiers out of Git/browser
-  code. Exclusion changes must not delete attendance or alter admin reporting.
+  ranking and the ten-row cap. Keep the private exclusion roster's normalized
+  OSU identifiers out of Git/browser code; the approved public E-Board profiles
+  are separate. Exclusion changes must not delete attendance or alter reporting.
 - Resume PDFs remain private. Preserve bounded structural/active-content
   screening, the 10–250 KiB size range, and one-to-ten-page static subset.
   Screening is not antivirus or proof that a file is harmless.
@@ -63,6 +64,15 @@ interface, not require a source-code edit.
   Use authenticated admin lifecycle RPCs. Queue retired paths transactionally;
   delete Storage objects only through authorized cleanup with leases and
   permanent tombstones. Do not delete Storage catalog rows directly.
+- Recruiting interests belong to resume revisions, with optional normalized
+  LinkedIn URLs. Preserve `queue_resume_submission_v2`, exact retry fingerprints,
+  and omitted-versus-explicitly-empty inheritance for older clients. A claimed
+  email is not verified identity, and LinkedIn URLs do not supply profile photos.
+- Recruiter company scope comes from `auth.uid()` and an active assignment;
+  only admins may preview another company. Return only that company's interest
+  flag, never another company's preferences. Catalog visibility, assignments,
+  and the existing sponsor-role approved-resume/PDF entitlement are separate:
+  hiding a company or disabling an assignment does not fully revoke that role.
 - Sponsor emails make one server-side provider attempt. A timeout is ambiguous;
   never automatically resend it. Keep provider values and recipients server-side.
 - Sponsor listings and recruiter access are separate. Only published branding
@@ -92,9 +102,15 @@ rollout-order, and deployment-evidence requirements.
 - Missing/failed event artwork uses the real SHPE logo. Show full flyers without
   cropping, provide the full-size link, and keep long event dialogs usable.
 - E-Board cards/headshots have matching modest curves and no hover animation.
+- `/eboard` uses `EboardRedPolos.jsx` and `src/data/eboard.js`;
+  `/eboard-preview` redirects there. Keep the owner's left-to-right photo order,
+  one profile per member, and optimized images; `Eboard.jsx` is a legacy reference.
 - Admin navigation, controls, tables, and sponsor editing remain mobile usable.
   Keep horizontal table scrolling inside containers, not across the whole page.
-- Preserve lazy loading for admin, recruiter, and professional-development routes.
+- Preserve lazy loading for admin, recruiter, professional-development, and
+  E-Board routes. Resume, Resume book, and Recruiting companies remain distinct
+  admin navigation items; review starts on Approved & public, with private PDFs
+  available before approval. An unavailable cleanup check is not pending work.
 - Keep sponsor package pricing, benefits, packet, and protected inquiry behavior
   separate from the database-managed listing directory.
 - Keep the approved original GroupMe destination synchronized on Home, Footer,
@@ -149,6 +165,8 @@ headers, and routes; keep real-form acceptance separate from HTTP checks.
 | [supabase/README.md](supabase/README.md) | Authoritative security and backend rollout runbook |
 | [REWRITE.md](REWRITE.md) | Proposed architecture work and persistent data contracts |
 | [docs/plans/sponsor-admin.md](docs/plans/sponsor-admin.md) | Sponsor-management architecture and rollout |
+| [docs/plans/recruiting-frontend-release.md](docs/plans/recruiting-frontend-release.md) | Recruiting publication and remaining browser acceptance |
+| [docs/plans/eboard-red-polo-release.md](docs/plans/eboard-red-polo-release.md) | Fall E-Board publication, maintenance, and rollback |
 | [docs/agents/README.md](docs/agents/README.md) | Provider-neutral review-role usage |
 
 Use [code-reviewer](docs/agents/code-reviewer.md) for implementation correctness,

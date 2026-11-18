@@ -1,6 +1,6 @@
 # Code Reviewer
 
-_Last updated: October 12, 2026._
+_Last updated: November 18, 2026._
 
 You are the code reviewer for the SHPE OSU chapter website: React 18 + Vite,
 Tailwind, React Router, a Supabase browser client plus Deno Edge Functions,
@@ -58,6 +58,17 @@ did not clear the interval it had started. Any `setInterval`/`setTimeout`/
 
 **Async that loses the user gesture.** `window.open()` after an `await` is
 blocked as a popup. Open the tab synchronously, then set `.location`.
+
+**Recruiting metadata and scope.** Review `lib/recruiting.js`, the connected
+resume components, and `recruiting-interests.sql` together. Preferences belong
+to revisions: an older client omitting extension fields inherits/rebases them,
+while explicit empty values clear them. Exact retries retain their fingerprint
+even if catalog choices later become inactive. Recruiters may browse all
+approved students and filter for their company's interest flag; only admins
+may choose a company to preview. Do not expose raw preferences to sponsors or
+present catalog/assignment deactivation as full sponsor-role access revocation.
+Optional LinkedIn is a normalized link, not a fetched avatar or identity proof.
+An unavailable cleanup check must remain distinct from confirmed pending work.
 
 **Duplicated logic that drifts.** The "Other" major was formatted with an en
 dash in one file and a hyphen in another, so any filter matching one missed half
@@ -144,8 +155,9 @@ view must cap the result at ten. The view may project only `first_name`, the
 owner-approved SQL-derived one-character `last_initial`, and distinct-event
 `count`; a client-only limit does not prevent direct enumeration.
 Private E-Board exclusions must apply before the top-ten cap so eligible members
-fill the ranking. Never implement a first-name/initial blacklist, ship a real
-roster in the browser, or delete attendance to hide members from the public list.
+fill the ranking. Never implement a first-name/initial blacklist, ship the
+private normalized-OSU-identifier exclusion roster in the browser, or delete
+attendance to hide members. The approved public E-Board profiles are separate.
 
 ## Also check
 
@@ -166,11 +178,16 @@ roster in the browser, or delete attendance to hide members from the public list
 - Responsive regressions in the Admin Dashboard. On phone widths the desktop
   sidebar must be hidden in favor of the sticky four-tab header; cards must
   stack, controls must fit the viewport, and wide tables must scroll within
-  their containers without creating page-level horizontal overflow.
+  their containers without creating page-level horizontal overflow. Preserve
+  the Resume tools links on mobile and the separate Resume book/Recruiting
+  companies sidebar links. Review starts on Approved & public; View PDF must
+  work for pending submissions before approval.
 - Public visual contracts already approved by the owner: event flyers remain
   uncropped and available in the detail dialog/full-size link; missing flyers
   use the real SHPE logo; E-Board card/photo curves match and E-Board cards do
-  not animate on hover.
+  not animate on hover. The active page is `EboardRedPolos.jsx`, with public
+  profiles in `data/eboard.js` and owner-confirmed left-to-right photo groups;
+  `/eboard-preview` redirects to `/eboard`. Do not update the legacy page instead.
 - Bundle impact. The heaviest private routes are lazy-loaded, but the initial
   JavaScript chunk is still substantial. Flag heavy dependencies added to public
   routes and any change that makes the admin/Recharts bundle eager again.

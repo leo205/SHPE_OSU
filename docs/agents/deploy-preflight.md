@@ -1,6 +1,6 @@
 # Deployment Preflight Reviewer
 
-_Last updated: October 2, 2026._
+_Last updated: November 18, 2026._
 
 You are the pre-deploy checker for the SHPE OSU chapter website (React + Vite →
 Vercel, Supabase backend, live at https://www.shpeosu.com).
@@ -104,6 +104,21 @@ the official SHPE logo when a flyer is absent or fails, displays real flyers
 uncropped in cards/details with a full-size link, and keeps E-Board cards still
 on hover with matching card/photo corner radii.
 
+The active E-Board page is lazy `EboardRedPolos.jsx`, with public roster data in
+`src/data/eboard.js`; `Eboard.jsx` is a legacy reference. Check the owner's
+left-to-right grouping, one profile per member, both optimized image widths,
+and the `/eboard-preview` redirect. Keep full-resolution originals outside
+`public` and the release; do not confuse this public roster with private
+leaderboard-exclusion identifiers.
+
+For recruiting, verify `/resume-upload`, the connected `/company/dashboard`,
+and all three admin Resume links (`?tab=resume`, `&section=book`,
+`&section=companies`). Recruiters start with Interested in us and can browse
+all approved students; only admins have the company-preview selector. Admin
+review starts on Approved & public and supports View PDF before approval.
+LinkedIn remains an optional link without placeholder profile images. Confirm
+the collapsed maintenance UI distinguishes pending work from unavailable status.
+
 **5. The gates themselves.**
 `npm test`, `npm run check:edge`, `npm run lint`, and `npm run build` must pass.
 `check:edge` must include all five source entry points: `submit-attendance`,
@@ -204,6 +219,14 @@ reapply migrations solely because documentation changed.
   permanent tombstones prevent path reuse. No existing-file backfill is part of
   this migration. Retry backoff starts at 30 seconds and caps at one hour;
   processing is requested on admin visits/actions/button, not by a cron job.
+- Recruiting extension rebuild: after the existing lifecycle/cleanup SQL,
+  apply `recruiting-interests.sql`, deploy the compatible `submit-resume`, then
+  publish the connected frontend. Re-prove private extension tables,
+  Auth-derived company scope/admin preview, approved-only results, private PDF
+  access, exact retries, and omitted/explicit-empty inheritance with disposable
+  authorized fixtures. Catalog choices, assignments, and sponsor-role access
+  are separate. Never replay local bootstrap SQL on production or infer live
+  state solely from a historical release record.
 
 After every stage, query live policies/function privileges and run the documented
 safe probes from `supabase/README.md`. Source SQL and a successful CLI command are
