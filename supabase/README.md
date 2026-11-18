@@ -8,7 +8,7 @@ uploaded PDFs must be enforced by Supabase or another trusted server. The anon
 key is present in the public JavaScript bundle, so a React check controls what is
 rendered, never what an attacker can call directly.
 
-## Recruiting interests — backend deployed November 18, frontend branch-only
+## Recruiting interests — backend and frontend deployed November 18
 
 November 18, 2026: the owner authorized and applied
 [`recruiting-interests.sql`](recruiting-interests.sql) and deployed the compatible
@@ -17,8 +17,10 @@ guarded-cleanup checks passed. All test accounts, companies, rows and PDF object
 were removed; required completed cleanup/reservation history remains. Original
 10 approved rows, 10 private PDFs, four Auth users, existing reservation/quota
 fingerprints and existing policies/functions/bucket settings were unchanged.
-Main and the deployed frontend are unchanged; the branch can be reviewed locally
-against real data on port 4173. See [the rollout and rollback record](../docs/plans/recruiting-backend-rollout.md).
+The owner subsequently authorized publishing the frontend to main; production
+deployment and generated assets were verified. A local real-data review remains
+on port 4173. See [the frontend release](../docs/plans/recruiting-frontend-release.md)
+and [backend rollback](../docs/plans/recruiting-backend-rollout.md) records.
 
 See [the integration record](../docs/plans/recruiting-integration.md) for exact
 semantics, local rehearsal commands, limits, and the required authorized rollout.

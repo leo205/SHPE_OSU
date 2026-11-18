@@ -1,5 +1,9 @@
 # Recruiting backend rollout — November 18, 2026
 
+Subsequent frontend release: [published to main and verified](recruiting-frontend-release.md).
+Statements below about an unchanged frontend describe the earlier backend-only
+stage. No additional backend change was needed for frontend publication.
+
 The owner explicitly authorized the additive migration, updated upload-function
 deployment, and a disposable live test. The work remains on
 `codex/resume-company-interests-preview`. **Main and the deployed frontend were

@@ -3,9 +3,10 @@
 Prepared November 17, updated November 18, 2026 on
 `codex/resume-company-interests-preview`. The owner-authorized hosted backend
 rollout is complete: the additive migration and upload function version 6 passed
-disposable live tests. **Main and the deployed frontend remain unchanged.** See
-[the rollout and rollback record](recruiting-backend-rollout.md) for exact proof
-and remaining browser acceptance. The real-data local preview runs on port 4173;
+disposable live tests. The owner subsequently authorized publishing the frontend
+to main; [the production release](recruiting-frontend-release.md) is now verified.
+See [the backend record](recruiting-backend-rollout.md) for backend rollback proof.
+Browser/Turnstile acceptance remains pending. The local real-data preview is on 4173;
 the isolated connected test app is on port 5175 and fictional comparison on 5174.
 
 ## Implemented behavior
@@ -127,8 +128,9 @@ reports **15 development-tool findings (13 high, two moderate)** in
 `picomatch`, `postcss-selector-parser`, `readdirp`, `source-map-js`, `sucrase`,
 `tailwindcss`, `tinyglobby`, `vite`, and `vitest`. Dependency versions/lockfile
 were not changed by this feature. These are actual current maintenance findings;
-review compatible toolchain patches before merge rather than running a forced
-major upgrade inside the feature. The local servers bind only to loopback;
+review compatible toolchain patches as maintenance rather than running a forced
+major upgrade inside the feature. The owner authorized publication after these
+findings were disclosed. The local servers bind only to loopback;
 the deployed static application does not run the Vite development server.
 
 Before the authorized rollout, read-only hosted checks requested **zero student rows**: the existing resume
@@ -159,7 +161,7 @@ were changed, and no emails were sent.
    frontend to `main`. Backend SQL and Edge must precede the new frontend.
 
 The owner approved and completed the backend rollout/disposable test on November
-18. The frontend is available only as a local real-data review; main/frontend
-publication remains unapproved. A successful fresh production Turnstile upload
+18. The owner subsequently authorized main/frontend publication; it is now
+deployed and verified in the frontend release record. A fresh production Turnstile upload
 and browser visual review remain separate checks. Do not describe API lifecycle
 success as that browser acceptance or alter existing students/roles during tests.

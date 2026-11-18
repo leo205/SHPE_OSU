@@ -6,6 +6,26 @@ upload checks will follow deployment. This supersedes the earlier branch-only
 restriction recorded during backend rollout. The last pre-release main commit
 is `a97281b9dc11a533d125e18d30ee918f74eefa36`.
 
+## Deployed and verified
+
+Code commit `1ebb210997b4985892383801a09586393dd26f35` was fast-forwarded to
+`main` and pushed without force. Vercel reported **success** for production
+[deployment JDrn26Cfo7ux9LMazDDCQx1RAAH7](https://vercel.com/leonardomedina05707-8965s-projects/shpe-osu/JDrn26Cfo7ux9LMazDDCQx1RAAH7).
+The live frontend entry is `/assets/index-Dma6bCvf.js`.
+
+All nine generated JavaScript/CSS files matched the production-configured local
+build byte-for-byte by SHA-256. Eleven routes returned HTTP 200, referenced the
+new entry, and matched all six configured security headers exactly: home,
+student form, recruiter login/dashboard, admin login/submissions/book/company
+queries, admin companies redirect, events, and sponsors. Independent read-only
+checks confirmed the updated form copy and lazy portal assets. Protected-route
+HTTP checks establish the app shell, not authenticated rendering or a completed
+form submission.
+
+The unrelated E-Board experiment's branch, HEAD and uncommitted-file status were
+preserved exactly. Runtime/credential files remained excluded. Subsequent
+release-note-only commits may advance main without changing the verified assets.
+
 The reviewed source includes the connected student form, admin review/book/company
 sidebar items, recruiter company-scoped interest view, private new-tab PDFs,
 optional LinkedIn, and the final presentation/maintenance fixes. The separate

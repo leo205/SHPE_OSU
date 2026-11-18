@@ -1,6 +1,6 @@
 # SHPE OSU Website — Engineering Handoff
 
-_Documentation updated: 2026-11-18 (authorized recruiting backend rollout; frontend remains on its branch).
+_Documentation updated: 2026-11-18 (recruiting backend and frontend live; browser acceptance remains pending).
 The sponsor-directory release evidence below is dated 2026-09-24; this
 documentation update does not re-verify production. Production browser/mobile
 acceptance and September 14 form acceptance remain separate, unfinished checks._
@@ -12,6 +12,27 @@ database design, the security model, maintenance protocols, and deployment.
 ---
 
 ## 0. Where the site stands today
+
+### November 18 recruiting frontend — live from main
+
+The owner explicitly authorized publication after reviewing the remaining checks.
+Code commit `1ebb210997b4985892383801a09586393dd26f35` was fast-forwarded and
+pushed; Vercel production deployment `JDrn26Cfo7ux9LMazDDCQx1RAAH7` succeeded.
+The entry `/assets/index-Dma6bCvf.js` and all nine generated JS/CSS assets match
+our production-configured build by SHA-256. Eleven route shells returned 200
+with all six configured security headers matching exactly.
+
+Fresh preflight passed 616 tests in 58 files, lint, all five Edge bundles,
+whitespace and the configured build; production dependency audit is zero. The
+previously disclosed 15 development-tool findings remain maintenance work.
+The separate E-Board experiment and private runtime exclusions were preserved.
+No new backend deployment or student mutation was needed for this publication.
+
+See [the frontend release record](docs/plans/recruiting-frontend-release.md).
+The owner accepted successful browser/Turnstile upload and mobile visual checks
+as post-deployment acceptance; they remain unverified. HTTP and asset checks do
+not establish those outcomes. Documentation-only commits may follow this code
+release. The following backend-only notes record the preceding release stage.
 
 ### November 18 recruiting backend — deployed, frontend unchanged
 

@@ -38,9 +38,12 @@ The connected recruiting branch has a separate local Supabase rehearsal:
 `local:recruiting:setup`, `local:recruiting:functions`, `local:recruiting:smoke`,
 and `local:recruiting:dev` to test actual protected uploads, review, private PDFs,
 company interests, and recruiter assignments with fictional records on port 5175.
-The backend was deployed and disposable-live-tested on November 18; the frontend
-remains on the branch, with a real-data review at <http://127.0.0.1:4173/admin>.
-See the [rollout/rollback record](./docs/plans/recruiting-backend-rollout.md).
+The backend and recruiting frontend are live as of November 18; a local real-data
+review is also available at <http://127.0.0.1:4173/admin>. See the
+[frontend release](./docs/plans/recruiting-frontend-release.md) and
+[backend rollout/rollback](./docs/plans/recruiting-backend-rollout.md) records.
+Successful real browser/Turnstile upload and mobile acceptance remain separate
+post-deployment checks.
 
 ### Isolated sponsor review
 
