@@ -1,6 +1,6 @@
 # SHPE OSU Website — Engineering Handoff
 
-_Documentation updated: 2026-11-18 (recruiting backend and frontend live; browser acceptance remains pending).
+_Documentation updated: 2026-11-18 (recruiting and Fall E-Board live; browser acceptance remains pending).
 The sponsor-directory release evidence below is dated 2026-09-24; this
 documentation update does not re-verify production. Production browser/mobile
 acceptance and September 14 form acceptance remain separate, unfinished checks._
@@ -13,14 +13,19 @@ database design, the security model, maintenance protocols, and deployment.
 
 ## 0. Where the site stands today
 
-### November 18 Fall E-Board — publication approved
+### November 18 Fall E-Board — live from main
 
 The owner approved replacing `/eboard` with the reviewed Fall red-polo layout.
 The active roster is `src/data/eboard.js`, and the lazy page is
 `src/pages/EboardRedPolos.jsx`. The preview URL redirects to `/eboard`; the
 legacy page remains in source for reference. All 19 public profiles and the
 owner's corrected photo order are preserved. Recruiting and backend behavior
-are unchanged. See [the release record](docs/plans/eboard-red-polo-release.md)
+are unchanged. Code `803f7a4` deployed successfully; 18 live route shells matched
+the expected entry and six configured headers, and all 12 generated JS/CSS files
+plus 22 portraits matched the configured build by SHA-256. Lint, 616 tests,
+all five Edge bundles, and the production audit passed. Actual desktop/mobile
+browser acceptance remains unverified.
+See [the release record](docs/plans/eboard-red-polo-release.md)
 for actual checks, remaining browser acceptance, deployment, and rollback.
 
 ### November 18 recruiting frontend — live from main
